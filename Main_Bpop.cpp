@@ -36,23 +36,24 @@
 #define fbin      1.0
 
 //CLUSTER EVOLUTION
-#define CLevo        "no"
+#define CLevo        "yes"
 #define CLfill       "under"
 #define MonoZ        "yes"
-#define cluster_test "no"
+#define mono_Z       0.0002
+#define cluster_test "yes"
 #define cluster_test_env "NC"
 #define msmbhmax 1.E10
 
 //BH SEED
-#define bhseed   "yes"
+#define bhseed   "no"
 #define vms      "75"
-#define f_seed    0.1
+#define f_seed    1.0
 #define maxseed   1500.0
 #define minseed   100.0
 #define seedslope 2.0
 
 //SPINS
-#define spinlb  "gaussian02"
+#define spinlb  "no"
 #define obslope  0.0
 
 //STAR FORMATION
@@ -313,7 +314,10 @@ int main(){
     if(cluster_test_env == "NC")
       sfr_clu = "bigbang";
     else
-      sfr_clu = "burst";
+      if(cluster_test_env == "YC")
+	sfr_clu = "MF17";
+      else
+	sfr_clu = "KR13";
   }
   int Nsrc = N;
     
@@ -832,7 +836,7 @@ int main(){
 
   if(MonoZ == "yes")
     for(int i=0;i<Nsrc;i++){
-      Z[i] = 0.0002;
+      Z[i] = mono_Z;
       Z0 = Z[i];
       Z1 = Z[i];
     }
@@ -1505,11 +1509,14 @@ int main(){
 	    
 	    mint = (mx[ipre] - mx[ipos])/(my[ipre] - my[ipos])*(esc - my[ipre])+mx[ipre];
 	    if(cluster_test == "yes"){
+	      
 	      mint = 4.0 + 3.0*func.rnd();
+
 	      if(cluster_test_env == "NC")
 		mint = 6.0+4.0*func.rnd();
 
-
+	      if(cluster_test_env == "YC")
+		mint = 2.0 + 3.0*func.rnd();
 	      
 	      
 	    }
@@ -2105,6 +2112,12 @@ int main(){
 	  
 	  if(time+trecy > Hubble){
 	    label = "highlander";
+
+	    /*if(Spinning[2] > 1.E4 && time < 5.E9){
+	      cout<<"testing times: "<<i<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<trecy<<" "<<time<<" "<<rinfinite<<" "<<Spinning[3]<<" "<<vthre<<" "<<Krem[i]<<endl;
+	      exit(0);
+	      }*/
+	    
 	    Srem[i] = Spinning[0];
 	    Xrem[i] = Spinning[1];
 	    Mrem[i] = Spinning[2];
@@ -2140,14 +2153,21 @@ int main(){
 	  Mrem[i] = Spinning[2];
 	  Krem[i] = Spinning[3];
 
-	  rinfinite = pow(10.,rint) * sqrt(pow(vthre,4.) / pow(vthre*vthre - Krem[i]*Krem[i],2.) - 1.);
+
+	  double cj = pow(vthre,4.) / pow(vthre*vthre - Krem[i]*Krem[i],2.) - 1.;
+	  if(cj < 0.0 && abs(cj) < 1.E-10)
+	    cj = 0.0;
+	  
+	  rinfinite = pow(10.,rint) * sqrt(cj);
 	  if(CLevo == "yes")
 	    rinfinite *= rclcorr;
+
+
 	  
-	  if(vthre < Krem[i] || pow(vthre,4.) / pow(vthre*vthre - Krem[i]*Krem[i],2.) - 1. < 0.0)
+	  if(vthre < Krem[i] ||  (cj < 0.0 && abs(cj) > 1.E-10))
 	    rinfinite = 1.E10;
-	  
-	  out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<endl;	
+	    
+	  out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<endl;	
 
 	  if(mpri > msmbhmax && tsmbh == 0.0){
 	    tsmbh = time;
@@ -2598,6 +2618,8 @@ int main(){
   if(cluster_test == "yes")
     if(cluster_test_env=="NC")
       cmdstr_zero += "_clteNC";
+    else if(cluster_test_env=="YC")
+      cmdstr_zero += "_clteYC";
     else      
       cmdstr_zero += "_cltest";
   if(CLevo == "yes"){
