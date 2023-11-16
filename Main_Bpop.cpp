@@ -53,7 +53,7 @@
 #define seedslope 2.0
 
 //SPINS
-#define spinlb  "gaussian02"
+#define spinlb  "no"
 #define obslope  0.0
 
 //STAR FORMATION
@@ -314,7 +314,10 @@ int main(){
     if(cluster_test_env == "NC")
       sfr_clu = "bigbang";
     else
-      sfr_clu = "burst";
+      if(cluster_test_env == "YC")
+	sfr_clu = "MF17";
+      else
+	sfr_clu = "KR13";
   }
   int Nsrc = N;
     
