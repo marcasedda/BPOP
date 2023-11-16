@@ -21,7 +21,7 @@
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        2000
+#define N        500
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
@@ -39,12 +39,13 @@
 #define CLevo        "yes"
 #define CLfill       "under"
 #define MonoZ        "yes"
+#define mono_Z       0.0002
 #define cluster_test "yes"
 #define cluster_test_env "NC"
 #define msmbhmax 1.E10
 
 //BH SEED
-#define bhseed   "vms"
+#define bhseed   "no"
 #define vms      "75"
 #define f_seed    1.0
 #define maxseed   1500.0
@@ -832,7 +833,7 @@ int main(){
 
   if(MonoZ == "yes")
     for(int i=0;i<Nsrc;i++){
-      Z[i] = 0.0002;
+      Z[i] = mono_Z;
       Z0 = Z[i];
       Z1 = Z[i];
     }
@@ -1505,11 +1506,14 @@ int main(){
 	    
 	    mint = (mx[ipre] - mx[ipos])/(my[ipre] - my[ipos])*(esc - my[ipre])+mx[ipre];
 	    if(cluster_test == "yes"){
+	      
 	      mint = 4.0 + 3.0*func.rnd();
+
 	      if(cluster_test_env == "NC")
 		mint = 6.0+4.0*func.rnd();
 
-
+	      if(cluster_test_env == "YC")
+		mint = 2.0 + 3.0*func.rnd();
 	      
 	      
 	    }
@@ -2611,6 +2615,8 @@ int main(){
   if(cluster_test == "yes")
     if(cluster_test_env=="NC")
       cmdstr_zero += "_clteNC";
+    else if(cluster_test_env=="YC")
+      cmdstr_zero += "_clteYC";
     else      
       cmdstr_zero += "_cltest";
   if(CLevo == "yes"){

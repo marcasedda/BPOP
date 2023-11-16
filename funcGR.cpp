@@ -1538,7 +1538,9 @@ double Functions::spin(double mass, string spinning){
     }while(spi > 1.);
   }
   else if(spinning=="fuller")
-    spi = 0.01;   
+    spi = 0.01;
+  else if(spinning=="no")
+    spi = 1.E-6;
   else if(spinning=="zero")
     if(mass<30.)
       spi = rnd();
