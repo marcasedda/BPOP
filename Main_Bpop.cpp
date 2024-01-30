@@ -12,7 +12,7 @@
 #include <ctime>
 #include <stdlib.h>
 
-#define Hubble 1.35E10
+#define Hubble 13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
 #define zPATH   "./gallazzi05ZDATA.ttt"
@@ -47,14 +47,15 @@
 #define mono_Z       0.02
 #define cluster_test "no"
 #define cluster_test_env "NC"
-#define msmbhmax 1.E4
+#define msmbhmax 2.E5
 
 //BH SEED
-#define bhseed   "no"
+#define bhseed   "yes"
 #define vms      "75"
-#define f_seed    0.5
-#define maxseed   1500.0
-#define minseed   100.0
+#define f_seed    0.4
+#define maxseed   1000.0
+#define minseed   65.0
+
 #define seedslope 2.0
 
 //HIGH GENERATION SECONDARY BH
@@ -71,7 +72,7 @@
 
 //DYNAMICAL SCENARIO
 #define zdyn       "logflat"
-#define zslope     -1.5
+#define zslope     -1.
 
 //DEPRECATED
 #define MRATIO "nouniform" //"uniform","pwl","gss","nouniform"
@@ -82,7 +83,7 @@
 #define zdist       "gallazzi"
 #define zdivi       0.0
 #define correction  "yes" 
-#define slope       -1.5
+#define slope       -1.
 
 #define INDEX_ALIGN 8.0
 
@@ -1030,7 +1031,7 @@ int main(){
 	  mis[k] += 1./Npar[k];
 	  break;
 	}	  
-      }while(miso1[ext] > mobs*1.2 || miso1[ext] < mobs*0.8);
+      }while((miso1[ext] > mobs*1.2 || miso1[ext] < mobs*0.8) && tdel_iso[ext]+tfor[i] < Hubble);
 
       mpri = miso1[ext];
       msec = miso2[ext];
@@ -1614,7 +1615,7 @@ int main(){
 	  tcc = 0.138*mhalf/(150. * log(0.11*mhalf/150.))*sqrt(pow(rhalf*3.08E16,3.)/(6.67E-11*1.99E30*mhalf))/(365.*24.*3600.);
 
 	  if(tcc < 0.)
-	    tcc = 0.2 * trelax;
+	    tcc = 0.2 * trelax; //Portegies-Zwart & McMillan 2002/2004
 	   
 	  
 	  vthre_in = vthre;
@@ -2500,15 +2501,15 @@ int main(){
 	int itot = i;
 
 	double zmer = func.inter(time / 1.E9, age, reds, redline);
-	if(tdel > 1.35E10)
-	  zmer = func.zred(tdel/1.E9);
+	if(time > 1.35e10)
+	  zmer = func.zred(time/1.E9);
 
 	double zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
-	if(tfor[i] > 1.35E10)
+	if(tfor[i] > 1.35e10)
 	  zfor = func.zred(tfor[i]/1.E9);
 
 	double zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
-	if(tsmbh > 1.35E10)
+	if(tsmbh > 1.35e10)
 	  zsmbh = func.zred(tsmbh/1.E9);
 
 	
