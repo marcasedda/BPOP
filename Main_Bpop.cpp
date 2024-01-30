@@ -1031,7 +1031,7 @@ int main(){
 	  mis[k] += 1./Npar[k];
 	  break;
 	}	  
-      }while((miso1[ext] > mobs*1.2 || miso1[ext] < mobs*0.8) && tdel_iso[ext]+tfor[i] < Hubble);
+      }while((miso1[ext] > mobs*1.2 || miso1[ext] < mobs*0.8) || tdel_iso[ext]+tfor[i] > Hubble);
 
       mpri = miso1[ext];
       msec = miso2[ext];
