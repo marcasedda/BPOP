@@ -46,6 +46,8 @@ double Functions::mevol(double t, double rh, double mh, double trel, string type
   }
 
 
+  if(mfact < 0.0)
+    mfact = 0.0;
 
 
 
@@ -85,6 +87,8 @@ double Functions::revol(double t, double rh, double mh, double trel, string type
   double mfact = mevol(t, rh, mh, trel, type);
   
   double tcc = 0.138*mh/(150. * log(0.11*mh/150.))*sqrt(pow(rh*3.08E16,3.)/(6.67E-11*1.99E30*mh))/(365.*24.*3600.);
+  if(tcc < 0.0)
+    tcc = 0.2 * 4.2E9 * pow(rh/4.0,1.5) * sqrt(mh/1.E7) ;
 
   double rfact;
   double alpha = 0.5;
@@ -102,9 +106,12 @@ double Functions::revol(double t, double rh, double mh, double trel, string type
       rfact = rfact_h * (0.08+0.2*rnd());
     }
     else if(t>2.*tcc && t<=10.*tcc){
-      rfact = rfact_h * 0.2*pow(t/(2.*tcc)-1.,0.35)*rnd();
+      //Following modified by Manuel on May 24 to avoid skyrocketing densities (10^14 Msun/pc^3)
+      /*rfact = rfact_h * 0.2*pow(t/(2.*tcc)-1.,0.35)*rnd();
       if(rfact < 0.01)
-	rfact = 0.01;
+      rfact = 0.01;*/
+      
+      rfact = rfact_h * (0.08 + 0.2*pow(t/(2.*tcc)-1.,0.35)*rnd());
     }
     else{
       rfact = rfact_h * (0.1 + 0.2*rnd()) * pow(1.-t/(2.*tcc),0.53);
@@ -115,7 +122,7 @@ double Functions::revol(double t, double rh, double mh, double trel, string type
     stringstream chk;
     chk<<rfact;
     if(chk.str() == "nan" || rfact == 0.0){
-      cout<< "Rhalf == 0: " <<rfact<<endl;
+      cout<< "Rhalf == 0: " <<rfact<<" "<<rfact_h<<" "<<t<<" "<<tcc<<" "<<mh<<" "<<rh<<endl;
       exit(0);
     }
     
@@ -125,41 +132,9 @@ double Functions::revol(double t, double rh, double mh, double trel, string type
     exit(0);
   }
 
-  /*
-  if(type == "nuclear"){
-    fplu = 0.64/1.3;
-    rmin = 0.01;
-  }
+  if(mfact == 0.0)
+    rfact = 0.0;
 
-  double xt   = t/tcc;
-
-  if(type == "postcol" || type=="nuclear"){
-    double rnew = 0.3;
-    double k    = 2.0;
-    double bet  = 0.05;
-    double k2   = 1./200.;
-    double bet2 = 0.4;
-    if(t/tcc <= 1./k){
-      rfact = rnew*pow(1. - k*xt,0.53);
-      if(mfact/pow(rfact,3.) > 1.e2)
-	rfact = pow(mfact/1.e2, 1./3.);
-    }
-    else{
-      rfact = rnew*pow(-1. + k*xt, bet)*pow(1.+k2*xt,bet2);
-      if(mfact/pow(rfact,3.) > 1.e2)
-	rfact = pow(mfact/1.e2, 1./3.);
-    }
-  }
-  else if(type == "under" || type=="nuclearF"){
-    double rnew = 0.3;
-    double k    = 1./50.;
-    double bet  = 0.4;
-    rfact = rnew * pow(1.+k*xt, bet);    
-  }
-  else if (type == "filling")
-    rfact = pow(1.+ t / (40.*trel) , 2./3.); 
-  */
-    
   return rfact;
 }
 
@@ -211,23 +186,21 @@ double Functions::sfr_red(string sfrtype){
   double zredmax   = 2.036;
   double psisfrmax = 0.01 * pow(1+zredmax,2.6) / (1. + pow((1+zredmax)/3.2,6.2));
   double psirnd;
-  
+
 
   if(sfr=="katz13" || sfr == "KR13"){
     zred = 2. + 4.*rnd(); //KATZ E RICOTTI 2013
-  } 
+  }
   else if(sfr=="madau17" || sfr == "MF17"){    
+
     do{
-      zred = 10.*rnd();
-      do{
-	zred = 10.*rnd();
-      }while(zred > 10.);
-      psisfr = 0.01 * pow(1+zred,2.6) / (1. + pow((1+zred)/3.2,6.2));    
+      zred = 15.*rnd();
+      psisfr = 0.01 * pow(1+zred,2.6) / (1. + pow((1+zred)/3.2,6.2));
       psirnd = psisfrmax * rnd();
-      
       if(psisfr > psirnd)
 	break;
     }while(psisfr < psirnd);
+
   }
   else if(sfr=="continuous" || sfr == "constant"){
     zred = 10.*rnd(); //REFERENCE?
@@ -244,7 +217,7 @@ double Functions::sfr_red(string sfrtype){
   }  
   
   
-  if(zred > 10.){  
+  if(zred > 15.){  
     cout<<"ATTENZIONE: ERRORE REDSHIFT - "<<zred<<" "<<endl;
     exit(0);
   }
@@ -328,6 +301,21 @@ double Functions::rndgen(double pp, double spp){
   return rndG;
 }
 
+double Functions::Gaussian(double pp, double spp){
+  std::random_device rd;
+  std::mt19937 mt(rd());
+  std::normal_distribution<double> distG(pp,spp);
+  
+  double rndG = distG(mt);
+
+  do{
+    rndG = distG(mt);
+  }while(rndG < 0.);
+  
+  return rndG;
+}
+
+
 double Functions::inter(double x, double *X, double *Y, int N){
   double y;
   int id1=0;
@@ -400,15 +388,19 @@ double Functions::tred(double z){
     
   return toff;
 }
+
 double Functions::zred(double toff){
   //// redshift - time relation:
-
-  double tH = 27.0164323345212; // Gyr
-  double alpha = 1.82262661377844;
+  /// only if t > 1.35e10
+   
+  double tH = 27.7263309054165; // Gyr
+  double alpha = 2.886178235975;
   double scatter =  0.1; //Gyr;
+  double zr = (pow(tH/toff - 1,1./alpha)-1.); // + (-scatter + 2.*scatter*rnd());
 
-  double zr = (pow(tH/toff - 1,1./alpha)-1.) + (-scatter + 2.*scatter*rnd());
-
+  if(zr < 0.0 && toff < 13.803)
+    cout<<"Attention, time = "<<toff<<" "<<zr<<endl;
+  
   return zr;
 }
 
