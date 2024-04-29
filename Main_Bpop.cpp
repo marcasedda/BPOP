@@ -11,7 +11,9 @@
 #include "funcGR.h"
 #include <ctime>
 #include <stdlib.h>
+#include <omp.h>
 
+//#define THREAD 4
 #define Hubble 13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
@@ -21,7 +23,7 @@
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        5000
+#define N        1000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
@@ -31,14 +33,14 @@
 #define delaytime "yes"
 #define kick      "yes"
 
-#define DynOvTot  0.5
+#define DynOvTot  1.0
 #define mixing    0.5
 #define fbin      1.0
 
 //DYNAMICAL FRACTIONS
-#define pGC 0.3333
-#define pYC 0.3333
-#define pNC 0.3333
+#define pGC 0.0
+#define pYC 0.0
+#define pNC 1.0
 
 //CLUSTER EVOLUTION
 #define CLevo        "yes"
@@ -47,16 +49,21 @@
 #define mono_Z       0.02
 #define cluster_test "no"
 #define cluster_test_env "NC"
-#define msmbhmax 2.E5
+#define msmbhmax 2.E7
 
 //BH SEED
-#define bhseed   "yes"
+#define bhseed   "density"
 #define vms      "75"
 #define f_seed    0.4
 #define maxseed   1000.0
-#define minseed   65.0
+#define minseed   40.0
 
-#define seedslope 2.0
+#define seedslope 3.0
+
+//HIGH MASS BHs
+#define uppergap "no"
+#define mass_gap  50.0
+#define a_gp 2.0
 
 //HIGH GENERATION SECONDARY BH
 #define highgen "no"
@@ -72,7 +79,7 @@
 
 //DYNAMICAL SCENARIO
 #define zdyn       "logflat"
-#define zslope     -1.
+#define zslope     -1.5
 
 //DEPRECATED
 #define MRATIO "nouniform" //"uniform","pwl","gss","nouniform"
@@ -83,7 +90,7 @@
 #define zdist       "gallazzi"
 #define zdivi       0.0
 #define correction  "yes" 
-#define slope       -1.
+#define slope       -1.5
 
 #define INDEX_ALIGN 8.0
 
@@ -230,6 +237,8 @@ void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], dou
 }
     
 int main(){
+  //int NTH = THREAD;
+  
   srand(time(0));
   Functions func;
 
@@ -238,6 +247,11 @@ int main(){
     cout<<"You've chosen: "<<CLfill<<endl;
     exit(0);
   }
+
+  //From DRAGON: distribution of mergers with no compo. in the gap, both compo. in the gap, one compo. in the gap
+  double pbelow = 45./75.;
+  double pupper = 12./75.;
+  double pbelup = 21./75.;
 
 
   double probGC = pGC;
@@ -844,19 +858,22 @@ int main(){
   }
   //cout<<"Source outside metallicity range ... "<<nout<<endl;
   cout<<"dynamical binaries Z assigned"<<endl;
-
+  
   if(MonoZ == "yes")
     for(int i=0;i<Nsrc;i++){
       Z[i] = mono_Z;
       Z0 = Z[i];
       Z1 = Z[i];
     }
-  
+
   
   //   CLOSEST DISCRETE Z FOR FILES READING?
   
   int NzIS = 0;
+  int NzDY = 0;
   int NzGC = 0;
+  int NzYC = 0;
+  int NzNC = 0;
   out.open("met_dist.txt");
 
   Z1 = log10(1.2*Z1);
@@ -870,7 +887,15 @@ int main(){
     for(int i=0;i<Nsrc;i++){  
       if(Z[i]<pow(10.,Z1) && Z[i]>=pow(10.,Z0)){
 	if(i<Niso) NzIS += 1;
-	else       NzGC += 1;
+	else{
+	  NzDY += 1;
+	  if(i < Niso + Nyc)
+	    NzYC += 1;
+	  else if(i >= Niso + Nyc && i < Niso + Nyc + Ngc)
+	    NzGC += 1;
+	  else
+	    NzNC += 1;
+	}
 	
 	Npar[k] += 1;
       }
@@ -880,9 +905,13 @@ int main(){
 	Npar[numZ-1] += 1;	
 	} */     
     }
-    out<<0.5*(pow(10.,Z0)+pow(10.,Z1))<<" "<<Npar[k]<<" "<<NzIS<<" "<<NzGC<<endl;
+    out<<0.5*(pow(10.,Z0)+pow(10.,Z1))<<" "<<Npar[k]<<" "<<NzIS<<" "<<NzDY<<" "<<pow(10.,Z0)<<" "<<pow(10.,Z1)<<" "<<NzYC<<" "<<NzGC<<" "<<NzNC<<endl; //Printout metallicity bins
     NzIS = 0;
+    NzDY = 0;
     NzGC = 0;
+    NzYC = 0;
+    NzNC = 0;
+
     
   }
   out.close();
@@ -902,6 +931,8 @@ int main(){
 
   cout<<"    PREPARING THE CATALOGUE   "<<endl;
   //  exit(0);
+
+  double zmer, zfor, zsmbh;
   
   int Ngap = 0;
   string REC = "RecNO";
@@ -914,11 +945,16 @@ int main(){
 
   cout<<"    ISOLATED BINARIES   "<<endl;
 
+  ofstream hout;
+  hout.open("Larger_than_tH.txt");
+ 
+
+  
   for(int k=0;k<numZ;k++)Npar[k] = 0;
   for(int i=0;i<Niso;i++)Zi[i]=Z[i];
-    
+  
+  
   for(int i=0;i<Niso;i++){  
-
     for(int k=0;k<numZ;k++){
       if(Z[i]<met[k+1] && Z[i]>=met[k]){
 	Npar[k] += 1;
@@ -943,6 +979,8 @@ int main(){
   //cout<<"Metallicity and Number of sources for isolated channel "<<endl;
   //for(int k=0;k<numZ;k++)cout<<met[k]<<" "<<Npar[k]<<endl;
   double mobs;
+
+  
   for(int k=0;k<numZ;k++){
     cout<<"      -- Metallicity "<<met[k]<<" "<<Npar[k]<<endl;
     if(Npar[k]==0) continue;
@@ -1001,8 +1039,10 @@ int main(){
     REC = "RecNO";
     mpri = -10000.0;
 
+    //int manuel = NTH;
+    //#pragma omp parallel for num_threads(4) 
     for(int i=0; i<Npar[k];i++){
-    
+      int jump = 0;
       REC = "RecIS";
       ndx = INDEX_ALIGN;
       align = "whatever";
@@ -1015,6 +1055,16 @@ int main(){
       safe = 0;
       deltabh = 1.E30;
       bhcandi = 1.E30;
+      //BH SPINS SELECTION (TO BE DECIDED)    
+      if(isospin != "giacobbo" || isospin != "Giacobbo"){
+	apri   = func.spin(mpri,isospin);
+	asec   = func.spin(msec,isospin);	
+      }
+      else{
+	apri = aiso1[ext];
+	asec = aiso2[ext];
+      }
+
 
       
       do{
@@ -1030,23 +1080,27 @@ int main(){
 	  mpri = bhcandi;
 	  mis[k] += 1./Npar[k];
 	  break;
-	}	  
+	}
+
+	if(miso1[ext] < mobs*1.2 && miso1[ext] > mobs*0.8 && tdel_iso[ext]+tfor[i] > Hubble){
+	  hout<<itot<<" 0.0 0.0 0.0 1.E30 1.E30 0.0 0.0 0.0 0.0 "<<tdel_iso[ext]<<" "<<safe<<" "<<Z[k]<<" none "<<miso1[ext]<<" "<<miso2[ext]<<" "<<apri<<" "<<asec<<" 0.0 "<<sma_iso[ext]<<" 0.0 0"<<endl;
+	  jump = 1;
+	  break;
+	  
+	}
+
+	  
       }while((miso1[ext] > mobs*1.2 || miso1[ext] < mobs*0.8) || tdel_iso[ext]+tfor[i] > Hubble);
 
+      if(jump == 1){
+	itot++;       
+	continue;
+      }
+      
       mpri = miso1[ext];
       msec = miso2[ext];
       tdel = tdel_iso[ext];
       
-      //BH SPINS SELECTION (TO BE DECIDED)    
-      if(isospin != "giacobbo" || isospin != "Giacobbo"){
-	apri   = func.spin(mpri,isospin);
-	asec   = func.spin(msec,isospin);	
-      }
-      else{
-	apri = aiso1[ext];
-	asec = aiso2[ext];
-      }
-
       Spinning[0] = 0.0;
       Spinning[1] = 0.0;
       Spinning[2] = 0.0;
@@ -1069,22 +1123,25 @@ int main(){
       tdel += tfor[i];
       smaiso = sma_iso[ext];
 	
-      double zmer = func.inter(tdel / 1.E9, age, reds, redline);
+      zmer = func.inter(tdel / 1.E9, age, reds, redline);
       if(tdel > 1.35E10)
 	zmer = func.zred(tdel/1.E9);
-	  
-      double zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+
+      zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
       if(tfor[i] > 1.35E10)
 	zfor = func.zred(tfor[i]/1.E9);
 
+
+      
       //Dec 23: a space was missing between 0.0 and zmer, resulting in error for isolated binaries ...
       out<<itot<<" "<<met[k]<<" "<<label<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<tdel;
-      out<<" 0.0 0.0 0.0 none "<<smaiso<<" "<<smaiso<<" 0.0 0.0 0.0 "<<zmer<<" "<<zfor<<" -1 -1 " <<mpri<<endl;
+      out<<" 0.0 0.0 0.0 none "<<smaiso<<" "<<smaiso<<" 0.0 0.0 0.0 "<<zmer<<" "<<zfor<<" -1 -1 " <<mpri<<" 0.0 "<<smaiso<<" "<<smaiso<<endl;
       if(mpri!=0.0)	
 	out2<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<tdel<<"-1 -1"<<endl;
 	  
       mpri = -10000.0;
 
+      itot++;
 
     }
     
@@ -1100,14 +1157,16 @@ int main(){
   out2.close();
 
 
+  hout.close();
+  
   outname = "Catalogue.txt";
   out.open(outname.c_str(),ios::app);
   out2.open("Catalogue_clean.txt");      
   ofstream out3;
   out3.open("Catalogue_multiple_dyn.txt");
 
-  ofstream hout;
-  hout.open("Larger_than_tH.txt");
+  
+  hout.open("Larger_than_tH.txt",ios::app);
   
   double semi_ej,semi_gw;
 
@@ -1472,7 +1531,7 @@ int main(){
 	double esc,mint,rint,lsig,sig_clu,rho_clu,mstar,rho_cubicpc;
 	double vthre_in, sig_clu_in,rho_clu_in,rho_cubicpc_in;
 	double metal, zita, logL, rhalf, mhalf, fb;
-	double tSNe, mper, trelax, tcc, tdf, semihard, kappa, semi, ecc, t12, acrit, tbbh, tmer, mu_red;
+	double tSNe, mper, trelax, tcc, tdf, semihard, kappa, semi, ecc, t12, acrit, tbbh, tmer, mu_red, sma;
 	double t3bb, t12capt, tbbhform;
 	double time,nsafe_glob,nsafe,mass_ratio, mixer, nhigen;
 	string stri_mrat;
@@ -1482,7 +1541,17 @@ int main(){
 
 	zita = 1.0;
 	logL = 15.;
-	fb   = 0.01;
+
+	//Here we need to set a specific binary fraction per cluster type (and perhaps time evolution?)
+	//fb   = 0.01; 	
+	if(cluster == "young")
+	  fb = 0.4;
+	else if(cluster == "globular")
+	  fb = 0.1;
+	else if(cluster == "nuclear")
+	  fb = 0.01;
+	//
+	
 
 	mper = 15.0;
 	
@@ -1490,15 +1559,17 @@ int main(){
 
 	double vlimiting = 2.;
 
+
 	if(mixer > mixing){
 	  if(met[k] == 0.02)
 	    vlimiting = 10.;
 	}
-
-	string manuel = "daje";
+	
+	
 
 	int nsafe_cal = 0;
-	do{
+	//do{ removed this to take into account also ICs that do not produce merging BHs
+	
 	  nsafe_cal ++;
 	  //SELECTCLUSTER PROPERTIES
 	  mint = 0;
@@ -1580,10 +1651,7 @@ int main(){
 	    
 	    vthre = func.vescape(pow(10.,rint),pow(10.,mint),pcluster);
 	  }while(vthre < vlimiting || mint < 3.0 || pow(10.,mint)/pow(pow(10.,rint),3.) < 100.);
-	  
-
-	  
-	  
+	  	  
 	  //the limiting values above lead to 20-50% loss of sources and ensure that the time remain t < 13.5 Gyr//
 	  //particularly the M/R^3 < 100 Msun/pc^3 region has no sources with t < 13.5 Gyr with single BHs  !!//
 	  
@@ -1690,6 +1758,11 @@ int main(){
 	      mpri = single_bh[0];	 
 	      tpri = single_bh[1];
 	      kpri = single_bh[2];
+	      if(mpri > 0.0 && kpri > vthre)
+		break;
+
+	      nsafe ++;
+	      
 	    }while(mpri <= 0.0 || kpri > vthre);
 	  }
 	  else{	  
@@ -1701,13 +1774,19 @@ int main(){
 	      singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
 	      mpri = single_bh[0];	  	  
 	      tpri = single_bh[1];
-	      kpri = single_bh[2];
-	      nsafe ++;
+	      kpri = single_bh[2];	      
 	      if(nsafe > 1000)
 		break;
+	      
+	      nsafe ++;
 	    }while(mpri <= 0.0 || kpri > vthre);
-	  }
+	  }	  
 	  apri   = func.spin(mpri,dynaS);	
+
+	  if(nsafe == 1000)
+	    cout<<"Wrong BH"<<endl;
+	  
+	  nsafe_glob += nsafe;
 	  
 	  mass_ratio = -1;
 	  nsafe = 0;       
@@ -1720,11 +1799,12 @@ int main(){
 		  tsec = 0.5*(tdel_sin[iii] + tdel_sin[iii+1]) ;
 		}
 	      }
-	      nsafe += 1;
+
 	      if(nsafe > 1000){
 		cout<<"mratio fails"<<endl;
 		exit(0);
 	      }
+	      nsafe += 1;
 	    }while(msec < 1. || msec > 500.);
 	    
 	  }
@@ -1739,6 +1819,9 @@ int main(){
 		msec = single_bh[0];	 
 		tsec = single_bh[1];
 		ksec = single_bh[2];	    
+
+		if(msec > minimus && ksec < vthre)
+		  break;
 		
 		nsafe ++;
 		if(nsafe > 500){
@@ -1760,7 +1843,6 @@ int main(){
 	      double MSLP = mslope;
 	      msec = -1;
 	      ksec = 1.E30;
-	      int nsafe = 0;
 	      do{
 		singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
 		msec = single_bh[0];	  	  
@@ -1768,13 +1850,15 @@ int main(){
 		ksec = single_bh[2];	    
 		if(nsafe > 1000)
 		  break;
+		nsafe ++;
+
 	      }while(msec <= 0.0 || ksec > vthre);
 	      
 	    }
 	    
-
-	    if(highgen == "yes" && msec < 65.){
-
+	    
+	    if(highgen == "yes"){
+	      //This section needs to be improved, especially for what concern the probability of repeated mergers
 	      double p_BPOP;
 	      if(cluster == "globular")
 		p_BPOP = 295. / 1.E4; //this is valid for GCs with Z = 0.0002 (would it change with different metallicity?)
@@ -1790,9 +1874,12 @@ int main(){
 		msec = mav * (1. + msec/mav * (1.+mav/6.0));	       
 	      }
 	      nhigen += int(msec / mav);
+
+	      asec = 0.7; // Need adjustments
+	      
 	    }
 
-	    
+
 	    if(msec > mpri){
 	      double dum1;
 	      dum1 = msec;
@@ -1804,6 +1891,49 @@ int main(){
 	    }
 	  }
 
+	  //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
+	  double prob_ugp = func.rnd();	    
+	  if(uppergap == "yes"){
+	      
+	    double p_gp;
+	    p_gp = func.rnd();
+	    double m1_gp = pow(p_gp * pow(100.,1.-a_gp) + (1.-p_gp)*pow(50., 1.-a_gp), 1./(1.-a_gp));
+	    p_gp = func.rnd();
+	    double m2_gp = pow(p_gp * pow(100.,1.-a_gp) + (1.-p_gp)*pow(50., 1.-a_gp), 1./(1.-a_gp));
+	    
+	    /*Both BHs have mass below the gap, they don't count toward the total population
+	      if(prob_ugp <= pbelow){
+	      
+	      }	*/
+	    
+	    // We need to implement something for the spins too ...
+	    if(pbelow < prob_ugp && prob_ugp <= pbelow + pupper){
+	      if(mpri < mass_gap)
+		mpri = m1_gp;		  	      
+	      else if (msec < mass_gap)
+		msec = m2_gp;
+	      else{
+		cout<<"Both objects above the gap!"<<endl; //This may happen in multiple mergers?
+	      }
+	      
+	    }	      
+	    else if(prob_ugp > pbelow + pupper){
+	      if(mpri < mass_gap)
+		mpri = m1_gp;
+	      if(msec < mass_gap)
+		msec = m2_gp;
+	    }		
+	    else{
+	      cout<<"ERROR!"<<endl;
+	      exit(0);
+	    }
+	    
+	  }
+
+	  
+	  nsafe_glob += nsafe;
+
+	  
 	  if(bhseed == "vms"){	    
 	    double dmy = func.rnd();
 	    if(dmy < f_seed){
@@ -1836,6 +1966,30 @@ int main(){
 	    }
 	    
 	  }
+	  if(bhseed == "density"){
+	    double rho_vms = pow(10.,mint - 3.*rint);
+	    double dmy = func.rnd();
+	    if(dmy < f_seed){
+	      if(rho_vms > 3.E5){
+		double mimmi = func.rnd();
+		mpri = pow(mimmi * pow(maxseed, 1.-seedslope) + (1.-mimmi) * pow(minseed,1.-seedslope) , 1./(1.-seedslope));	      
+	      }
+	      else{
+		double mimmi = func.rnd();
+		mpri = pow(mimmi * pow(100., 1.-seedslope) + (1.-mimmi) * pow(minseed,1.-seedslope) , 1./(1.-seedslope));	      
+	      }
+	    }
+	    	  
+	  }
+
+
+
+
+	  
+	  //Also, we should separate between the density stuff and the upper mass-gap stuff, that is more related to the binary fraction indeed
+
+	  
+
 	  
 	  asec   = func.spin(msec,dynaS);
 	  
@@ -2013,18 +2167,37 @@ int main(){
 	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
 	  }
 
-	  
-	  //calculate aej vs agw to merge inside or outside --> inside (tgwpeters), outside (5/q3 * t2-1)
+	  //Calculate hard binary separation and assign binary sma
+	  semihard = 1./pow(sig_clu/30., 2.); 
 
+	  sma = semihard * func.Gaussian(1.,0.1);
+
+	  //calculate aej vs agw to merge inside or outside --> inside (tgwpeters), outside (5/q3 * t2-1)	  
 	  semi_ej = 0.07 * (mu_red * mper / (mpri + msec + mper) * mper/(mpri+msec)) * pow(vthre/50.,-2.);
 	  semi_gw = 0.05 * pow((mpri+msec)/20,3./5.)*pow( (msec/mpri) / pow(1+(msec/mpri),2.) , 1./5.) * pow(sig_clu/30., 1./5.) * pow(1.E6 / rho_clu,1./5.);
 	  
-	  acrit = max(semi_ej,semi_gw);
-	  acrit = min(acrit,0.01);
+	  //acrit = max(semi_ej,semi_gw);
+	  //acrit = min(acrit,0.01); removed on 13-03-2024
+	  //new recipe for calculations
+
+	  double afin;
+	  if(semi_ej > semi_gw)
+	    afin = min(sma, semi_ej);
+	  else
+	    afin = min(sma, semi_gw);
 	  
+	  acrit = afin;
+
 	  tbbh = 2.E7/zita * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(10. * mstar / (mpri+msec)) * (0.05 / acrit) * (20./(mpri+msec));
 	  tbbh *= func.rndgen(1.0, 0.1);	  
 	  
+	  //in case of ejection the binary gets new sma
+	  
+	  if(semi_ej > semi_gw)
+	    acrit = 2. * afin / (2. + afin/semihard); 
+
+
+
 	  if(mclcorr * mhalf < 1.E1){
 	    tbbh = 1.E12;
 	    semi_ej = -2.0;
@@ -2032,19 +2205,15 @@ int main(){
 	  }
 	  
 	  tmer = 5. * (mpri + msec)/mper * tbbh;						 	  
-	    
 	  time += tmer;
 	  
-	  if(nsafe_cal > 10000)
-	    break;
+	  /*if(nsafe_cal > 10000)
+	    break;*/ //this was in the do{}while statement, which has been removed, see below
+
 	  
-	}while(time > Hubble);
+	// }while(time > Hubble); I removed this condition to allow for all clusters that do not produce a merger 
 
 	
-	if(time > Hubble){  // || nsafe_cal > 1){
-	  hout<<"Hubble time -- "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal<<endl;
-          //exit(0);
-	}
 	  
 	
 	if(semi_ej < semi_gw)	    
@@ -2061,22 +2230,27 @@ int main(){
 	double Rau    = 1.5E11;	    
 	tmer = 5./256. * pow(clight,5.) / pow(Grav * Msun, 3.) * pow(Rau,4.)  * pow(acrit,4.)/(mpri*msec*(mpri+msec)) * pow(1.-pow(ecc,2.),3.5) / (1. + 73./24. * ecc*ecc + 37./96.*ecc*ecc*ecc*ecc) * 1./ (365.*24.*3600.*1.E0);
 	
-	if(time + tmer > Hubble && time < Hubble && mclcorr*mhalf > 1.E1){
+	/*REMOVING THE FOLLOWING TO TAKE INTO ACCOUNT NON-MERGING BINARIES 
+	  if(time + tmer > Hubble && time < Hubble && mclcorr*mhalf > 1.E1){
 	  do{
 	    ecc = sqrt(func.rnd());
-	    tmer = 5./256. * pow(clight,5.) / pow(Grav * Msun, 3.) * pow(Rau,4.)  * pow(acrit,4.)/(mpri*msec*(mpri+msec)) * pow(1.-pow(ecc,2.),3.5) / (1. + 73./24. * ecc*ecc + 37./96.*ecc*ecc*ecc*ecc) * 1./ (365.*24.*3600.*1.E0);	 
-	  }while(time + tmer < Hubble);
+	    tmer = 5./256. * pow(clight,5.) / pow(Grav * Msun, 3.) * pow(Rau,4.)  * pow(acrit,4.)/(mpri*msec*(mpri+msec)) * pow(1.-pow(ecc,2.),3.5) / (1. + 73./24. * ecc*ecc + 37./96.*ecc*ecc*ecc*ecc) * 1./ (365.*24.*3600.*1.E0);
+
+	    //count how many throws needed to have one more merger
+	    nsafe_glob ++;
+	    
+	  }while(time + tmer > Hubble);
 	}
-	else if(mclcorr*mhalf < 1.E1)
+	else */
+	if(mclcorr*mhalf < 1.E1) 
 	  tmer = 1.E12;
 	
 	time += tmer;
-	
-	/*if(time > Hubble){
-	  cout<<"Hubble time -- tGW "<<tmer<<" "<<time<<" "<<cluster<<" "<<label<<endl;
-	  									  //exit(0);
-										  }*/
 
+	//ADDED PRINTOUT OF BINARY PROPERTIES      
+	if(time > Hubble){ //The other condition is not needed if nsafe_cal is just 1 --> || nsafe_cal > 1){
+	  hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<endl;
+	}
 
 	stringstream nan;
 	nan<<time;
@@ -2086,6 +2260,7 @@ int main(){
 	  exit(0);
 	}
 
+	string cluster_stat="none";
 	
 	if(time < Hubble)
 	  nH ++;
@@ -2126,7 +2301,7 @@ int main(){
 	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
 
 	  if(mclcorr * mhalf < 1.E1)
-	    manuel = "none";
+	    cluster_stat="evaporated";
 	}
 
 	double rinfinite = pow(10.,rint) * sqrt(pow(vthre,4.) / pow(vthre*vthre - vpri*vpri,2.) - 1.);       
@@ -2152,11 +2327,6 @@ int main(){
 	  
 	  if(time+trecy > Hubble){
 	    label = "highlander";
-
-	    /*if(Spinning[2] > 1.E4 && time < 5.E9){
-	      cout<<"testing times: "<<i<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<trecy<<" "<<time<<" "<<rinfinite<<" "<<Spinning[3]<<" "<<vthre<<" "<<Krem[i]<<endl;
-	      exit(0);
-	      }*/
 	    
 	    Srem[i] = Spinning[0];
 	    Xrem[i] = Spinning[1];
@@ -2175,9 +2345,10 @@ int main(){
 	    break;
 	  }
 	  
-	  if(manuel == "none")
+	  if(cluster_stat == "evaporated")
 	    break;
 
+	  
 	  time += trecy;
 	  nan.str("");
 	  nan<<time;	  
@@ -2206,9 +2377,9 @@ int main(){
 	  
 	  if(vthre < Krem[i] ||  (cj < 0.0 && abs(cj) > 1.E-10))
 	    rinfinite = 1.E10;
-	    
-	  out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<endl;	
 
+	  out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
+	  
 	  if(mpri > msmbhmax && tsmbh == 0.0){
 	    tsmbh = time;
 	    break;
@@ -2218,6 +2389,7 @@ int main(){
 	  
 	  if(label == "ejected" || label == "recoiled")
 	    break;
+
 	  
 	  mpri = Mrem[i];
 	  apri = Srem[i];
@@ -2312,7 +2484,17 @@ int main(){
 	    exit(0);
 	  }
 
-	  
+
+	  //Here we can implement a secondary above the upper mass-gap
+	 
+	  double prob_ugp = func.rnd();	    
+	  if(uppergap == "yes" & prob_ugp > pbelow & msec < mass_gap){
+	    double p_gp;
+	    p_gp = func.rnd();
+	    double m2_gp = pow(p_gp * pow(100.,1.-a_gp) + (1.-p_gp)*pow(50., 1.-a_gp), 1./(1.-a_gp));
+	    msec = m2_gp;	    
+	  }
+
 	  mu_red = mpri * msec / (mpri+msec);
 
 	  	 
@@ -2350,7 +2532,7 @@ int main(){
 	    
 	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
 
-	    semihard = 1./pow(sig_clu/30., 2.); //2.*6.67E-11*1.99E30/(1.E6*1.5E11) * (mpri+msec) / (sig_clu*sig_clu);
+	    semihard = 1./pow(sig_clu/30., 2.);
 
 	    
 	    t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
@@ -2375,7 +2557,7 @@ int main(){
 	  }
 	  
 	  
-	  semihard = 1./pow(sig_clu/30., 2.); //2.*6.67E-11*1.99E30/(1.E6*1.5E11) * (mpri+msec) / (sig_clu*sig_clu);
+	  semihard = 1./pow(sig_clu/30., 2.); 
 
 	  
 	  t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
@@ -2389,9 +2571,6 @@ int main(){
 
 	  if(CLevo == "yes"){
 	    
-	    /*mclcorr = exp(-(time+trecy-tfor[i])/ (0.45*trelax));
-	      rclcorr = (1. + log10(1. + (time+trecy-tfor[i])/(0.45*trelax))); //REVISE THIS*/
-
 	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
 	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
 
@@ -2404,15 +2583,32 @@ int main(){
 	    
 	  }
 	  
+
+	  semihard = 1./pow(sig_clu/30., 2.); 
+	  sma = semihard * func.Gaussian(1.,0.1);
 	  
 	  //calculate aej vs agw to merge inside or outside --> inside (tgwpeters), outside (5/q3 * t2-1)
 	  semi_ej = 0.07 * (mu_red * mper / (mpri + msec + mper) * mper/(mpri+msec)) * pow(vthre/50.,-2.);
 	  semi_gw = 0.05 * pow((mpri+msec)/20,3./5.)*pow( (msec/mpri) / pow(1+(msec/mpri),2.) , 1./5.) * pow(sig_clu/30., 1./5.) * pow(1.E6 / rho_clu,1./5.);
 
-	  acrit = max(semi_ej,semi_gw);
+	  //acrit = max(semi_ej,semi_gw); changed with the part below
+	  double afin;
+	  if(semi_ej > semi_gw){
+	    afin = min(sma, semi_ej);	    
+	  }
+	  else{
+	    afin = min(sma, semi_gw);
+	  }
+	  acrit = afin;
+	  
 	  
 	  tbbh = 2.E7/zita * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(10. * mstar / (mpri+msec)) * (0.05 / acrit) * (20./(mpri+msec));
 	  tbbh *= func.rndgen(1.0, 0.1);	  
+	  
+	  if(semi_ej > semi_gw)
+	    acrit = 2. * afin / (2. + afin/semihard); 
+
+	  
 	  
 	  tmer = 5. * (mpri + msec)/mper * tbbh;						 	  
 
@@ -2484,7 +2680,28 @@ int main(){
 	  
 	  nrecy += 1;
 	  nrecy += nhigen;
+
+	  //This will include all repeated mergers into the main catalogue ... 
+	  zmer = func.inter(time / 1.E9, age, reds, redline);
+	  if(time > 1.35e10)
+	    zmer = func.zred(time/1.E9);
+
+	  zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+	  if(tfor[i] > 1.35e10)
+	    zfor = func.zred(tfor[i]/1.E9);
+
+	  zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
+	  if(tsmbh > 1.35e10)
+	    zsmbh = func.zred(tsmbh/1.E9);
+
 	  
+
+
+	  /*out<<itot<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
+	    out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<endl;*/ //Eccentricity added to output
+
+
+
 	}while(1>0);
 
 	
@@ -2498,24 +2715,25 @@ int main(){
 
 	
 	
-	int itot = i;
 
-	double zmer = func.inter(time / 1.E9, age, reds, redline);
+	zmer = func.inter(time / 1.E9, age, reds, redline);
 	if(time > 1.35e10)
 	  zmer = func.zred(time/1.E9);
 
-	double zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+	zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
 	if(tfor[i] > 1.35e10)
 	  zfor = func.zred(tfor[i]/1.E9);
 
-	double zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
+	zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
 	if(tsmbh > 1.35e10)
 	  zsmbh = func.zred(tsmbh/1.E9);
 
+
+	itot++;
 	
 	if(time < Hubble){
 	  out<<itot<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
-	  out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<endl;
+	  out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<endl; //Eccentricity added to output
 	  
 	  if(mpri!=0.0)      
 	    out2<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<endl;
@@ -2669,6 +2887,11 @@ int main(){
     stringstream strifseed;
     strifseed<<f_seed;
     cmdstr_zero += "VMSBH"+strifseed.str();
+  }
+  if(bhseed == "density"){
+    stringstream strifseed;
+    strifseed<<f_seed;
+    cmdstr_zero += "VMSrho"+strifseed.str();
   }
   
   
