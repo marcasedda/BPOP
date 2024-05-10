@@ -804,12 +804,13 @@ void Functions::singBHt_new(vector<double> zams_sin, vector<double> remn_sin, ve
     }
   }
   int flag = 0;
-  
+  sing_out[3] = 0.0;
   if(goodB.size() == 0){
     //    cout<<"No BHs form here "<<vescape<<endl;
     sing_out[0] = 0.0;
     sing_out[1] = 0.0;
     sing_out[2] = 1.E3;
+    sing_out[3] = 1.0;
     flag = 1;    
   }
   
@@ -846,7 +847,8 @@ void Functions::singBHt_new(vector<double> zams_sin, vector<double> remn_sin, ve
     sing_out[0] = mobs;
     sing_out[1] = time_for;
     sing_out[2] = kick_for;
-    
+    sing_out[3] = flag;
+
     
     //cout<<mstar<<" "<<mobs<<" "<<time_for<<" "<<kick_for<<" "<<goodM[id1]<<" "<<goodM[id2]<<" "<<goodB[id1]<<" "<<goodB[id2]<<endl;
     
