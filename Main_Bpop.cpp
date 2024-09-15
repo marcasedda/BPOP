@@ -15,17 +15,17 @@
 #include <chrono>
 
 //#define THREAD 4
-#define Hubble 13.803E9
+#define Hubble 14.E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
-#define PREDIR "../../"
+#define PREDIR "../../../"
 #define zPATH   "gallazzi05ZDATA.ttt"
 #define SINGPTH "A5/" // "DATI_SingleBH/"
 #define PATH    "A5/" // "DATI_GiaMap18/"
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        10000
+#define N        250000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
@@ -35,34 +35,41 @@
 #define delaytime "yes"
 #define kick      "yes"
 
-#define DynOvTot  1.0
+#define DynOvTot  0.85
 #define mixing    0.5
 #define fbin      1.0
 
 //DYNAMICAL FRACTIONS
-#define pGC 0.0
-#define pYC 0.0
-#define pNC 1.0
+#define pYC 0.4
+#define pGC 0.3
+#define pNC 0.3
+
+//YC mass-size relation
+//Marks12, Rantala24, Mapelli20, AS20
+//if None, sizes and masses are rescaled from GCs
+#define TagR "AS20"
+
+//Sigma of Gaussian sma distribution
+#define SSMA 0.3
 
 //CLUSTER EVOLUTION
-#define CLevo        "yes"
-#define CLfill       "under"
+#define CLfill       "GG23"
 #define MonoZ        "no"
 #define mono_Z       0.02
 #define cluster_test "no"
 #define cluster_test_env "NC"
-#define msmbhmax 2.E7
+#define msmbhmax 5.E4
 
 //BH SEED
-#define bhseed   "density"
-#define vms      "75"
+#define bhseed   "no"
+#define vms      "0"
 #define f_seed    0.2
 #define maxseed   1000.0
 #define minseed   100.0
 #define seedslope 3.0
 
 //HIGH MASS BHs
-#define uppergap "yes"
+#define uppergap "no"
 #define mass_gap  50.0
 #define a_gp 2.0
 #define fupgp 0.1
@@ -70,13 +77,16 @@
 //HIGH GENERATION SECONDARY BH
 #define highgen "no"
 
+//METALLLICITY SPREAD
+#define sigma_metal 0.2
+#define sigma_distri "Mapelli"
 //SPINS
-#define spinlb  "gaussian"
+#define spinlb  "maxwellian02"
 #define obslope  0.0
 
 //STAR FORMATION
-#define SFRTYPE_ISO "MF17"
-#define SFRTYPE_CLU "MF17"
+#define SFRTYPE_ISO "continuous"
+#define SFRTYPE_CLU "continuous"
 #define sfr_only "no"
 
 //DYNAMICAL SCENARIO
@@ -91,7 +101,7 @@
 //ISOLATED SCENARIO
 #define zdist       "logflat" //"gallazzi"
 #define zdivi       0.0
-#define correction  "yes" 
+#define correction  "no" 
 #define slope       -1.5
 
 #define INDEX_ALIGN 8.0
@@ -239,24 +249,30 @@ void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], dou
 }
     
 int main(){
+  srand(time(0));
+  Functions func;
+
   //int NTH = THREAD;
   using clock = std::chrono::system_clock;
   using sec = std::chrono::duration<double>;
   const auto before = clock::now();
 
+
+  double sigmaZ = sigma_metal;
+  string metal_dis = sigma_distri;
   string predir = PREDIR;
 
+  double sigma_sma = SSMA;
+  
   int Niso_real = 0;
   int Ndyn_real = 0;
   int Nyou_real = 0;
   int Nglo_real = 0;
   int Nnuc_real = 0;
   
-  srand(time(0));
-  Functions func;
 
-  if(CLevo == "yes" && (CLfill!= "filling" && CLfill != "under" && CLfill != "postcol" && CLfill != "nuclear" && CLfill != "nuclearF")){
-    cout<<"Select CLfill = filling/under/postcol/nuclear "<<endl;
+  if(CLfill != "under" && CLfill != "over" && CLfill != "critical" && CLfill != "mix" && CLfill != "noevo" && CLfill != "GG23"){
+    cout<<"Select CLfill = under/over/critical/mix/GG23/noevo "<<endl;
     cout<<"You've chosen: "<<CLfill<<endl;
     exit(0);
   }
@@ -639,19 +655,20 @@ int main(){
     double zred0 = func.sfr_red(sfr_iso);      
     double toff = 1.E9*func.inter(zred0, reds, age, redline);
     tfor.push_back(toff);
-  }    
+  }
+
   for(int i=0;i<Ngc+Nnc;i++){
     double zred0 = func.sfr_red(sfr_clu);      
     double toff  = 1.E9*func.inter(zred0, reds, age, redline);
     tfor.push_back(toff);
   }
-
+  
   //ASSIGNING METALLICITIES to ISO and CLU BBHs
   double z;
 
   for(int i=0;i<Niso+Nyc;i++){
 
-    if(zdist == "logflat"){
+    /*if(zdist == "logflat"){
       z = log10(met[0])+(log10(met[12])-log10(met[0]))*func.rnd();
       z = pow(10.,z);
     }
@@ -700,65 +717,26 @@ int main(){
     else{
       cout<<"Z distribution not recognized "<<endl;
       exit(0);
-    }
+      }*/
 
 
-    if(delaytime=="yes" && (zdist == "gallazzi" || zdist == "Gallazzi" || zdist == "Gallazzi05" || zdist == "gallazzi05" || zdist == "logflat") ){
-
-      ///INTRODUCING A CORRECTION FOR THE DELAY TIME...///
-
-      /*double tof = tfor[i] / 1.E9;      
-      double zinit = z;
-      double logz = log10(zinit) - 0.074*pow(red_del,1.34);
+    //if(delaytime=="yes" && (zdist == "gallazzi" || zdist == "Gallazzi" || zdist == "Gallazzi05" || zdist == "gallazzi05" || zdist == "logflat") ){
       
-      double red_del = func.inter(tof, age, reds, redline);*/
-
-      //Removed the following, we will assume anything below 0.0002 is calculated as 0.0002
-      /*PUT THIS BACK*/
-      /*if(z<0.9*met[0]){
-	do{
-	  double zred0 = func.sfr_red(sfr_iso);      
-	  double toff = 1.E9*func.inter(zred0, reds, age, redline);
-	  tfor[i] = toff;
-	  tof = tfor[i] / 1.E9;      
-	  red_del = zred0;
-
-	  logz = log10(zinit) - 0.074*pow(red_del,1.34);
-
-	  z = pow(10.,logz);
-	  
-	  if(z > 0.9*met[0])
-	    break;
-	  
-	  
-	}while(1>0);
-      }
-
-      if(z<0.9*met[0]){
-	cout<<"--> WARNING"<<endl;
-	exit(0);
-	}*/
-
-      
-      double tof = tfor[i] / 1.E9;      
-      double zinit = z;
-      double red_del = func.inter(tof, age, reds, redline);
-
-      //Added recipe to have same Santoliquido metallicity distribution
-      double aerr = -0.14 + 0.28*func.rnd();
-      double berr = -0.14 + 0.28*func.rnd();
-      double cerr = -0.5 + 1.*func.rnd();
-      double logz = log10(1.04+aerr) + (-0.24 + berr)*red_del + log10(0.02) + cerr;    //Old recipe: log10(zinit) - 0.074*pow(red_del,1.2);
-      z = pow(10.,logz);
-
-      if(z < 0.9*metdyn[0])
-	z = 0.9*metdyn[0];
-      if(z > metdyn[11])
-	z = 0.9*metdyn[11];
-
-
-      
-    }
+    double tof = tfor[i] / 1.E9;      
+    double zinit = z;
+    double red_del = func.inter(tof, age, reds, redline);
+    
+    double logz;
+    double logz_me;            
+    logz_me = func.metcor(metal_dis, sigmaZ, red_del);
+    logz = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
+    z = pow(10.,logz);  
+    if(z < 0.9*met[0])
+      z = met[0];
+    if(z > 1.2*met[11])
+      z = met[11];
+    
+      //}
 
       
     Z[i] = z;
@@ -774,7 +752,7 @@ int main(){
   for(int i=Niso+Nyc;i<Niso+Nyc+Ngc+Nnc;i++){
 
     //Updates metallicity distribution from Santoliquido
-    double Zgcmin = log10(met[0]);//0.074*pow(2.,1.34) + log10(0.0005);
+    /*double Zgcmin = log10(met[0]);//0.074*pow(2.,1.34) + log10(0.0005);
     double Zgcmax = log10(met[11]);//0.074*pow(2.,1.34) + log10(0.001);
 
     if(zdyn == "logflat"){
@@ -837,60 +815,31 @@ int main(){
 	  zsec = zgal[ll];
 	  break;
 	}	 	 
-	}*/
+	}
     }
     else{
       cout<<"Metallicity distribution for dynamical unknown"<<endl;
       exit(0);
     }
 
-    if((delaytime=="yes" && (zdist == "gallazzi" || zdist == "Gallazzi" || zdist == "Gallazzi05" || zdist == "gallazzi05" || zdist=="logflat")) && MonoZ!="yes"){
+    if((delaytime=="yes" && (zdyn == "gallazzi" || zdyn == "Gallazzi" || zdyn == "Gallazzi05" || zdyn == "gallazzi05" || zdyn=="logflat")) && MonoZ!="yes"){*/
       ///INTRODUCING A CORRECTION FOR THE DELAY TIME...///
 
-      double tof = tfor[i] / 1.E9;      
-      double zinit = z;
+    double tof = tfor[i] / 1.E9;      
+    double zinit = z;
+    
+    double red_del = func.inter(tof, age, reds, redline);
+    double logz;
+    double logz_me;            
+    logz_me = func.metcor(metal_dis,sigmaZ, red_del);
+    logz = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
+    z = pow(10.,logz);  
+    if(z < 0.9*met[0])
+      z = met[0];
+    if(z > 1.2*met[11])
+      z = met[11];
 
-      double red_del = func.inter(tof, age, reds, redline);
-
-      //Added recipe to have same Santoliquido metallicity distribution
-      double aerr = -0.14 + 0.28*func.rnd();
-      double berr = -0.14 + 0.28*func.rnd();
-      double cerr = -0.5 + 1.*func.rnd();
-      double logz = log10(1.04+aerr) + (-0.24 + berr)*red_del + log10(0.02) + cerr;    //Old recipe: log10(zinit) - 0.074*pow(red_del,1.2);
-      z = pow(10.,logz);
-
-      if(z < 0.9*metdyn[0])
-	z = 0.9*metdyn[0];
-      if(z > metdyn[11])
-	z = 0.9*metdyn[11];
-      
-      //Removed the following and assume that < 0.0002 have minimum metallicity and supersolar systems are solar
-      /*if(z<0.9*metdyn[0] || z>metdyn[1]){
-	do{
-	  double zred0 = func.sfr_red(sfr_clu);      
-	  double toff = 1.E9*func.inter(zred0, reds, age, redline);
-	  tfor[i] = toff;
-	  tof = tfor[i] / 1.E9;      
-	  red_del = zred0;
-
-	  logz = log10(zinit) - 0.074*pow(red_del,1.2);
-
-	  z = pow(10.,logz);
-
-	  cout<<" -- > WARNING: "<<zred0<<" "<<toff<<" "<<tof<<" "<<logz<<" "<<z<<" "<<zinit<<endl;
-
-	  if(z > 0.9*metdyn[0] && z < metdyn[12])
-	    break;
-	  
-	}while(1>0);
-	}*/      
-      //cout<<"Checking metallicity "<<tof<<" "<<red_del<<" "<<logz<<" "<<log10(zinit)<<" "<<zinit<<endl;
-      
-      /*if(z<0.9*metdyn[0]){
-	cout<<"--> WARNING"<<endl;
-	exit(0);
-	}*/
-    }
+      //}
 
     Z[i] = z;
     if(Z[i]>Z1) Z1 = Z[i];
@@ -997,26 +946,47 @@ int main(){
 
   vector<double> arr[numZ];
   
-  for(int i=0;i<Niso;i++){  
+  for(int i=0;i<Niso;i++){
+    if(Z[i] <= met[0]){
+      Z[i] = met[0];
+      Npar[0] += 1;
+      arr[0].push_back(i);      
+      continue;
+    }
+    if(Z[i] >= met[numZ-1]){
+      Z[i] = met[numZ-1];
+      Npar[numZ-1] += 1;
+      arr[numZ-1].push_back(i);
+      continue;
+    }
+    
     for(int k=0;k<numZ;k++){
-      if(Z[i]<met[k+1] && Z[i]>=met[k]){
+      double dcen, dup, dlow, dZsx, dZdx;
+      dcen = met[k];
+      if(k < numZ-1)
+	dup = met[k+1];
+      else
+	dup = met[k] * 1.1;
+            
+      if(k > 0)
+	dlow = met[k-1];
+      else
+	dlow = 0.9 * met[k];
+            
+      dZsx = (dcen-dlow)/2.0;
+      dZdx = (dup-dcen)/2.0;
+
+      
+      if(Z[i] >= met[k] - dZsx && Z[i] < met[k] + dZdx){
 	Npar[k] += 1;
-	double delta1 = abs(Z[i] - met[k+1]);
-	double delta2 = abs(Z[i] - met[k]);
-	if(delta1<delta2)       Z[i] = met[k+1];
-	else if(delta1>delta2)  Z[i] = met[k];
-	else if(delta1==delta2){
-	  P=func.rnd();
-	  if(P<0.5) Z[i] = met[k+1];
-	  else      Z[i] = met[k];
-	}
-	
+	Z[i] = met[k];	
 	arr[k].push_back(i);
 	break;
+    
       }
-      else if(Z[i]==met[numZ-1]){
+      /*else if(Z[i]==met[numZ-1]){
 	Npar[numZ-1] += 1;	
-      } 
+	} */
     }    
   }
 
@@ -1052,17 +1022,18 @@ int main(){
     do{	
       for(int kk=0;kk<kpar;kk++)in>>par[kk];
 
+      
       if(par[1]>par[2]){
 	miso1.push_back(par[1]);
 	miso2.push_back(par[2]);
-	aiso1.push_back(par[7]);
-	aiso2.push_back(par[13]);	
+	aiso1.push_back(par[8]);
+	aiso2.push_back(par[9]);	
       }
       else{
 	miso1.push_back(par[2]);
 	miso2.push_back(par[1]);
-	aiso1.push_back(par[13]);
-	aiso2.push_back(par[7]);
+	aiso1.push_back(par[9]);
+	aiso2.push_back(par[8]);
       }
       sma_iso.push_back(par[7]*6.9E8/1.5E11);
       tdel_iso.push_back(par[6]*1.E6);
@@ -1175,7 +1146,7 @@ int main(){
 	zmer = func.zred(tdel/1.E9);
 
       zfor = func.inter(tform / 1.E9, age, reds, redline);
-      if(tfor[i] > 1.35E10)
+      if(tfor[arr[k][i]] > 1.35E10)
 	zfor = func.zred(tform/1.E9);
 
 
@@ -1272,7 +1243,10 @@ int main(){
     cout<<"      -- Metallicity "<<met[k]<<" "<<Npar[k]<<" "<<endl;
   }
   */
+
   
+  double fbin_rnd;
+    
   total_sources = 0.0;
   int numme = numZ;
   if(Nyc + Ngc + Nnc == 0)
@@ -1525,7 +1499,10 @@ int main(){
 
     
     for(int i=Niso; i<Nsrc; i++){
-
+      
+      string cluster_stat="none";
+	
+      
       Zi[i] = Z[i];
       
       Z0 = Zmin + k*dZ;
@@ -1582,7 +1559,7 @@ int main(){
 	double esc,mint,rint,lsig,sig_clu,rho_clu,mstar,rho_cubicpc;
 	double vthre_in, sig_clu_in,rho_clu_in,rho_cubicpc_in;
 	double metal, zita, logL, rhalf, mhalf, fb;
-	double tSNe, mper, trelax, tcc, tdf, semihard, kappa, semi, ecc, t12, acrit, tbbh, tmer, mu_red, sma;
+	double tSNe, mper, trelax, trelax0, tcc, tdf, semihard, kappa, semi, ecc, t12, acrit, tbbh, tmer, mu_red, sma;
 	double t3bb, t12capt, tbbhform;
 	double time,nsafe_glob,nsafe,mass_ratio, mixer, nhigen;
 	string stri_mrat;
@@ -1624,7 +1601,8 @@ int main(){
 	  nsafe_cal ++;
 	  //SELECTCLUSTER PROPERTIES
 	  mint = 0;
-	  do{
+	  do{	    
+	    
 	    esc = func.rnd();
 	    ipre=mx.size();
 	    ipos=0;
@@ -1678,9 +1656,97 @@ int main(){
 	      
 	      
 	      rint = (rx[ipre] - rx[ipos])/(ry[ipre] - ry[ipos])*(esc - ry[ipre])+rx[ipre];
+
+	      double mclu_int = pow(10., mint);
+	      if(TagR == "Marks12" && cluster == "young"){
+
+		/*
+		double mu_mrk12 = func.rnd();
+		double smrk12 = 2.0;
+		mint = log10(pow(mu_mrk12 * pow(1.E6,1.-smrk12) + (1.-mu_mrk12)*pow(3.E2,1.-smrk12),1./(1.-smrk12)));
+
+		mclu_int = pow(10.,mint);
+		*/
+		
+		double alphaMK12 = 0.1 * (1. + (-0.04+0.11*func.rnd()));		
+		double betaMK12 = 0.13 * (1. + 0.04*(1.-2.*func.rnd()));
+		rint = log10(alphaMK12 * pow(mclu_int,betaMK12));
+
+	      }	     
+	      else if(TagR == "Rantala24" && cluster == "young"){
+
+		double alphaBG = 2.365 * (1. + 0.106*(1.-2.*func.rnd()));
+		double betaBG = 0.180 * (1. + 0.028 * (1.-2.*func.rnd()));
+		rint = log10(0.125/1.3 * alphaBG * pow(mclu_int/1.E4,betaBG));
+
+	      }
+	      else if(TagR == "Mapelli20"){
+
+		double mean, sigma;
+		sigma = log(pow(10.,0.4));
+		if(cluster=="young")
+		  mean = log(pow(10.,4.3));
+		else if(cluster == "globular")
+		  mean = log(pow(10.,5.6));
+		else if(cluster == "nuclear")
+		  mean = log(pow(10.,6.18));
+
+		//mint = func.LOGSMP(mean, sigma);
+		mint = func.LogGaussian(mean, sigma);		
+		
+		mint = log10(mint);
+		double rhoint = -1;
+		
+		if(cluster=="young")
+		  mean = log(pow(10.,3.3));
+		else if(cluster == "globular")
+		  mean = log(pow(10.,3.7));
+		else if(cluster == "nuclear")
+		  mean = log(pow(10.,5.0));
+
+
+		//rhoint = func.LOGSMP(mean, sigma);
+		rhoint = func.LogGaussian(mean, sigma);
+		rhoint = log10(rhoint);
+		
+		rint = (mint - rhoint)/3.0;
+
+	      }
+	      else if(TagR == "AS20" && cluster == "nuclear"){
+		//Select if it's late type (50%) or early type (50%)
+		//calculate rint from mint using a 3sigma dispersion
+		//assign rint
+
+		double Plate = func.rnd();
+		double c1_nc, c2_nc, a_nc, b_nc, e_nc;
+		if(Plate > 0.5){
+		  c1_nc = 3.31;
+		  c2_nc = 3.6E6;
+		  a_nc  = 0.321;
+		  b_nc  = -0.011;
+		  e_nc =  5.*0.133;
+		}		  
+		else{
+		  c1_nc = 6.27;
+		  c2_nc = 1.95E6;
+		  a_nc  = 0.347;
+		  b_nc  = -0.024;
+		  e_nc  = 5.*0.131;
+		}
+
+		rint = func.geo16Rnc(mint, c1_nc, c2_nc, a_nc, b_nc, e_nc);
+
+	      }
+	      else{
+		if(TagR != "AS20" && cluster=="young"){
+		  cout<<"Please choose a recipe for initial cluster radii"<<endl;
+		  exit(0);
+		}
+	      }
 	      
 	      
-	      if(cluster=="nuclear" || cluster_test == "yes"){
+	      
+	      if(TagR != "AS20" && (cluster=="nuclear" || cluster_test == "yes")){
 		double lnrhalf;
 		
 		double A_r = 0.222887 ; // +/- 0.03415      (15.32%)
@@ -1696,12 +1762,12 @@ int main(){
 		rint = lnrhalf ;
 		
 	      }
-	    }while( pow(10.,rint) > 10.*0.8*pow(pow(10.,mint)/1000.,0.2));
+	    }while( pow(10.,rint) < 0.0 ); //10.*0.8*pow(pow(10.,mint)/1000.,0.2));
 	    
 	    
 	    
 	    vthre = func.vescape(pow(10.,rint),pow(10.,mint),pcluster);
-	  }while(vthre < vlimiting || mint < 3.0 || pow(10.,mint)/pow(pow(10.,rint),3.) < 100.);
+	  }while(vthre < vlimiting);// || mint < 3.0 || pow(10.,mint)/pow(pow(10.,rint),3.) < 100.);
 	  	  
 	  //the limiting values above lead to 20-50% loss of sources and ensure that the time remain t < 13.5 Gyr//
 	  //particularly the M/R^3 < 100 Msun/pc^3 region has no sources with t < 13.5 Gyr with single BHs  !!//
@@ -1729,11 +1795,12 @@ int main(){
 	  mhalf = pow(10.,mint);	  	  
 
 	  
-	  trelax = 4.2E9 * (15./logL) * pow(rhalf/4.0,1.5) * sqrt(mhalf/1.E7) ;
+	  trelax =  0.78E9 /log(0.11 * mhalf) * pow(mhalf/1.E5, 0.5) * pow(rhalf, 1.5); //4.2E9 * (15./logL) * pow(rhalf/4.0,1.5) * sqrt(mhalf/1.E7) ;
+	  trelax0 = trelax;
 
 	  tcc = 0.138*mhalf/(150. * log(0.11*mhalf/150.))*sqrt(pow(rhalf*3.08E16,3.)/(6.67E-11*1.99E30*mhalf))/(365.*24.*3600.);
 
-	  if(tcc < 0.)
+	  if(tcc < 0. || tcc > trelax)
 	    tcc = 0.2 * trelax; //Portegies-Zwart & McMillan 2002/2004
 	   
 	  
@@ -1957,8 +2024,19 @@ int main(){
 	    p_gp = func.rnd();
 	    double m1_gp = pow(p_gp * pow(100.,1.-a_gp) + (1.-p_gp)*pow(50., 1.-a_gp), 1./(1.-a_gp));
 	    p_gp = func.rnd();
-	    double m2_gp = pow(p_gp * pow(100.,1.-a_gp) + (1.-p_gp)*pow(50., 1.-a_gp), 1./(1.-a_gp));
-	    
+	    double m2_gp;
+	    //The following make results DRAGON-II like!
+	    if(m1_gp < 100.)
+	      m2_gp = m1_gp * (0.4 + 0.6*func.rnd()); 
+	    else
+	      m2_gp = m1_gp * pow(m1_gp / 65., -1.78) * (1. + 0.2*(-1. + 2.*func.rnd()));
+
+	    if(m2_gp > m1_gp){
+	      double mex_gp = m1_gp;
+	      m1_gp = m2_gp;
+	      m2_gp = m1_gp;
+	    }
+	      
 	    // We need to implement something for the spins too ...
 	    if(prob_ugp >= pbelow && prob_ugp < pbelow + pbelup){
 	      if(mpri < mass_gap)
@@ -2061,7 +2139,7 @@ int main(){
 	  rhalf = pow(10.,rint);
 	  mhalf = pow(10.,mint);
 	   
-	  trelax = 4.2E9 * (15./logL) * pow(rhalf/4.0,1.5) * sqrt(mhalf/1.E7) ;		  
+	  trelax = 0.78E9 /log(0.11 * mhalf) * pow(mhalf/1.E5, 0.5) * pow(rhalf, 1.5); //4.2E9 * (15./logL) * pow(rhalf/4.0,1.5) * sqrt(mhalf/1.E7) ;		  
 	  //tDF to sink	
 	  tdf = 0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9);	  	  
 	  
@@ -2071,67 +2149,23 @@ int main(){
 	    time += tSNe;
 
 	  
-	  if(CLevo == "yes"){
+	  //if(CLevo == "yes"){
 	    
-	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-
-	    
-	    sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	    
-	    
-	    semihard = 1./pow(sig_clu/30., 2.); //2.*6.67E-11*1.99E30/(1.E6*1.5E11) * (mpri+msec) / (sig_clu*sig_clu);
+	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	  	    
+	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
-	    t12capt = 3.E9 * (0.01 / fb) * (1.E6 / rho_cubicpc) * (sig_clu / 30.) * 10./(mpri + msec + mper) * 1./semihard;
-	    t3bb = 4.E9 * pow(1.E6 / rho_clu,2.) * pow(sig_clu/(zita * 30.),9.) * pow(mstar / 30. * 10., 9./2.) * pow(10./30.,-5.);
-	    
-	    double fbin_rnd = func.rnd();
-	    if(fbin_rnd < fbin)
-	      t3bb = 0.0;
-	    
-	    if(t3bb < 0){
-	      cout<<t3bb<<" "<<rho_clu<<" "<<sig_clu<<" "<<mstar<<" "<<zita<<endl;
-	      exit(0);
-	    }
-	    tbbhform = min(t12capt,t3bb);
-	    tbbhform *= func.rndgen(1.0, 0.1);
-	    if(mclcorr * mhalf < 1.E1)
-	      tbbhform = 1.E12;
-
-	    
-	    if(time + tbbhform > tcc && time < tcc){
-	      time = tfor[i]+tcc;
-	    
-	      
-	      mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-	      rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-	      
-
-	      
-	      sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	      rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	      rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	      
-	      vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	    }	    
-	    
-	    
-	  }
-
-	 	  
-	  //Binary formation and BH captures
-
+	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
 	  
 	  semihard = 1./pow(sig_clu/30., 2.); //2.*6.67E-11*1.99E30/(1.E6*1.5E11) * (mpri+msec) / (sig_clu*sig_clu);
 	  
 	  t12capt = 3.E9 * (0.01 / fb) * (1.E6 / rho_cubicpc) * (sig_clu / 30.) * 10./(mpri + msec + mper) * 1./semihard;
 	  t3bb = 4.E9 * pow(1.E6 / rho_clu,2.) * pow(sig_clu/(zita * 30.),9.) * pow(mstar / 30. * 10., 9./2.) * pow(10./30.,-5.);
-
-	  double fbin_rnd = func.rnd();
+	  
+	  fbin_rnd = func.rnd();
 	  if(fbin_rnd < fbin)
 	    t3bb = 0.0;
 	  
@@ -2141,48 +2175,93 @@ int main(){
 	  }
 	  tbbhform = min(t12capt,t3bb);
 	  tbbhform *= func.rndgen(1.0, 0.1);
+	  
+	  if(mclcorr * mhalf < 1.E1)
+	    tbbhform = 1.E12;
+	  
+	    
+	  if(time + tbbhform > tcc && time < tcc){
+	    time = tfor[i]+tcc;
+	    
+	    
+	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	    	    
+	    sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+	    
+	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
 
+	    if(mclcorr == 0.0 && rclcorr == 0.0)
+	      cout<<"god: "<<sig_clu<<" "<<rho_clu<<" "<<rho_cubicpc<<endl;
+
+	  }	    
+	    
+	    
+	  //}
+
+	  
+	 	  
+	  //Binary formation and BH captures
+
+	  
+	  semihard = 1./pow(sig_clu/30., 2.); //2.*6.67E-11*1.99E30/(1.E6*1.5E11) * (mpri+msec) / (sig_clu*sig_clu);
+	  
+	  t12capt = 3.E9 * (0.01 / fb) * (1.E6 / rho_cubicpc) * (sig_clu / 30.) * 10./(mpri + msec + mper) * 1./semihard;
+	  t3bb = 4.E9 * pow(1.E6 / rho_clu,2.) * pow(sig_clu/(zita * 30.),9.) * pow(mstar / 30. * 10., 9./2.) * pow(10./30.,-5.);
+
+	  fbin_rnd = func.rnd();
+	  if(fbin_rnd < fbin)
+	    t3bb = 0.0;
+	  
+	  if(t3bb < 0){
+	    cout<<t3bb<<" "<<rho_clu<<" "<<sig_clu<<" "<<mstar<<" "<<zita<<endl;
+	    exit(0);
+	  }
+	  tbbhform = min(t12capt,t3bb);
+	  tbbhform *= func.rndgen(1.0, 0.1);
+	  
 	  if(mclcorr * mhalf < 1.E1)
 	    tbbhform = 1.E12;
 	  
 	  
 	  time += tbbhform;	  
 
+	
 	  
-
-	  
-	  if(CLevo == "yes"){
+	  //if(CLevo == "yes"){
 	    
-	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-
+	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	  
+	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+	  
+	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  
+	  t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
+	  t12 *= func.rndgen(1.0, 0.1);
+	    
+	  if(mclcorr * mhalf < 1.E1)
+	    t12 = 1.E12;
+	    
+	  
+	  if(time < tcc && time + t12 > tcc){
+	    time = tfor[i]+tcc;
+	    
+	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	    
 	    sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
 	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-
+	    
 	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	    
-	    t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
-	    t12 *= func.rndgen(1.0, 0.1);
-	    
-	    if(mclcorr * mhalf < 1.E1)
-	      t12 = 1.E12;
-	    
-	    
-	    if(time < tcc && time + t12 > tcc){
-	      time = tfor[i]+tcc;
-
-	      mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-	      rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-	      
-	      sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	      rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	      rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	      
-	      vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	    }
 	  }
-	    
+	  //}
+	  
 
 	  //Time for BHs to pair --> assume it's already hard //see Antonini&Rasio2016
 	  
@@ -2197,24 +2276,30 @@ int main(){
 	 
 	  
 	  
-	  if(CLevo == "yes"){
+	  //if(CLevo == "yes"){
 
-	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-
-	    sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
 	  
-
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	  }
+	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+	  
+	  
+	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	    //}
 
 	  //Calculate hard binary separation and assign binary sma
 	  semihard = 1./pow(sig_clu/30., 2.); 
 
-	  sma = semihard * func.Gaussian(1.,0.1);
+	  
+	  sma = semihard * func.Gaussian(1.,sigma_sma);
 
+	  if(sigma_sma < 0)
+	    sma = 0.1 + 0.1*func.rnd();
+
+	  
+	  
 	  //calculate aej vs agw to merge inside or outside --> inside (tgwpeters), outside (5/q3 * t2-1)	  
 	  semi_ej = 0.07 * (mu_red * mper / (mpri + msec + mper) * mper/(mpri+msec)) * pow(vthre/50.,-2.);
 	  semi_gw = 0.05 * pow((mpri+msec)/20,3./5.)*pow( (msec/mpri) / pow(1+(msec/mpri),2.) , 1./5.) * pow(sig_clu/30., 1./5.) * pow(1.E6 / rho_clu,1./5.);
@@ -2234,13 +2319,6 @@ int main(){
 	  tbbh = 2.E7/zita * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(10. * mstar / (mpri+msec)) * (0.05 / acrit) * (20./(mpri+msec));
 	  tbbh *= func.rndgen(1.0, 0.1);	  
 	  
-	  //in case of ejection the binary gets new sma
-	  
-	  if(semi_ej > semi_gw)
-	    acrit = 2. * afin / (2. + afin/semihard); 
-
-
-
 	  if(mclcorr * mhalf < 1.E1){
 	    tbbh = 1.E12;
 	    semi_ej = -2.0;
@@ -2248,7 +2326,28 @@ int main(){
 	  }
 	  
 	  tmer = 5. * (mpri + msec)/mper * tbbh;						 	  
+
+	  mclcorr = func.mevol(time+tmer-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	  rclcorr = func.revol(time+tmer-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);	  
+	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);	  	 
+	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+
+	  if(mclcorr*mhalf <= 1.E1)
+	    tmer = 1.E12;
+	  
+	  
+	  if((time > 1.E9 || time+tmer > 1.E9) && cluster == "young" && CLfill == "critical"){
+	    time = 1.E30;
+	    label = "YCdisrupt";
+	  }
+
+
+	  
 	  time += tmer;
+
+
 	  
 	  /*if(nsafe_cal > 10000)
 	    break;*/ //this was in the do{}while statement, which has been removed, see below
@@ -2257,22 +2356,54 @@ int main(){
 	// }while(time > Hubble); I removed this condition to allow for all clusters that do not produce a merger 
 
 	
+	   
+	  /* Insert a statistical consideration to check whether binaries with semi_ej > semi_gw can merge before ejection owing to a sufficiently large value of ecc -- May 2024 */
+	  // At 0th order, we can get
+
+	  double clight = 3.E8;
+	  double Grav   = 6.67E-11;
+	  double Msun   = 1.99E30;
+	  double Rau    = 1.5E11;	    
 	  
+	  /* Prescription suggested by F. Antonini, here however overestimate the amount of in-cluster mergers 
+	    double elim = sqrt(1 - pow(256./5.*((tbbh+tmer) * (365.*24*3600.) * pow(Grav * Msun, 3.) * (mpri*msec*(mpri+msec)))/(pow(clight,5.) * pow(Rau,4.)  * pow(acrit,4.)), 2./7.));
+	  double Pelim = 1. - (elim * elim);
+	  double Prnd = func.rnd();
+	  if(Prnd < Pelim){
+	    label = "inside";
+	    double Pecc = Pelim + (1.-Pelim)*func.rnd();
+	    ecc = sqrt(1.-Pecc);	    
+	  }
+	  else{
+	    ecc = sqrt(func.rnd());
+	    if(semi_ej < semi_gw)
+	      label="inside";
+	    else{
+	      label="ejected";
+	      acrit = 2. * afin / (2. + afin/semihard); 
+	    }
+	  }
+	  */
+	//Old prescription -- we must ensure that tight binaries merge inside if acrit < semi_ej//
+	  if(semi_ej < semi_gw)
+	    label="inside";
+	  else
+	    if(acrit < semi_gw)
+	      label="inside";
+	    else
+	      label="ejected";
+	    
+	  ecc = sqrt(func.rnd());
+
+	  double teje = tmer;
 	
-	if(semi_ej < semi_gw)	    
-	  label="inside";
-	else
-	  label="ejected";
-	
-	
-	ecc = sqrt(func.rnd());
-	
-	double clight = 3.E8;
-	double Grav   = 6.67E-11;
-	double Msun   = 1.99E30;
-	double Rau    = 1.5E11;	    
-	tmer = 5./256. * pow(clight,5.) / pow(Grav * Msun, 3.) * pow(Rau,4.)  * pow(acrit,4.)/(mpri*msec*(mpri+msec)) * pow(1.-pow(ecc,2.),3.5) / (1. + 73./24. * ecc*ecc + 37./96.*ecc*ecc*ecc*ecc) * 1./ (365.*24.*3600.*1.E0);
-	
+	  tmer = 5./256. * pow(clight,5.) / pow(Grav * Msun, 3.) * pow(Rau,4.)  * pow(acrit,4.)/(mpri*msec*(mpri+msec)) * pow(1.-pow(ecc,2.),3.5) / (1. + 73./24. * ecc*ecc + 37./96.*ecc*ecc*ecc*ecc) * 1./ (365.*24.*3600.*1.E0);
+
+	  if(tmer < teje && label == "ejected")
+	    label = "inside";
+
+	  
+	  
 	/*REMOVING THE FOLLOWING TO TAKE INTO ACCOUNT NON-MERGING BINARIES 
 	  if(time + tmer > Hubble && time < Hubble && mclcorr*mhalf > 1.E1){
 	  do{
@@ -2293,7 +2424,7 @@ int main(){
 	
 	//ADDED PRINTOUT OF BINARY PROPERTIES      
 	if(time > Hubble){ //The other condition is not needed if nsafe_cal is just 1 --> || nsafe_cal > 1){
-	  hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<endl;
+	  hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<endl;
 	}
 
 	stringstream nan;
@@ -2304,7 +2435,6 @@ int main(){
 	  exit(0);
 	}
 
-	string cluster_stat="none";
 	
 	if(time < Hubble)
 	  nH ++;
@@ -2316,7 +2446,7 @@ int main(){
 
 	//MULTIPLE MERGER CHAIN//
 	Spinning[0] = 0;
-	Spinning[1] = 0;
+	Spinning[1] = 0;	
 	Spinning[2] = 0;
 	Spinning[3] = 0;
 	if(mpri>0.0 && msec>0.0)
@@ -2331,26 +2461,26 @@ int main(){
 
 	double mzero = mpri;
 	
-	if(CLevo == "yes"){
+	//if(CLevo == "yes"){
 	  
 
-	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-
-	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	  
-	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
-
-	  if(mclcorr * mhalf < 1.E1)
-	    cluster_stat="evaporated";
-	}
+	mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	
+	sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+	rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+	rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+	
+	
+	vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	
+	if(mclcorr * mhalf < 1.E1)
+	  cluster_stat="evaporated";
+	//}
 
 	double rinfinite = pow(10.,rint) * sqrt(pow(vthre,4.) / pow(vthre*vthre - vpri*vpri,2.) - 1.);       
-	if(CLevo == "yes")
-	  rinfinite *= rclcorr;
+	//if(CLevo == "yes")
+	rinfinite *= rclcorr;
 
 	
 	int nrecy = nhigen;
@@ -2382,7 +2512,7 @@ int main(){
 	    Mrem[i] = Spinning[2];
 	    Krem[i] = Spinning[3];
 	    
-	    hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<endl;
+	    hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<endl;
 	  
 
 	    break;
@@ -2390,7 +2520,7 @@ int main(){
 
 
 	  if(Spinning[3] > vthre && label != "ejected"){
-	    label = "recoiled";
+	    label = "GWrecoiled";
 	    Srem[i] = Spinning[0];
 	    Xrem[i] = Spinning[1];
 	    Mrem[i] = Spinning[2];
@@ -2398,9 +2528,10 @@ int main(){
 	    break;
 	  }
 	  
-	  if(cluster_stat == "evaporated")
+	  if(cluster_stat == "evaporated"){
+	    label = "inevap";
 	    break;
-
+	  }
 	  
 	  time += trecy;
 	  nan.str("");
@@ -2423,8 +2554,8 @@ int main(){
 	    cj = 0.0;
 	  
 	  rinfinite = pow(10.,rint) * sqrt(cj);
-	  if(CLevo == "yes")
-	    rinfinite *= rclcorr;
+	  //if(CLevo == "yes")
+	  rinfinite *= rclcorr;
 
 
 	  
@@ -2440,7 +2571,7 @@ int main(){
 	  if(nrecy > nbhs)
 	    break;
 	  
-	  if(label == "ejected" || label == "recoiled")
+	  if(label == "ejected" || label == "GWrecoiled")
 	    break;
 
 	  
@@ -2548,13 +2679,13 @@ int main(){
 	  	 
 	  //tDF to sink, [(t3bb or t1-2)+t1-2bh] for BBH formation	
 	  tdf = 0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9) * pow(rinfinite/pow(10.,rint),1.74);
-	  if(CLevo=="yes"){
-	    if(mclcorr*mhalf > 1.E1)
-	      tdf *= (pow(rclcorr,3./2.-1.74)*sqrt(mclcorr));
-	    else
-	      tdf  = 1.E12;
+	  //if(CLevo=="yes"){
+	  if(mclcorr*mhalf > 1.E1)
+	    tdf *= (pow(rclcorr,3./2.-1.74)*sqrt(mclcorr));
+	  else
+	    tdf  = 1.E12;
 	    
-	  }
+	  //}
 	  
 	  nan.str("");
 	  nan<<tdf;
@@ -2565,44 +2696,41 @@ int main(){
 	  trecy += tdf;
 
 	  //Time for BHs to pair --> assume it's already hard
-	  if(CLevo == "yes"){
+	  //if(CLevo == "yes"){
 	  
-	    /*mclcorr = exp(-(time+trecy-tfor[i])/ (0.45*trelax));
-	      rclcorr = (1. + log10(1. + (time+trecy-tfor[i])/(0.45*trelax))); //REVISE THIS*/
+	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	  
+	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+	  
+	  
+	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  
+	  semihard = 1./pow(sig_clu/30., 2.);
+	  
+	  
+	  t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
+	  t12 *= func.rndgen(1.0, 0.1);
 
-	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-
+	  
+	  if(time + trecy < tcc && time + trecy + t12 > tcc){
+	    time = tfor[i] + tcc;
+	    
+	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	    
 	    sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
 	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	    
 	    
 	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
-
-	    semihard = 1./pow(sig_clu/30., 2.);
-
-	    
-	    t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
-	    t12 *= func.rndgen(1.0, 0.1);
-
-	    
-	    if(time + trecy < tcc && time + trecy + t12 > tcc){
-	      time = tfor[i] + tcc;
-	      
-	      mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-	      rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-
-	      sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	      rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	      rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	      
-	      
-	      vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	    }
-	    
-	    
 	  }
+	    
+	    
+	    //}
 	  
 	  
 	  semihard = 1./pow(sig_clu/30., 2.); 
@@ -2611,29 +2739,31 @@ int main(){
 	  t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
 	  t12 *= func.rndgen(1.0, 0.1);
 
-	  if(mclcorr*mhalf < 1.E1 && CLevo == "yes")
+	  if(mclcorr*mhalf < 1.E1) // && CLevo == "yes")
 	    t12 = 1.E12;
 	    
 	  
 	  trecy += t12;
 
-	  if(CLevo == "yes"){
+	  //if(CLevo == "yes"){
 	    
-	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-
-	    sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	  
+	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+	  
+	  
+	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
 	    
-	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	    
-	  }
+	  //}
 	  
 
 	  semihard = 1./pow(sig_clu/30., 2.); 
-	  sma = semihard * func.Gaussian(1.,0.1);
+	  sma = semihard * func.Gaussian(1.,sigma_sma);
+	  if(sigma_sma < 0)
+	    sma = 0.1 + 0.1*func.rnd();
 	  
 	  //calculate aej vs agw to merge inside or outside --> inside (tgwpeters), outside (5/q3 * t2-1)
 	  semi_ej = 0.07 * (mu_red * mper / (mpri + msec + mper) * mper/(mpri+msec)) * pow(vthre/50.,-2.);
@@ -2669,31 +2799,34 @@ int main(){
 	  
 	  trecy+= tmer;
 	  
-	  if(CLevo == "yes"){
+	  //if(CLevo == "yes"){
 	    
-	    /*mclcorr = exp(-(time+trecy-tfor[i])/ (0.45*trelax));
-	      rclcorr = (1. + log10(1. + (time+trecy-tfor[i])/(0.45*trelax))); //REVISE THIS*/
 
-	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax, CLfill);
-
-	    
-	    sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	    
-	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	    
-	  }
+	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	  
+	  
+	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+	  
+	  
+	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  
+	  //}
 	 	  
 	  if(semi_ej < 0.0 && semi_gw < 0.0)
 	    label="dissolved";
 	  else if(semi_ej < semi_gw)	    
 	    label="inside";
-	  else
-	    label="ejected";
+	  else	   
+	    if(acrit < semi_gw)
+	      label="inside";
+	    else
+	      label="ejected";
 
+	  double teje = tmer;
+       
 
 	  ecc = sqrt(func.rnd());
 	 	  
@@ -2702,7 +2835,10 @@ int main(){
 	  double Msun   = 1.99E30;
 	  double Rau    = 1.5E11;	    
 	  tmer = 5./256. * pow(clight,5.) / pow(Grav * Msun, 3.) * pow(Rau,4.)  * pow(acrit,4.)/(mpri*msec*(mpri+msec)) * pow(1.-pow(ecc,2.),3.5) / (1. + 73./24. * ecc*ecc + 37./96.*ecc*ecc*ecc*ecc) * 1./ (365.*24.*3600.*1.E0);
-
+	  
+	  if(tmer < teje && label == "ejected")
+	    label = "inside";
+	  
 	  if(mclcorr*mhalf < 1.E1)
 	    tmer = 1.E12;
 	  
@@ -2753,12 +2889,12 @@ int main(){
 	}while(1>0);
 
 	
-	if(CLevo == "yes"){
+	//if(CLevo == "yes"){
 	  
-	  mclcorr = func.mevol(Hubble-tfor[i], rhalf, mhalf, trelax, CLfill);
-	  rclcorr = func.revol(Hubble-tfor[i], rhalf, mhalf, trelax, CLfill);
+	mclcorr = func.mevol(Hubble-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+	rclcorr = func.revol(Hubble-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
 	  
-	}
+	//}
 	
 
 	
@@ -2781,7 +2917,7 @@ int main(){
 	
 	if(time < Hubble){
 	  out<<itot<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
-	  out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<endl; //Eccentricity added to output
+	  out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<tmer<<endl; //Eccentricity added to output
 
 	  Ndyn_real++;
 	  if(cluster == "young")
@@ -2896,30 +3032,31 @@ int main(){
   string type_mrat = MRATIO;
 
   //FINAL FILE MOVING
-  string cmdstr_zero =  "./SIM_Fdyn"+Fcl.str()+"_Ngc"+ggc.str()+"_Nyc"+gyc.str()+"_Nnc"+gnc.str()+"isolS_"+isolS+"dynaS_"+dynaS+"_"+"MetalDivi_"+metaldivi.str()+"_"+alg.str()+"_"+ZDIS+"_"+ZDYN+"_Correction_"+corr;  
-  if(kick=="yes")
+  string cmdstr_zero =  "./SIM_Fdyn"+Fcl.str()+"_Ngc"+ggc.str()+"_Nyc"+gyc.str()+"_Nnc"+gnc.str()+"isolS_"+isolS+"dynaS_"+dynaS+"_"+"MetalDivi_"+metaldivi.str()+"_"+alg.str()+"_"+ZDIS+"_"+ZDYN+"_Correction_"+corr;
+  
+  /*if(kick=="yes")
     cmdstr_zero += "_kick_Yes";
   else
-    cmdstr_zero += "_kick_No";
+  cmdstr_zero += "_kick_No";*/
   
 
-  cmdstr_zero += "_mratio";
+  /*cmdstr_zero += "_mratio";
   cmdstr_zero += type_mrat;
   if(type_mrat=="pwl"){
     stringstream mrslp_str;
     mrslp_str<<MRATIO_SLOPE;
     cmdstr_zero +=  mrslp_str.str();
-  }
+    }*/
   
-  if(delaytime=="yes")
+  /*if(delaytime=="yes")
     cmdstr_zero += "_delaytimes_Yes";
   else
-    cmdstr_zero += "_delaytimes_No";
+  cmdstr_zero += "_delaytimes_No";*/
   
-  cmdstr_zero += "_primslope_";
+  /*cmdstr_zero += "_primslope_";
   stringstream msl;
   msl<<obslope;
-  cmdstr_zero += msl.str();
+  cmdstr_zero += msl.str();*/
 
 
   string SFR;
@@ -2934,6 +3071,8 @@ int main(){
     SFR += "MF17";
   else if(sfr_clu == "burst")
     SFR += "burst";
+  else if(sfr_clu == "elba18" || sfr_clu == "EB18")
+    SFR += "EB18";
   
   cmdstr_zero += "_SFR_"+SFR;
   cmdstr_zero += "_sfronly_";
@@ -2954,7 +3093,21 @@ int main(){
     strifseed<<f_seed;
     cmdstr_zero += "VMSrho"+strifseed.str();
   }
-  
+
+  string TagRC = TagR;
+  cmdstr_zero += "CluRh_";
+  cmdstr_zero += TagRC;
+  stringstream smastr;
+  smastr << SSMA;
+  cmdstr_zero += "_";
+  cmdstr_zero += smastr.str();
+  cmdstr_zero += "BHseed";
+  cmdstr_zero += bhseed;
+  cmdstr_zero += "_UMG";
+  cmdstr_zero += uppergap;
+  cmdstr_zero += "_HighG";
+  cmdstr_zero += highgen;
+
   
   stringstream smix;
   smix<<mixing;
@@ -2972,18 +3125,21 @@ int main(){
       cmdstr_zero += "_clteYC";
     else      
       cmdstr_zero += "_cltest";
-  if(CLevo == "yes"){
-    if(CLfill == "under")
-      cmdstr_zero += "U";
-    else if(CLfill == "filling") 
-      cmdstr_zero += "F";
-    else if(CLfill == "postcol")
-      cmdstr_zero += "P";
-    else if(CLfill == "nuclear")
-      cmdstr_zero += "N";
-    else if(CLfill == "nuclearF")
-      cmdstr_zero += "NF";
-  }
+  
+  if(CLfill == "under")
+    cmdstr_zero += "U";
+  else if(CLfill == "over")
+    cmdstr_zero += "O";
+  else if(CLfill == "critical")
+    cmdstr_zero += "C";
+  else if(CLfill == "noevo")
+    cmdstr_zero += "N";
+  else if(CLfill == "mix")
+    cmdstr_zero += "M";
+  else if(CLfill == "GG23")
+    cmdstr_zero += "G";
+  else
+    cout<<"wrong selection of cluster evolution parameter"<<endl;
 
   
   

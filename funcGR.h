@@ -17,9 +17,14 @@ using namespace std;
 class Functions
 {
  public:
-
-  double mevol(double t, double rh, double mh, double trel, string type);
-  double revol(double t, double rh, double mh, double trel, string type);
+  double geo16Rnc(double mlog, double c1, double c2, double a, double b, double e);
+  double LOGSMP(double mean, double sigma);
+  double metcor(string metal_dis, double sigmaZ, double red_del);
+  double GSS_pdf_f(double x,double xm,double sx);
+  double GSS_cdf_f(double x, double xmean, double xdisp);
+  double GSS_smpl(double minZ, double maxZ, double xm, double sx);
+  double mevol(double t, double rh, double mh, double trel, string type, string tclus);
+  double revol(double t, double rh, double mh, double trel, string type, string tclus);
 
   void test();
   double inter(double x, double *X, double *Y, int N);
@@ -32,6 +37,8 @@ class Functions
   double rndG();
   double rndG7();
   double rndgen(double pp, double spp);
+  double LogGaussian(double pp, double spp);
+  double Gaussian(double pp, double spp);
 
   double tred(double z);
   double zred(double t);
