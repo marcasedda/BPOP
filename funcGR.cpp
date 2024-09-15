@@ -19,104 +19,194 @@ Functions::Functions(){
   srand(time(0));
 }
 
-double Functions::mevol(double t, double rh, double mh, double trel, string type){
+double Functions::geo16Rnc(double mlog, double c1, double c2, double a, double b, double e){
+
+  double lR = log10(c1) + a * (mlog - log10(c2)) + b ;
+
+  lR = lR * (1.+ e * (1.-2.*rnd()));
+  
+  return lR;
+
+}
+
+double Functions::LOGSMP(double mean, double sigma){
+  double logpdf, logrnd;
+  logpdf = -1;
+  logrnd = 0;
+  double xmint = -1.0;
+  double pdfmax = 1./(mean * sigma * sqrt(2.*M_PI));
+  double xxmin = mean - 3.*sigma;
+  double xxmax = mean + 3.*sigma;
+  do{
+    xmint = xxmin + (xxmax - xxmin)*rnd();
+    logpdf = 1./(pow(10.,xmint)*sigma*sqrt(2.*M_PI))*exp(-pow(xmint - mean,2.)/(2.*sigma*sigma));
+    logrnd = pdfmax * rnd();
+  }while(logpdf < logrnd);
+  
+  return xmint;
+}
+
+
+
+double Functions::metcor(string metal_dis, double sigmaZ, double red_del){
+      double logz;
+      double logz_me;
+      if(metal_dis == "Bavera")
+	logz_me = 0.153 - 0.074 * pow(red_del,1.34); //Bavera et al 2020
+      else if(metal_dis == "Mapelli")
+	logz_me = 0.153 - 0.074 * pow(red_del,1.34) - (log(10.0) * sigmaZ*sigmaZ/2.0); //Santoliquido et al 2020 ?
+      else if(metal_dis == "Rafelski") //Giacobbo et al 2018, Rafelski et al 2012
+	if(red_del <= 1.5)
+	  logz_me = -0.19 * red_del ;
+	else
+	  logz_me = -0.22 * red_del ;
+      else if(metal_dis == "Giacobbo20a")
+	logz_me = -0.24*red_del;
+      else if(metal_dis == "Giacobbo20b")
+	logz_me = -0.24*red_del - 0.18;
+      else{
+	cout<<"Metallicity distribution not found, please retry"<<endl;
+	exit(0);
+      }
+
+      return logz_me;
+      
+}
+
+double Functions::GSS_pdf_f(double x,double xm,double sx){
+  return 1./sqrt(2.*M_PI*sx*sx) * exp(-pow(x-xm,2.)/(2.*sx*sx));
+}
+
+double Functions::GSS_cdf_f(double x, double xmean, double xdisp){
+  return 0.5*(1.+erf((x - xmean)/(sqrt(2.)*xdisp)));
+}
+
+double Functions::GSS_smpl(double minZ, double maxZ, double xm, double sx){
+
+  double Zsun = 0.017;
+  double logz_me = xm;
+  double sigmaZ = sx;
+
+  double pmax = GSS_pdf_f(logz_me, logz_me, sigmaZ);
+
+  double pmax_pro = pmax;
+  double ppro = 0.1*pmax_pro;
+  double logz = 0.0;
+  double logzmin=log10(1.E-6/Zsun);
+  double logzmax=log10(0.3/Zsun);
+  double logz_norm = logz;
+  do{
+    pmax_pro = pmax * rnd();
+    logz_norm = logzmin + (logzmax - logzmin)*rnd();
+    ppro = GSS_pdf_f(logz_norm,logz_me,sigmaZ);
+    //cout<<logz<<" "<<ppro<<" "<<pmax_pro<<" "<<pmax<<" "<<logz_me<<endl;
+  }while(ppro < pmax_pro);
+
+  logz = logz_norm + log10(Zsun);
+
+  if(logz < log10(minZ))
+    logz = log10(minZ);
+  if(logz > log10(maxZ))
+    logz = log10(maxZ);
+
+  
+  return logz;
+  
+}
+
+
+double Functions::mevol(double t, double rh, double mh, double trel, string type, string tclus){
 
   double tcc = 0.138*mh/(150. * log(0.11*mh/150.))*sqrt(pow(rh*3.08E16,3.)/(6.67E-11*1.99E30*mh))/(365.*24.*3600.);        
+
+  double trlx = trel ; //0.78E9 / log(0.11*mh) * pow(mh/1.E5,0.5) * pow(rh,1.5);
     
   double fplu = 1.0; 
   
-  double mfact;
-  double alpha = 0.1; double beta; double nfct;
-
-  if(type == "postcol" || type == "under" || type == "nuclear"){
-
-    double mfact_h = pow(1. + t/1.E7,-0.1);
-    if(t < 1.E7){
-      mfact = mfact_h * (0.005 + 0.08*rnd());
-    }
-    else{
-      mfact = mfact_h * (0.001 + 0.05*rnd());
-    }
+  double mfact = 1.0;
+  double mfact_h = 1.0;
     
+
+  double fcohn = 300.0;
+
+  double tstev = 1.E7;
+
+  if(type == "under" || type == "over" || type == "critical"){
+    if(type == "under")
+      fcohn = 300.0;
+    else if(type == "over" && tclus != "young")
+      fcohn = 60.0;
+    else if(type == "critical" || (type == "over" && tclus == "young"))
+      fcohn = 5.0;
+  }
+  else if(type == "noevo"){
+    mfact = 1.0;
+  }
+  else if(type == "mix"){
+    if(tclus == "young")
+      fcohn = 5.0;
+    else if (tclus == "globular")
+      fcohn = 300.0;
+    else if (tclus == "nuclear")
+      fcohn = 1000.0;    
+  }
+  else if(type == "GG23"){
+    //Note: in Gieles&Gnedin23 they derive the lifetime of GCs and compare with observations. I used the lifetime to adjust the parameters below, keeping for GCs and NCs calculations related to a distance >= 8 kpc, whilst for YCs we adopt a distance ~ 1 kpc.
+    
+    if(tclus == "young")
+      fcohn = 100. * pow(mh/1.E6,0.6);
+    else
+      fcohn = 1000. * pow(mh/1.E6,0.6);
 
   }
   else{
-    cout<<"Select under, fill, or postcol"<<endl;
+    cout<<"Select noevo, under, over, critical, GG23, or mix"<<endl;
     exit(0);
   }
 
 
-  if(mfact < 0.0)
+  mfact_h = pow(1. + t/tstev,-0.1) * (1.-(t/(fcohn*trlx)));
+    
+  if(t < 1.E7){
+    mfact = mfact_h * (0.005 + 0.08*rnd());
+  }
+  else{
+    mfact = mfact_h * (0.001 + 0.05*rnd());
+  }    
+  
+  if(mfact <= 0.0 || mfact_h <= 0.0)
     mfact = 0.0;
 
-
-
-
-
-  /*
-  if(type == "under" || type == "postcol"){
-
-    
-    double mnew = 0.06;
-    double lt = 1.0;
-    double bnw = 0.3;
-    double lt2 = 3.0;
-    double bnw2 = 0.2;
-           
-    mfact = mnew * pow(1.+lt*t/tcc,-bnw) * pow(1.+lt2*t/tcc,bnw2);
-
-    mfact = mfact * (1.+0.3*(1.-2.*rnd()));
-
-    
-  }
-  else if(type == "filling")
-    mfact = exp(-t/(40.*trel));  
-  else if(type == "nuclear" || type == "nuclearF")
-    mfact = 0.156; 
-  else{
-    cout<<"Select under, fill, or postcol"<<endl;
-    exit(0);
-  }
-  */
 
   return mfact;
 }
 
-double Functions::revol(double t, double rh, double mh, double trel, string type){
+double Functions::revol(double t, double rh, double mh, double trel, string type, string tclus){
 
-  double mfact = mevol(t, rh, mh, trel, type);
+  double mfact = mevol(t, rh, mh, trel, type, tclus);
   
   double tcc = 0.138*mh/(150. * log(0.11*mh/150.))*sqrt(pow(rh*3.08E16,3.)/(6.67E-11*1.99E30*mh))/(365.*24.*3600.);
   if(tcc < 0.0)
     tcc = 0.2 * 4.2E9 * pow(rh/4.0,1.5) * sqrt(mh/1.E7) ;
 
   double rfact;
-  double alpha = 0.5;
-
-  double fplu = 1.0; 
   double rmin = 0.01;
 
 
-  if(type == "under" || type == "postcol" || type == "nuclear"){
-
+  if(type == "under" || type == "over" || type == "critical" || type == "mix" || type == "GG23"){
     double t0 = tcc * 5. * (rh + 1.);
     double rfact_h = pow(1. + t/t0,0.35);
 
     if(t > 10.*tcc){
       rfact = rfact_h * (0.08+0.2*rnd());
     }
-    else if(t>2.*tcc && t<=10.*tcc){
-      //Following modified by Manuel on May 24 to avoid skyrocketing densities (10^14 Msun/pc^3)
-      /*rfact = rfact_h * 0.2*pow(t/(2.*tcc)-1.,0.35)*rnd();
-      if(rfact < 0.01)
-      rfact = 0.01;*/
-      
+    else if(t>2.*tcc && t<=10.*tcc){     
       rfact = rfact_h * (0.08 + 0.2*pow(t/(2.*tcc)-1.,0.35)*rnd());
     }
     else{
       rfact = rfact_h * (0.1 + 0.2*rnd()) * pow(1.-t/(2.*tcc),0.53);
-      if(rfact < 0.01)
-	rfact = 0.01;
+      if(rfact < rmin)
+	rfact = rmin;
     }
 
     stringstream chk;
@@ -127,11 +217,15 @@ double Functions::revol(double t, double rh, double mh, double trel, string type
     }
     
   }
+  else if(type == "noevo"){
+    rfact = 1.0;
+  }
   else{
-    cout<<"Select nuclear, under, fill, or postcol"<<endl;
+    cout<<"Select noevo, under, over, critical, GG23, or mix"<<endl;
     exit(0);
   }
 
+  
   if(mfact == 0.0)
     rfact = 0.0;
 
@@ -187,9 +281,9 @@ double Functions::sfr_red(string sfrtype){
   double psisfrmax = 0.01 * pow(1+zredmax,2.6) / (1. + pow((1+zredmax)/3.2,6.2));
   double psirnd;
 
-
+  
   if(sfr=="katz13" || sfr == "KR13"){
-    zred = 2. + 4.*rnd(); //KATZ E RICOTTI 2013
+    zred = 2. + 6.*rnd(); //KATZ E RICOTTI 2013
   }
   else if(sfr=="madau17" || sfr == "MF17"){    
 
@@ -203,13 +297,33 @@ double Functions::sfr_red(string sfrtype){
 
   }
   else if(sfr=="continuous" || sfr == "constant"){
-    zred = 10.*rnd(); //REFERENCE?
+    zred = 15.*rnd(); //REFERENCE?
   }
   else if(sfr=="burst"){
     zred = 4.0;
   }
   else if(sfr=="bigbang"){
     zred = 10.;
+  }
+  else if(sfr=="elba18" || sfr=="EB18"){
+    double Zn,Sn;
+    
+    Zn = 3.2;
+    Sn = 1.5;
+    
+    double pup = 1.0;
+    double pgas= 2.0;
+    double zup;
+    do{
+      pup = rnd();
+      zup = 20. * rnd();
+      pgas = exp(-pow(zup-Zn,2.) / (2.*Sn*Sn));
+      if(pgas < pup)
+	break;
+    }while(pgas > pup);
+    
+    zred = zup;
+    
   }
   else{
     cout<<"Please select Katz and Ricotti 2013 or Madau and Fragos 2017"<<endl;
@@ -301,10 +415,25 @@ double Functions::rndgen(double pp, double spp){
   return rndG;
 }
 
+
 double Functions::Gaussian(double pp, double spp){
   std::random_device rd;
   std::mt19937 mt(rd());
   std::normal_distribution<double> distG(pp,spp);
+  
+  double rndG = distG(mt);
+
+  do{
+    rndG = distG(mt);
+  }while(rndG < 0.);
+  
+  return rndG;
+}
+
+double Functions::LogGaussian(double pp, double spp){
+  std::random_device rd;
+  std::mt19937 mt(rd());
+  std::lognormal_distribution<double> distG(pp,spp);
   
   double rndG = distG(mt);
 
