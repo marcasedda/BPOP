@@ -99,7 +99,6 @@ double Functions::GSS_smpl(double minZ, double maxZ, double xm, double sx){
     pmax_pro = pmax * rnd();
     logz_norm = logzmin + (logzmax - logzmin)*rnd();
     ppro = GSS_pdf_f(logz_norm,logz_me,sigmaZ);
-    //cout<<logz<<" "<<ppro<<" "<<pmax_pro<<" "<<pmax<<" "<<logz_me<<endl;
   }while(ppro < pmax_pro);
 
   logz = logz_norm + log10(Zsun);
@@ -281,14 +280,15 @@ double Functions::sfr_red(string sfrtype){
   double psisfrmax = 0.01 * pow(1+zredmax,2.6) / (1. + pow((1+zredmax)/3.2,6.2));
   double psirnd;
 
+  double reds_max = 20.0;
   
   if(sfr=="katz13" || sfr == "KR13"){
-    zred = 2. + 6.*rnd(); //KATZ E RICOTTI 2013
+    zred = 2. + 8.*rnd(); //KATZ E RICOTTI 2013
   }
   else if(sfr=="madau17" || sfr == "MF17"){    
 
     do{
-      zred = 15.*rnd();
+      zred = reds_max*rnd();
       psisfr = 0.01 * pow(1+zred,2.6) / (1. + pow((1+zred)/3.2,6.2));
       psirnd = psisfrmax * rnd();
       if(psisfr > psirnd)
@@ -297,7 +297,7 @@ double Functions::sfr_red(string sfrtype){
 
   }
   else if(sfr=="continuous" || sfr == "constant"){
-    zred = 15.*rnd(); //REFERENCE?
+    zred = reds_max*rnd(); //REFERENCE?
   }
   else if(sfr=="burst"){
     zred = 4.0;
@@ -316,7 +316,7 @@ double Functions::sfr_red(string sfrtype){
     double zup;
     do{
       pup = rnd();
-      zup = 20. * rnd();
+      zup = reds_max * rnd();
       pgas = exp(-pow(zup-Zn,2.) / (2.*Sn*Sn));
       if(pgas < pup)
 	break;
@@ -331,7 +331,7 @@ double Functions::sfr_red(string sfrtype){
   }  
   
   
-  if(zred > 15.){  
+  if(zred > reds_max){  
     cout<<"ATTENZIONE: ERRORE REDSHIFT - "<<zred<<" "<<endl;
     exit(0);
   }
