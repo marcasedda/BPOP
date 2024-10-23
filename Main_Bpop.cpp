@@ -25,24 +25,29 @@
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        250000
+#define N        1000000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
 #define Zsun     0.02
 
-// GENERAL PARAMS
-#define delaytime "yes"
-#define kick      "yes"
+//DYNAMICAL FRACTIONS
+#define DynOvTot  0.96
+#define pYC 0.78
+#define pGC 0.13
+#define pNC 0.09
+#define uppergap "yes"
+#define bhseed   "bifrost"
+#define bifZ     0.1
+#define bhpisn   100.
+#define fupgp    0.07 //0.15
+#define upgtp   "dicarlo"
+#define SFRTYPE_ISO "MF17" //"continuous" //"MF17"
+#define SFRTYPE_CLU "EB18_MF17" //"continuous" //"EB18_MF17"
 
-#define DynOvTot  0.85
+
 #define mixing    0.5
 #define fbin      1.0
-
-//DYNAMICAL FRACTIONS
-#define pYC 0.4
-#define pGC 0.3
-#define pNC 0.3
 
 //YC mass-size relation
 //Marks12, Rantala24, Mapelli20, AS20
@@ -58,21 +63,17 @@
 #define mono_Z       0.02
 #define cluster_test "no"
 #define cluster_test_env "NC"
-#define msmbhmax 5.E4
+#define msmbhmax 5.E7
 
 //BH SEED
-#define bhseed   "no"
-#define vms      "0"
 #define f_seed    0.2
 #define maxseed   1000.0
 #define minseed   100.0
 #define seedslope 3.0
 
 //HIGH MASS BHs
-#define uppergap "no"
 #define mass_gap  50.0
 #define a_gp 2.0
-#define fupgp 0.1
 
 //HIGH GENERATION SECONDARY BH
 #define highgen "no"
@@ -85,8 +86,6 @@
 #define obslope  0.0
 
 //STAR FORMATION
-#define SFRTYPE_ISO "continuous"
-#define SFRTYPE_CLU "continuous"
 #define sfr_only "no"
 
 //DYNAMICAL SCENARIO
@@ -362,6 +361,14 @@ int main(){
 
   string sfr_iso = SFRTYPE_ISO;
   string sfr_clu = SFRTYPE_CLU;
+  string sfr_clu_gc = sfr_clu;
+  string sfr_clu_nc = sfr_clu;
+  if(sfr_clu == "EB18_MF17"){
+    sfr_clu_gc = "EB18";
+    sfr_clu_nc = "MF17";
+  }
+  
+
   if(cluster_test == "yes"){
     if(cluster_test_env == "NC")
       sfr_clu = "bigbang";
@@ -626,7 +633,7 @@ int main(){
   int Niso = 0;
   int Ncnt = 0;
   
-  do{
+  /*do{
     double csu = func.rnd();
     if(csu>DynOvTot) Niso += 1;
     else{
@@ -637,10 +644,14 @@ int main(){
     }
     Ncnt += 1;
 
-  }while(Ncnt<Nsrc);
+  }while(Ncnt<Nsrc);  
   
-  Nsrc = Niso + Nyc + Ngc + Nnc;
+  Nsrc = Niso + Nyc + Ngc + Nnc;*/
 
+  Niso = Nsrc * (1.-DynOvTot);
+  Nyc  = Nsrc * DynOvTot * probYC;
+  Ngc  = Nsrc * DynOvTot * probGC;
+  Nnc  = Nsrc - (Niso + Nyc + Ngc);
 
   cout<<"Creating N = "<<Nsrc<<" "<<Niso<<" "<<Nyc<<" "<<Ngc<<" "<<Nnc<<endl;
 
@@ -657,8 +668,13 @@ int main(){
     tfor.push_back(toff);
   }
 
-  for(int i=0;i<Ngc+Nnc;i++){
-    double zred0 = func.sfr_red(sfr_clu);      
+  for(int i=0;i<Ngc;i++){
+    double zred0 = func.sfr_red(sfr_clu_gc);      
+    double toff  = 1.E9*func.inter(zred0, reds, age, redline);
+    tfor.push_back(toff);
+  }
+  for(int i=0;i<Nnc;i++){
+    double zred0 = func.sfr_red(sfr_clu_nc);      
     double toff  = 1.E9*func.inter(zred0, reds, age, redline);
     tfor.push_back(toff);
   }
@@ -667,61 +683,7 @@ int main(){
   double z;
 
   for(int i=0;i<Niso+Nyc;i++){
-
-    /*if(zdist == "logflat"){
-      z = log10(met[0])+(log10(met[12])-log10(met[0]))*func.rnd();
-      z = pow(10.,z);
-    }
-    else if(zdist == "powerlaw"){
-      P = func.rnd();
-      z = pow( (1.-P)*pow(met[12],1.+zslope) + P*pow(met[0],1.+zslope) , 1./(1.+zslope));
-      if(zslope == -1.0){
-	z = (1.-P)*log(met[12]) + P*log(met[0]);
-	z = exp(z);
-      }
-      if(zslope == 0.0){
-	z = met[12]*func.rnd();
-	do{z = met[12]*func.rnd();}while(z>met[11]);
-      }
-    }
-    else if(zdist == "gallazzi" || zdist == "Gallazzi" || zdist == "Gallazzi05" || zdist == "gallazzi05"){
-	
-      double Pzrnd = func.rnd();	
-      double zfrs, zsec;
-      zfrs = -3;
-      zsec = -3;
-      for(int ll=0;ll<zgal.size();ll++){
-	if(Pzrnd>Nz[ll])
-	  zfrs = zgal[ll];	
-	else{
-	  zsec = zgal[ll];
-	  break;
-	}	 	 
-      }
-      if(zfrs == -3){
-	//cout<<"out of range (below) "<<Pzrnd<<" "<<Nz[0]<<endl;
-	zfrs = zgal[0] + (Pzrnd-Nz[0])/(Nz[1]-Nz[0])*(zgal[1]-zgal[0]);
-	if(zfrs<0.0) zfrs = 0.000001;
-      }	
-      if(zsec == -3){
-	//cout<<"out of range (above) "<<Pzrnd<<" "<<Nz[zgal.size()-1]<<endl;
-	zsec = zgal[zgal.size()-1];
-      }
-      
-      double lnzt = (zsec-zfrs)*func.rnd();      
-      double lnz = zfrs+lnzt;
-      
-      z = Zsun*pow(10.,lnz);
-      //cout<<zfrs<<" "<<zsec<<" "<<lnzt<<" "<<z<<endl;
-    }   
-    else{
-      cout<<"Z distribution not recognized "<<endl;
-      exit(0);
-      }*/
-
-
-    //if(delaytime=="yes" && (zdist == "gallazzi" || zdist == "Gallazzi" || zdist == "Gallazzi05" || zdist == "gallazzi05" || zdist == "logflat") ){
-      
+    
     double tof = tfor[i] / 1.E9;      
     double zinit = z;
     double red_del = func.inter(tof, age, reds, redline);
@@ -735,10 +697,7 @@ int main(){
       z = met[0];
     if(z > 1.2*met[11])
       z = met[11];
-    
-      //}
 
-      
     Z[i] = z;
     if(Z[i]>Z1) Z1 = Z[i];
     if(Z[i]<Z0) Z0 = Z[i];
@@ -1978,8 +1937,10 @@ int main(){
 	      
 	    }
 
-	    if(msec == 0)
+	    if(msec == 0){
+	      time = 1.e30;
 	      break;
+	    }
 	    
 	    if(highgen == "yes"){
 	      //This section needs to be improved, especially for what concern the probability of repeated mergers
@@ -2018,7 +1979,13 @@ int main(){
 	  //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
 	  double prob_ugp = func.rnd();
 	  double prob_fgp = func.rnd();
-	  if(uppergap == "yes" && prob_ugp >= pbelow && prob_fgp < fupgp){
+	  string UP = upgtp;
+	  double fUP= fupgp;
+			     
+	  if(UP == "dicarlo")
+	    fUP = 0.01 * (1. + 5.797 * exp(Z[i] / 0.0002 * log(5./5.797)));
+	  
+	  if(uppergap == "yes" && prob_ugp >= pbelow && prob_fgp < fUP){
 	      
 	    double p_gp;
 	    p_gp = func.rnd();
@@ -2059,10 +2026,21 @@ int main(){
 
 	  
 	  nsafe_glob += nsafe;
+	  double dmy = func.rnd();
+	  if(bhseed == "bifrost" && dmy < f_seed && mint > log10(5.3E3) && pow(10., mint - 3.*rint) > 1.E5 && Z[i] < bifZ){ //min mass to form a seed of at least 150 Msun
 
-	  
-	  if(bhseed == "vms"){	    
-	    double dmy = func.rnd();
+	    double mprimin = min(150., pow(pow(10.,mint), 0.53)*pow(10., -0.23));
+	    double mprimax = min(2.E4, 0.02 * pow(10.,mint));
+	      
+	    double mprit = mprimin + (mprimax - mprimin)*func.rnd();
+
+	    if(mprit > bhpisn)
+	      mpri = 0.9*mprit;
+
+	    
+	    	    
+	  }
+	  else if(bhseed == "vms"){	    
 	    if(dmy < f_seed){
 	      double A_vms, B_vms;
 
@@ -2085,24 +2063,20 @@ int main(){
 	      
 	    }
 	  }
-	  if(bhseed == "yes"){
-	    double dmy = func.rnd();
+	  else if(bhseed == "yes"){
 	    if(dmy < f_seed){
 	      double mimmi = func.rnd();
 	      mpri = pow(mimmi * pow(maxseed, 1.-seedslope) + (1.-mimmi) * pow(minseed,1.-seedslope) , 1./(1.-seedslope));	      
-	    }
-	    
+	    }	    
 	  }
-	  if(bhseed == "density"){
+	  else if(bhseed == "density"){
 	    double rho_vms = pow(10.,mint - 3.*rint);
-	    double dmy = func.rnd();
 	    if(dmy < f_seed && rho_vms > 3.E5){
 		double mimmi = func.rnd();
 		mpri = pow(mimmi * pow(maxseed, 1.-seedslope) + (1.-mimmi) * pow(minseed,1.-seedslope) , 1./(1.-seedslope));	      
 	    }
 	    	  
 	  }
-
 
 
 
@@ -2180,7 +2154,7 @@ int main(){
 	    tbbhform = 1.E12;
 	  
 	    
-	  if(time + tbbhform > tcc && time < tcc){
+	  if(time + tbbhform > tfor[i]+tcc && time < tfor[i]+tcc){
 	    time = tfor[i]+tcc;
 	    
 	    
@@ -2194,7 +2168,7 @@ int main(){
 	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
 
 	    if(mclcorr == 0.0 && rclcorr == 0.0)
-	      cout<<"god: "<<sig_clu<<" "<<rho_clu<<" "<<rho_cubicpc<<endl;
+	      time += 1.E12;
 
 	  }	    
 	    
@@ -2248,7 +2222,7 @@ int main(){
 	    t12 = 1.E12;
 	    
 	  
-	  if(time < tcc && time + t12 > tcc){
+	  if(time < tfor[i]+tcc && time + t12 > tfor[i]+tcc){
 	    time = tfor[i]+tcc;
 	    
 	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
@@ -2529,7 +2503,8 @@ int main(){
 	  }
 	  
 	  if(cluster_stat == "evaporated"){
-	    label = "inevap";
+	    if(label != "ejected")
+	      label = "inevap";
 	    break;
 	  }
 	  
@@ -2581,6 +2556,8 @@ int main(){
 	  mass_ratio = -1;
 	  nsafe = 0;       
 
+	  double msec_prec = msec;
+	  
 	  if(stri_mrat != "nouniform"){
 	    do{
 	      mass_ratio = func.mratio(mpri, MRATIO_SLOPE, stri_mrat);
@@ -2626,6 +2603,7 @@ int main(){
 	      if(msec < minimus){
 		cout<<"Second BH mass below mmin = "<<minimus<<" "<<msec<<endl;
 	      }
+
 	    }
 	    else{
 	      double MSLP = mslope;
@@ -2644,8 +2622,10 @@ int main(){
 	    }
 	  }
 
-	  if(msec == 0)
+	  if(msec == 0){
+	    msec = msec_prec;
 	    break;
+	  }
 	  
 	  if(highgen == "yes" && msec < 65.){
 	    double p_BPOP;
@@ -2715,7 +2695,7 @@ int main(){
 	  t12 *= func.rndgen(1.0, 0.1);
 
 	  
-	  if(time + trecy < tcc && time + trecy + t12 > tcc){
+	  if(time + trecy < tfor[i] +tcc && time + trecy + t12 > tfor[i] +tcc){
 	    time = tfor[i] + tcc;
 	    
 	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
@@ -3073,6 +3053,8 @@ int main(){
     SFR += "burst";
   else if(sfr_clu == "elba18" || sfr_clu == "EB18")
     SFR += "EB18";
+  else if(sfr_clu == "EB18_MF17")
+    SFR += "EB18MF17";
   
   cmdstr_zero += "_SFR_"+SFR;
   cmdstr_zero += "_sfronly_";
@@ -3104,7 +3086,11 @@ int main(){
   cmdstr_zero += "BHseed";
   cmdstr_zero += bhseed;
   cmdstr_zero += "_UMG";
-  cmdstr_zero += uppergap;
+  if(upgtp == "dicarlo")
+    cmdstr_zero += upgtp;
+  else
+    cmdstr_zero += uppergap;
+  
   cmdstr_zero += "_HighG";
   cmdstr_zero += highgen;
 
@@ -3198,7 +3184,7 @@ int main(){
   cout<<"Number of sources requested = "<<N<<endl;
   cout<<"Number of simulated mergers = "<<Niso_real + Ndyn_real<<endl;
   cout<<"Actual number of sources "<<Niso_real<<" "<<Ndyn_real<<" "<<Nyou_real<<" "<<Nglo_real<<" "<<Nnuc_real<<endl;
-  cout<<"F_dyn / iso = "<<Ndyn_real * 1./Niso_real<<endl;
+  cout<<"f_dyn = "<<Ndyn_real * 1./(Ndyn_real + Niso_real)<<endl;
   cout<<"F_YC, GC, NC / Dyn = "<<Nyou_real * 1./Ndyn_real <<" "<<Nglo_real * 1./Ndyn_real<<" "<<Nnuc_real * 1./Ndyn_real<<endl;
 
   
