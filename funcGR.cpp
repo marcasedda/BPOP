@@ -51,10 +51,10 @@ double Functions::LOGSMP(double mean, double sigma){
 double Functions::metcor(string metal_dis, double sigmaZ, double red_del){
       double logz;
       double logz_me;
-      if(metal_dis == "Bavera")
-	logz_me = 0.153 - 0.074 * pow(red_del,1.34); //Bavera et al 2020
+      if(metal_dis == "Bouffanais")  
+	logz_me = 0.153 - 0.074 * pow(red_del,1.34); // Bouffanais 2021
       else if(metal_dis == "Mapelli")
-	logz_me = 0.153 - 0.074 * pow(red_del,1.34) - (log(10.0) * sigmaZ*sigmaZ/2.0); //Santoliquido et al 2020 ?
+	logz_me = 0.153 - 0.074 * pow(red_del,1.34) - (log(10.0) * sigmaZ*sigmaZ/2.0); // Bavera et al 2020, Mapelli et al 2022
       else if(metal_dis == "Rafelski") //Giacobbo et al 2018, Rafelski et al 2012
 	if(red_del <= 1.5)
 	  logz_me = -0.19 * red_del ;
@@ -111,6 +111,23 @@ double Functions::GSS_smpl(double minZ, double maxZ, double xm, double sx){
   
   return logz;
   
+}
+
+double Functions::Gaussian_normal(double min, double max, double pp, double spp){
+  std::random_device rd;
+  std::mt19937 mt(rd());
+  std::normal_distribution<double> distG(pp,spp);
+  
+  double rndG = distG(mt);
+  rndG = distG(mt);
+
+
+  if(rndG < min)
+    rndG = min;
+  if(rndG > max)
+    rndG = max;
+  
+  return rndG;
 }
 
 
@@ -414,6 +431,7 @@ double Functions::rndgen(double pp, double spp){
   
   return rndG;
 }
+
 
 
 double Functions::Gaussian(double pp, double spp){
