@@ -1585,6 +1585,10 @@ void Functions::SREM2(double ndx, double a1, double a2, double m1, double m2, st
   spins[2] = Mfin;
   spins[3] = vkick;
 
+  spins[4] = cosa;
+  spins[5] = cosb;
+  spins[6] = cosg;
+
   return;
 
 }
