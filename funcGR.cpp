@@ -113,6 +113,23 @@ double Functions::GSS_smpl(double minZ, double maxZ, double xm, double sx){
   
 }
 
+double Functions::Gaussian_normal(double min, double max, double pp, double spp){
+  std::random_device rd;
+  std::mt19937 mt(rd());
+  std::normal_distribution<double> distG(pp,spp);
+  
+  double rndG = distG(mt);
+  rndG = distG(mt);
+
+
+  if(rndG < min)
+    rndG = min;
+  if(rndG > max)
+    rndG = max;
+  
+  return rndG;
+}
+
 
 double Functions::mevol(double t, double rh, double mh, double trel, string type, string tclus){
 
@@ -414,6 +431,7 @@ double Functions::rndgen(double pp, double spp){
   
   return rndG;
 }
+
 
 
 double Functions::Gaussian(double pp, double spp){
