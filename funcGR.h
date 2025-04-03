@@ -38,6 +38,7 @@ class Functions
   double rndG7();
   double rndgen(double pp, double spp);
   double LogGaussian(double pp, double spp);
+  double Gaussian_normal(double min, double max, double pp, double spp);
   double Gaussian(double pp, double spp);
 
   double tred(double z);
