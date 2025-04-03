@@ -25,16 +25,16 @@
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        1000000
+#define N        50000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
 #define Zsun     0.017
 
 //DYNAMICAL FRACTIONS
-#define DynOvTot  1.
+#define DynOvTot  0.
 #define pYC 0.
-#define pGC 1.
+#define pGC 0.
 #define pNC 0.
 
 #define uppergap "no"
@@ -382,7 +382,7 @@ int main(){
   int Nsrc = N;
     
   double *Spinning;
-  Spinning = new double [4];
+  Spinning = new double [7];
 
   /*
   double *sss;
@@ -551,7 +551,14 @@ int main(){
   Xrem = new double[Nsrc];
   double *Krem;
   Krem = new double[Nsrc];
-  
+  double *Cosa;
+  Cosa = new double[Nsrc];
+  double *Cosb;
+  Cosb = new double[Nsrc];
+  double *Cosg;
+  Cosg = new double[Nsrc];
+
+   
   double *Z;
   Z = new double [Nsrc];
   double *Zi;
@@ -822,6 +829,8 @@ int main(){
 
   string outname = "Catalogue.txt";
   out.open(outname.c_str());
+  out<<"#ID Metal Nrec EnvType lab m1[Msun] m2[Msun] a1 a2 Mfin[Msun] afin xeff vGW[km/s] tfor[yr] tlast_mer[yr] Mclu_t0[Ms] Rclu_t0[pc] Vesc[km/s] BinaryStatus aeje[AU] aGW[AU] nBHs Mcore_th[Ms] rcore_th[pc] redshift_merger redshift_formation tSMBH[yr] redshiftSMBH mprog[Ms] eccentricity semimajoraxis[AU] acrit[AU] tmerger[yr] cos(angle_s1s2) cos(angle_s1L) cos(angle_s2L)"<<endl;
+
   out2.open("Catalogue_clean.txt");
 
   cout<<"    ISOLATED BINARIES   "<<endl;
@@ -1011,6 +1020,9 @@ int main(){
       Spinning[0] = 0.0;
       Spinning[1] = 0.0;
       Spinning[2] = 0.0;
+      Spinning[5] = 0.0;
+      Spinning[6] = 0.0;
+      Spinning[7] = 0.0;
       if(mpri > 0.0 && msec > 0.0)
 	func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);
 	
@@ -1018,7 +1030,9 @@ int main(){
       Xrem[i] = Spinning[1];
       Mrem[i] = Spinning[2];
       Krem[i] = Spinning[3];
-      
+      Cosa[i] = Spinning[4];
+      Cosb[i] = Spinning[5];
+      Cosg[i] = Spinning[6];
 
       if(mpri < msec){
 	double mpri_sec = mpri;
@@ -1044,7 +1058,9 @@ int main(){
       
       //Dec 23: a space was missing between 0.0 and zmer, resulting in error for isolated binaries ...
       out<<itot<<" "<<met[k]<<" "<<label<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tform<<" "<<tdel;
-      out<<" 0.0 0.0 0.0 none "<<smaiso<<" "<<smaiso<<" 0.0 0.0 0.0 "<<zmer<<" "<<zfor<<" -1 -1 " <<mpri<<" 0.0 "<<smaiso<<" "<<smaiso<<endl;
+      out<<" 0.0 0.0 0.0 none "<<smaiso<<" "<<smaiso<<" 0.0 0.0 0.0 "<<zmer<<" "<<zfor<<" -1 -1 " <<mpri<<" 0.0 "<<smaiso<<" "<<smaiso<<" "<<tdel<<" "<<Cosa[i]<<" "<<Cosb[i]<<" "<<Cosg[i]<<endl;
+      
+
       Niso_real++;
       
       if(mpri!=0.0)	
@@ -2026,13 +2042,19 @@ int main(){
 	  Spinning[1] = 0;
 	  Spinning[2] = 0;
 	  Spinning[3] = 0;
+	  Spinning[5] = 0.0;
+	  Spinning[6] = 0.0;
+	  Spinning[7] = 0.0;
 	  if(mpri>0.0 && msec>0.0)
 	    func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
 	  Srem[i] = Spinning[0];
 	  Xrem[i] = Spinning[1];
 	  Mrem[i] = Spinning[2];
 	  Krem[i] = Spinning[3];
-	  
+	  Cosa[i] = Spinning[4];
+	  Cosb[i] = Spinning[5];
+	  Cosg[i] = Spinning[6];
+
 	  
 	  
 	  time = tfor[i];
@@ -2354,6 +2376,9 @@ int main(){
 	Spinning[1] = 0;	
 	Spinning[2] = 0;
 	Spinning[3] = 0;
+	Spinning[5] = 0.0;
+	Spinning[6] = 0.0;
+	Spinning[7] = 0.0;
 	if(mpri>0.0 && msec>0.0)
 	  func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
 
@@ -2361,7 +2386,10 @@ int main(){
 	Xrem[i] = Spinning[1];
 	Mrem[i] = Spinning[2];
 	Krem[i] = Spinning[3];
-	
+	Cosa[i] = Spinning[4];
+	Cosb[i] = Spinning[5];
+	Cosg[i] = Spinning[6];
+
 	vpri = Spinning[3];
 
 	double mzero = mpri;
@@ -2416,7 +2444,10 @@ int main(){
 	    Xrem[i] = Spinning[1];
 	    Mrem[i] = Spinning[2];
 	    Krem[i] = Spinning[3];
-	    
+	    Cosa[i] = Spinning[4];
+	    Cosb[i] = Spinning[5];
+	    Cosg[i] = Spinning[6];
+
 	    hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<endl;
 	  
 
@@ -2430,6 +2461,9 @@ int main(){
 	    Xrem[i] = Spinning[1];
 	    Mrem[i] = Spinning[2];
 	    Krem[i] = Spinning[3];
+	    Cosa[i] = Spinning[4];
+	    Cosb[i] = Spinning[5];
+	    Cosg[i] = Spinning[6];
 	    break;
 	  }
 	  
@@ -2453,6 +2487,9 @@ int main(){
 	  Xrem[i] = Spinning[1];
 	  Mrem[i] = Spinning[2];
 	  Krem[i] = Spinning[3];
+	  Cosa[i] = Spinning[4];
+	  Cosb[i] = Spinning[5];
+	  Cosg[i] = Spinning[6];
 
 
 	  double cj = pow(vthre,4.) / pow(vthre*vthre - Krem[i]*Krem[i],2.) - 1.;
@@ -2766,6 +2803,9 @@ int main(){
 	  Spinning[1] = 0;
 	  Spinning[2] = 0;
 	  Spinning[3] = 0;
+	  Spinning[5] = 0.0;
+	  Spinning[6] = 0.0;
+	  Spinning[7] = 0.0;
 	  if(mpri>0.0 && msec>0.0)
 	    func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  	 
 
@@ -2828,8 +2868,10 @@ int main(){
 	
 	if(time < Hubble){
 	  out<<itot<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
-	  out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<tmer<<endl; //Eccentricity added to output
+	  out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<tmer<<" "<<Cosa[i]<<" "<<Cosb[i]<<" "<<Cosg[i]<<endl; //Eccentricity added to output
 
+
+	  
 	  Ndyn_real++;
 	  if(cluster == "young")
 	    Nyou_real++;
@@ -3107,6 +3149,9 @@ int main(){
   delete [] Srem;
   delete [] Xrem;
   delete [] Krem;
+  delete [] Cosa;
+  delete [] Cosb;
+  delete [] Cosg;
   delete [] Z;
   delete [] Zi;
 
