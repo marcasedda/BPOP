@@ -3,7 +3,7 @@
 #include <cstring>
 #include <sstream>
 #include <fstream>
-#include <iomanip>
+#include <iomanip> 
 #include <cmath>
 #include <cstdlib>
 #include <omp.h>
@@ -18,7 +18,7 @@
 #define Hubble 14.E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
-#define PREDIR "../../../"
+#define PREDIR "../../"
 #define zPATH   "gallazzi05ZDATA.ttt"
 #define SINGPTH "A5/" // "DATI_SingleBH/"
 #define PATH    "A5/" // "DATI_GiaMap18/"
@@ -29,25 +29,27 @@
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
-#define Zsun     0.02
+#define Zsun     0.017
 
 //DYNAMICAL FRACTIONS
-#define DynOvTot  0.96
-#define pYC 0.78
-#define pGC 0.13
-#define pNC 0.09
-#define uppergap "yes"
-#define bhseed   "bifrost"
-#define bifZ     0.1
-#define bhpisn   100.
-#define fupgp    0.07 //0.15
+#define DynOvTot  1.
+#define pYC 0.
+#define pGC 1.
+#define pNC 0.
+
+#define uppergap "no"
+#define bhseed   "no"
+#define bifZ     0.001
+#define bhpisn   270.
+#define fupgp    0.15
+#define mass_gap  60.0
 #define upgtp   "dicarlo"
-#define SFRTYPE_ISO "MF17" //"continuous" //"MF17"
-#define SFRTYPE_CLU "EB18_MF17" //"continuous" //"EB18_MF17"
+#define SFRTYPE_ISO "MF17" //"continuous" //"MF17" //
+#define SFRTYPE_CLU "MF17" //"continuous" //"EB18_MF17" //
 
 
-#define mixing    0.5
-#define fbin      1.0
+#define mixing  0.5
+#define fbin    1.0
 
 //YC mass-size relation
 //Marks12, Rantala24, Mapelli20, AS20
@@ -55,7 +57,7 @@
 #define TagR "AS20"
 
 //Sigma of Gaussian sma distribution
-#define SSMA 0.3
+#define SSMA -1
 
 //CLUSTER EVOLUTION
 #define CLfill       "GG23"
@@ -63,7 +65,7 @@
 #define mono_Z       0.02
 #define cluster_test "no"
 #define cluster_test_env "NC"
-#define msmbhmax 5.E7
+#define msmbhmax 2.E3
 
 //BH SEED
 #define f_seed    0.2
@@ -72,7 +74,6 @@
 #define seedslope 3.0
 
 //HIGH MASS BHs
-#define mass_gap  50.0
 #define a_gp 2.0
 
 //HIGH GENERATION SECONDARY BH
@@ -81,6 +82,7 @@
 //METALLLICITY SPREAD
 #define sigma_metal 0.2
 #define sigma_distri "Mapelli"
+
 //SPINS
 #define spinlb  "maxwellian02"
 #define obslope  0.0
@@ -112,9 +114,9 @@
 
 //SIZE OF GENERAL VECTORS
 #define bin_st 50
-#define nsize 200
-#define tsize 200
-#define vsize 200
+#define nsize 80
+#define tsize 80
+#define vsize 80
 
 using namespace std;
 
@@ -255,7 +257,6 @@ int main(){
   using clock = std::chrono::system_clock;
   using sec = std::chrono::duration<double>;
   const auto before = clock::now();
-
 
   double sigmaZ = sigma_metal;
   string metal_dis = sigma_distri;
@@ -681,7 +682,9 @@ int main(){
   
   //ASSIGNING METALLICITIES to ISO and CLU BBHs
   double z;
+  cout<<"Assigning metallicities"<<endl;
 
+  
   for(int i=0;i<Niso+Nyc;i++){
     
     double tof = tfor[i] / 1.E9;      
@@ -691,7 +694,11 @@ int main(){
     double logz;
     double logz_me;            
     logz_me = func.metcor(metal_dis, sigmaZ, red_del);
-    logz = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
+    double logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
+    double logz2 = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
+
+    logz = logz1;
+
     z = pow(10.,logz);  
     if(z < 0.9*met[0])
       z = met[0];
@@ -704,85 +711,8 @@ int main(){
 
   }
 
-  cout<<"isolated binaries Z assigned"<<endl;
-
-
   int nout=0;
   for(int i=Niso+Nyc;i<Niso+Nyc+Ngc+Nnc;i++){
-
-    //Updates metallicity distribution from Santoliquido
-    /*double Zgcmin = log10(met[0]);//0.074*pow(2.,1.34) + log10(0.0005);
-    double Zgcmax = log10(met[11]);//0.074*pow(2.,1.34) + log10(0.001);
-
-    if(zdyn == "logflat"){
-      z = Zgcmin+(Zgcmax-Zgcmin)*func.rnd();
-      z = pow(10.,z);
-      if(z > met[12]){
-	cout<<"argh: "<<z<<" "<<Zgcmin<<" "<<Zgcmax<<endl;
-      }
-	
-    }
-    else if(zdyn == "powerlaw"){
-      P = func.rnd();
-      z = pow( (1.-P)*pow(met[12],1.+zslope) + P*pow(met[0],1.+zslope) , 1./(1.+zslope));
-      if(zslope == -1.0){
-	z = (1.-P)*log(met[12]) + P*log(met[0]);
-	z = exp(z);
-      }
-      if(zslope == 0.0){
-	z = met[12]*func.rnd();
-	do{z = met[12]*func.rnd();}while(z>met[11]);
-      }
-    }
-    else if(zdyn== "gallazzi" || zdyn == "Gallazzi" || zdyn == "Gallazzi05" || zdyn == "gallazzi05"){
-	
-      double Pzrnd = func.rnd();	
-      double zfrs, zsec;
-      zfrs = -3;
-      zsec = -3;
-      for(int ll=0;ll<zgal.size();ll++){
-	if(Pzrnd>Nz[ll])
-	  zfrs = zgal[ll];	
-	else{
-	  zsec = zgal[ll];
-	  break;
-	}	 	 
-      }
-      if(zfrs == -3){
-	//cout<<"out of range (below) "<<Pzrnd<<" "<<Nz[0]<<endl;
-	zfrs = zgal[0] + (Pzrnd-Nz[0])/(Nz[1]-Nz[0])*(zgal[1]-zgal[0]);
-	if(zfrs<0.0) zfrs = 0.000001;
-      }	
-      if(zsec == -3){
-	//cout<<"out of range (above) "<<Pzrnd<<" "<<Nz[zgal.size()-1]<<endl;
-	zsec = zgal[zgal.size()-1];
-      }
-      
-      double lnzt = (zsec-zfrs)*func.rnd();      
-      double lnz = zfrs+lnzt;
-      
-      z = Zsun*pow(10.,lnz);
-
-      /*double Pzrnd = func.rnd();	
-      double zfrs, zsec;
-      zfrs = -3;
-      zsec = -3;
-      for(int ll=0;ll<zgal.size();ll++){
-	if(Pzrnd>Nz[ll])
-	  zfrs = zgal[ll];	
-	else{
-	  zsec = zgal[ll];
-	  break;
-	}	 	 
-	}
-    }
-    else{
-      cout<<"Metallicity distribution for dynamical unknown"<<endl;
-      exit(0);
-    }
-
-    if((delaytime=="yes" && (zdyn == "gallazzi" || zdyn == "Gallazzi" || zdyn == "Gallazzi05" || zdyn == "gallazzi05" || zdyn=="logflat")) && MonoZ!="yes"){*/
-      ///INTRODUCING A CORRECTION FOR THE DELAY TIME...///
 
     double tof = tfor[i] / 1.E9;      
     double zinit = z;
@@ -790,23 +720,25 @@ int main(){
     double red_del = func.inter(tof, age, reds, redline);
     double logz;
     double logz_me;            
-    logz_me = func.metcor(metal_dis,sigmaZ, red_del);
-    logz = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
+    logz_me = func.metcor(metal_dis, sigmaZ, red_del);
+    double logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
+    double logz2 = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
+
+    logz = logz1;
+    
     z = pow(10.,logz);  
     if(z < 0.9*met[0])
       z = met[0];
     if(z > 1.2*met[11])
       z = met[11];
 
-      //}
-
     Z[i] = z;
     if(Z[i]>Z1) Z1 = Z[i];
     if(Z[i]<Z0) Z0 = Z[i];
       
   }
-  //cout<<"Source outside metallicity range ... "<<nout<<endl;
-  cout<<"dynamical binaries Z assigned"<<endl;
+  //----------------------------------------------------------
+  
   
   if(MonoZ == "yes")
     for(int i=0;i<Nsrc;i++){
@@ -2106,7 +2038,7 @@ int main(){
 	  time = tfor[i];
 	  tSNe = max(tpri,tsec);
 
-	  if(bhseed == "vms")
+	  if(bhseed != "no")
 	    tSNe = max(5.0e6, tcc);
 	    
 	  
@@ -2265,7 +2197,6 @@ int main(){
 
 	  //Calculate hard binary separation and assign binary sma
 	  semihard = 1./pow(sig_clu/30., 2.); 
-
 	  
 	  sma = semihard * func.Gaussian(1.,sigma_sma);
 
