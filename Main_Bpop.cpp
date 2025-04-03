@@ -32,9 +32,9 @@
 #define Zsun     0.017
 
 //DYNAMICAL FRACTIONS
-#define DynOvTot  1.
+#define DynOvTot  0.
 #define pYC 0.
-#define pGC 1.
+#define pGC 0.
 #define pNC 0.
 
 #define uppergap "no"
@@ -1056,7 +1056,9 @@ int main(){
       
       //Dec 23: a space was missing between 0.0 and zmer, resulting in error for isolated binaries ...
       out<<itot<<" "<<met[k]<<" "<<label<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tform<<" "<<tdel;
-      out<<" 0.0 0.0 0.0 none "<<smaiso<<" "<<smaiso<<" 0.0 0.0 0.0 "<<zmer<<" "<<zfor<<" -1 -1 " <<mpri<<" 0.0 "<<smaiso<<" "<<smaiso<<" "<<Cosa[i]<<" "<<Cosb[i]<<" "<<Cosg[i]<<endl;
+      out<<" 0.0 0.0 0.0 none "<<smaiso<<" "<<smaiso<<" 0.0 0.0 0.0 "<<zmer<<" "<<zfor<<" -1 -1 " <<mpri<<" 0.0 "<<smaiso<<" "<<smaiso<<" "<<tdel<<" "<<Cosa[i]<<" "<<Cosb[i]<<" "<<Cosg[i]<<endl;
+      
+
       Niso_real++;
       
       if(mpri!=0.0)	
