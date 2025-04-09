@@ -18,24 +18,24 @@
 #define Hubble 14.E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
-#define PREDIR "../../"
+#define PREDIR "../"
 #define zPATH   "gallazzi05ZDATA.ttt"
-#define SINGPTH "A5/" // "DATI_SingleBH/"
-#define PATH    "A5/" // "DATI_GiaMap18/"
+#define SINGPTH "rapid_M20/" // "DATI_SingleBH/"
+#define PATH    "rapid_M20/" // "DATI_GiaMap18/"
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        50000
+#define N        10
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
 #define Zsun     0.017
 
 //DYNAMICAL FRACTIONS
-#define DynOvTot  0.
+#define DynOvTot  1
 #define pYC 0.
 #define pGC 0.
-#define pNC 0.
+#define pNC 1.0
 
 #define uppergap "no"
 #define bhseed   "no"
@@ -48,7 +48,8 @@
 #define SFRTYPE_CLU "MF17" //"continuous" //"EB18_MF17" //
 
 
-#define mixing  0.5
+//#define mixing  0.5
+#define mixing  1.1
 #define fbin    1.0
 
 //YC mass-size relation
@@ -113,8 +114,8 @@
 #define numZ 12
 
 //ZAMS BINNING AND MINIMUM SAMPLE SIZE
-#define dm 1.0
-#define threshold 1000
+#define DM_val 1.0
+#define THRESHOLD_val 1000
 // Cristiano 07/04/2025
 // Should be deprecated (hopefully)
 
@@ -270,9 +271,68 @@ void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], dou
 }
 */
 
+// Cristiano 08/04/2025
+// New version of the function
+// The function:
+//   - reads the mixed catalog
+//   - generates a random mzams from the IMF
+//   - create a subsample catalog_true of the mixed catalog with | mzams - m| < dm
+//   - generates a subsample cat_retained that is not ejected at birth from the cluster (kick_mix_true[i] < vthree)
+//   - Now do a check on the lenght of the cat_retained
+//   - if the lenght is > threshold, then we can use the BH mass from the catalog randomly (as the number of sample is statistically significant)
+//   - if the lenght is < threshold, then we need to generate a cumulative distribution function (Cdf) of BH mass given mzams and extract the BH mass from the Cdf 
 
-void singBHt_mix(double dm, double vthree, int threshold)
+void singBHt_mix(double dm, double saximus_mix, double sinimus_mix, double vthre, int threshold,
+	const vector<double>& zams_mix,
+	const vector<double>& remn_mix,
+	const vector<double>& tdel_mix,
+	const vector<double>& kick_mix,
+	double mslp, double *single_bh) {
 
+	Functions func;
+
+  	double P = func.rnd();
+  	double mzams = pow( (P*pow(saximus_mix,1.+ mslp) + (1.-P)*pow(sinimus_mix,1.+mslp)), 1./(1.+mslp) );
+	
+	//double mzams = 149.0;
+	// Create arrays for the “true” subsample
+    vector<double> zams_true;
+    vector<double> bh_mix_true;
+    vector<double> kick_mix_true;
+    vector<double> tfor_mix_true;
+
+    // Loop once over full catalog and select those stars within the mass window.
+    for (size_t i = 0; i < zams_mix.size(); ++i) {
+		// Fork the Zams Mass and exclude high-kick systems
+        if ( zams_mix[i] >= (mzams - dm) && zams_mix[i] <= (mzams + dm) && kick_mix[i] <= vthre ){
+            zams_true.push_back(zams_mix[i]);
+			bh_mix_true.push_back(remn_mix[i]);
+            kick_mix_true.push_back(kick_mix[i]);
+            tfor_mix_true.push_back(tdel_mix[i]);
+        }
+    }
+	
+	// Now we have a subsample of the mixed catalog
+	cout << "Subsample for mass:" << mzams <<" with size: " << zams_true.size() << endl;
+	size_t n = zams_true.size();
+	cout << "First 10 subsample entries:" << endl;
+	for (size_t i = 0; i < std::min(n, size_t(10)); ++i) {
+		cout << "Entry " << i << ": zams = " << zams_true[i]
+			 << ", remnant = " << bh_mix_true[i]
+			 << ", tdelay = " << tfor_mix_true[i]
+			 << ", kick = " << kick_mix_true[i] << endl;
+	}
+	cout << "\nLast 10 subsample entries:" << endl;
+	size_t start = (n >= 10) ? n - 10 : 0;
+	for (size_t i = start; i < n; ++i) {
+		cout << "Entry " << i << ": zams = " << zams_true[i]
+			 << ", remnant = " << bh_mix_true[i]
+			 << ", tdelay = " << tfor_mix_true[i]
+			 << ", kick = " << kick_mix_true[i] << endl;
+	}
+
+	exit(0);
+}
 
 int main(){
   srand(time(0));
@@ -447,7 +507,7 @@ int main(){
   ofstream out;
 
   double metdyn[13];
-  metdyn[0]  = 0.0002;
+  metdyn[0]  = 0.02;
   metdyn[1]  = 0.0004;
   metdyn[2]  = 0.0008;
   metdyn[3]  = 0.0012;
@@ -460,6 +520,46 @@ int main(){
   metdyn[10] = 0.016;
   metdyn[11] = 0.02;
   metdyn[12] = 0.03;
+
+/* //Cristiano 08/04/2025
+
+//Finte metallicità per test
+
+double met[13];
+met[0]  = 0.02;
+met[1]  = 0.02;
+met[2]  = 0.02;
+met[3]  = 0.02;
+met[4]  = 0.02;
+met[5]  = 0.02;
+met[6]  = 0.02;
+met[7]  = 0.02;
+met[8]  = 0.02;
+met[9]  = 0.02;
+met[10] = 0.02;
+met[11] = 0.02;
+met[12] = 0.03;
+
+double mis[13];
+for(int i = 0;i<13;i++)mis[i] = 0.0;
+
+ofstream out;
+
+double metdyn[13];
+metdyn[0]  = 0.02;
+metdyn[1]  = 0.02;
+metdyn[2]  = 0.02;
+metdyn[3]  = 0.02;
+metdyn[4]  = 0.02;
+metdyn[5]  = 0.02;
+metdyn[6]  = 0.02;
+metdyn[7]  = 0.02;
+metdyn[8]  = 0.02;
+metdyn[9]  = 0.02;
+metdyn[10] = 0.02;
+metdyn[11] = 0.02;
+metdyn[12] = 0.03;
+ */
 
   string singpthA = predir+SINGPTH;  
   double ndx;
@@ -1835,22 +1935,23 @@ int main(){
 		//	 Ionized binary (e.g. isolated binary with merging time > 14 Gyr)
 		//	 Single star
 
-	    MSLP = mslope;
+	    double MSLP = mslope;
 	    mpri = -1;
 	    kpri = 1.E30;
 	    int nsafe = 0;
-	    do{
+		  do{
 		  //Old function		
-	      //singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-		  singBHt_mix(dm, vthre, zams_mix, remn_mix, tdel_mix, kick_mix, mslope, single_bh)	
-	      mpri = single_bh[0];	  	  
-	      tpri = single_bh[1];
-	      kpri = single_bh[2];	      
-	      if(nsafe > 1000)
+		  //singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		  cout << "Metallicity :" << met[k]<< endl;
+		  singBHt_mix(DM_val, saximus_mix, sinimus_mix, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
+		  mpri = single_bh[0];	  	  
+		  tpri = single_bh[1];
+		  kpri = single_bh[2];	      
+		  if(nsafe > 1000)
 		break;
-	      
-	      nsafe ++;
-	    }while(mpri <= 0.0 || kpri > vthre);
+		  
+		  nsafe ++;
+		}while(mpri <= 0.0 || kpri > vthre);
 	  }	  
 	  apri   = func.spin(mpri,dynaS);	
 
@@ -1919,7 +2020,7 @@ int main(){
 	      msec = -1;
 	      ksec = 1.E30;
 	      do{
-		singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		//singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
 		msec = single_bh[0];	  	  
 		tsec = single_bh[1];
 		ksec = single_bh[2];	    
@@ -2624,7 +2725,7 @@ int main(){
 	      msec = -1;
 	      ksec = 1.E30;	      
 	      do{
-		singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		//singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
 		msec = single_bh[0];	  	  
 		tsec = single_bh[1];
 		ksec = single_bh[2];
