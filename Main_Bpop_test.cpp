@@ -20,12 +20,12 @@
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
 #define PREDIR "../"
 #define zPATH   "gallazzi05ZDATA.ttt"
-#define SINGPTH "rapid_M20/" // "DATI_SingleBH/"
-#define PATH    "rapid_M20/" // "DATI_GiaMap18/"
+#define SINGPTH "A5/" // "DATI_SingleBH/"
+#define PATH    "A5/" // "DATI_GiaMap18/"
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        10
+#define N        100000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
@@ -291,10 +291,13 @@ void singBHt_mix(double dm, double saximus_mix, double sinimus_mix, double vthre
 
 	Functions func;
 
+	cout << " " << endl;
+	cout << "ZAMS IMF extremes - Max: " << saximus_mix << ", Min: " << sinimus_mix << ", Cluster escape velocity: "<< vthre << endl;
+
   	double P = func.rnd();
   	double mzams = pow( (P*pow(saximus_mix,1.+ mslp) + (1.-P)*pow(sinimus_mix,1.+mslp)), 1./(1.+mslp) );
 	
-	//double mzams = 149.0;
+	//double mzams = 4.50067;
 	// Create arrays for the “true” subsample
     vector<double> zams_true;
     vector<double> bh_mix_true;
@@ -302,7 +305,7 @@ void singBHt_mix(double dm, double saximus_mix, double sinimus_mix, double vthre
     vector<double> tfor_mix_true;
 
     // Loop once over full catalog and select those stars within the mass window.
-    for (size_t i = 0; i < zams_mix.size(); ++i) {
+    for (int i = 0; i < zams_mix.size(); ++i) {
 		// Fork the Zams Mass and exclude high-kick systems
         if ( zams_mix[i] >= (mzams - dm) && zams_mix[i] <= (mzams + dm) && kick_mix[i] <= vthre ){
             zams_true.push_back(zams_mix[i]);
@@ -312,26 +315,120 @@ void singBHt_mix(double dm, double saximus_mix, double sinimus_mix, double vthre
         }
     }
 	
+	
+	// Now we have a subsample of the mixed catalog
+	// Let's store the size of the catalog
+	int cat_size = zams_true.size();
+	cout << "Subsample for mass:" << mzams << " with size: " << cat_size << endl;
+
+	// Check on the subsample
+	/*
 	// Now we have a subsample of the mixed catalog
 	cout << "Subsample for mass:" << mzams <<" with size: " << zams_true.size() << endl;
-	size_t n = zams_true.size();
 	cout << "First 10 subsample entries:" << endl;
-	for (size_t i = 0; i < std::min(n, size_t(10)); ++i) {
+	for (int i = 0; i < min(cat_size, int(3)); ++i) {
 		cout << "Entry " << i << ": zams = " << zams_true[i]
 			 << ", remnant = " << bh_mix_true[i]
 			 << ", tdelay = " << tfor_mix_true[i]
 			 << ", kick = " << kick_mix_true[i] << endl;
 	}
 	cout << "\nLast 10 subsample entries:" << endl;
-	size_t start = (n >= 10) ? n - 10 : 0;
-	for (size_t i = start; i < n; ++i) {
+	size_t start = (cat_size >= 3) ? cat_size - 3 : 0;
+	for (size_t i = start; i < cat_size; ++i) {
 		cout << "Entry " << i << ": zams = " << zams_true[i]
 			 << ", remnant = " << bh_mix_true[i]
 			 << ", tdelay = " << tfor_mix_true[i]
 			 << ", kick = " << kick_mix_true[i] << endl;
 	}
+	*/
+	
 
-	exit(0);
+	// Cristiano 11/04/2025
+	// Safety check to ensure the catalog is not emtpy
+	if(cat_size == 0){
+		cout << "Warning: no BHs in the subsample for mass " << mzams << endl;
+		cout << "Exiting..." << endl;
+		exit(0);
+	}
+	// Initialize to zero the outcome vector
+
+	single_bh[0] = 0.0;
+	single_bh[1] = 0.0;
+	single_bh[2] = 0.0;
+
+	// Now let's chose the Bh
+
+	double i_rand;
+	int bh_index;
+
+	if(zams_true.size() >= threshold){
+		// If the subsample is big enough we can just select randomly
+		// in this way the possibility of catching extreme outcomes averages out and is naturally weightd in the catalog
+		i_rand = 1. * cat_size * func.rnd();
+		bh_index = i_rand;
+		single_bh[0] = bh_mix_true[bh_index];
+		single_bh[1] = tfor_mix_true[bh_index];
+		single_bh[2] = kick_mix_true[bh_index];
+	}
+	else{
+		// Cristiano 10/04/2025
+		// If the subsample is not big enough we need to generate a cumulative distribution function and extract from it the BH properties
+		// In this way we avoid selecting to often the same BH
+		cout << "Sample too small, generating cumulative distribution function (CDF)..." << endl;
+	
+		// Initialize a vector to hold the cumulative weights and assign uniform weights to each BH in the subsample
+		// These represent the cumulative probability of selecting each BH candidate, assuming each entry is equally likely
+		
+		vector<double> cumulative_weights(cat_size);
+		cumulative_weights[0] = 1.0;
+
+		for (int i = 1; i < cat_size; ++i) {
+			cumulative_weights[i] = cumulative_weights[i - 1] + 1.0;
+		}
+	
+		// Normalize the weights so that the last value becomes 1
+		// This converts the list into a proper CDF between 0 and 1
+		for (int i = 0; i < cat_size; ++i) {
+			cumulative_weights[i] /= cumulative_weights[cat_size - 1];
+		}
+	
+		
+		// Find the first index in the cumulative weights that exceeds the random number
+		// This effectively samples from the CDF
+		
+		double rand_uniform = func.rnd();
+
+		int bh_index = 0;
+		while (bh_index < cat_size && cumulative_weights[bh_index] < rand_uniform) {
+			++bh_index;
+		}
+	
+		// Safety check to ensure the index is within bounds
+		bh_index = min(bh_index, cat_size - 1);
+	
+		// Assign the BH properties at the selected index
+		single_bh[0] = bh_mix_true[bh_index];
+		single_bh[1] = tfor_mix_true[bh_index];
+		single_bh[2] = kick_mix_true[bh_index];
+	
+		cout << "Selected BH from CDF - index: " << bh_index << endl;
+	}
+
+	// Cristiano 10/04/2025 
+	// Let's check if the chosen BH is reasonable
+	cout << "BH properties - Mass: " << single_bh[0]
+		 << " Time delay: " << single_bh[1]
+		 << " Natal kick: " << single_bh[2] << endl; 
+
+	// Cristiano 10/04/2025
+	// Let's free the memory allocated for the subsample	    
+    zams_true.erase(zams_true.begin(),zams_true.end());
+    bh_mix_true.erase(bh_mix_true.begin(),bh_mix_true.end());
+    kick_mix_true.erase(kick_mix_true.begin(),kick_mix_true.end());
+    tfor_mix_true.erase(tfor_mix_true.begin(),tfor_mix_true.end());
+	cout << "" << endl;
+	
+	return;
 }
 
 int main(){
@@ -1217,9 +1314,9 @@ metdyn[12] = 0.03;
   out2.open("Catalogue_clean.txt");      
   ofstream out3;
   out3.open("Catalogue_multiple_dyn.txt");
-
+  out3 << "ID m1[Msun] m2[Msun] a_1 a_2 semi semi_ej semi_gw tfor[yr] tSNe[yr] t12capt[yr] t3bb[yr] tdf[yr] t12[yr] tbbh[yr] tmer[yr] time[yr] N_multi Mcore[t] Rcore[t] Mh_cl_init Rh_cl_init tcc status Cluster Mfin[Msun] Afin Xeff Kick_fin[km/s] Vesc[km/s] itot" << endl;
   
-  hout.open("Larger_than_tH.txt",ios::app);
+  hout.open("Larger_than_tH.txt", ios::app);
   
   double semi_ej,semi_gw;
 
@@ -2021,6 +2118,7 @@ metdyn[12] = 0.03;
 	      ksec = 1.E30;
 	      do{
 		//singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		singBHt_mix(DM_val, saximus_mix, sinimus_mix, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
 		msec = single_bh[0];	  	  
 		tsec = single_bh[1];
 		ksec = single_bh[2];	    
@@ -2652,7 +2750,8 @@ metdyn[12] = 0.03;
 	  if(vthre < Krem[i] ||  (cj < 0.0 && abs(cj) > 1.E-10))
 	    rinfinite = 1.E10;
 
-	  out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
+	  out3<<i<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
+	  //out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
 	  
 	  if(mpri > msmbhmax && tsmbh == 0.0){
 	    tsmbh = time;
@@ -2726,6 +2825,7 @@ metdyn[12] = 0.03;
 	      ksec = 1.E30;	      
 	      do{
 		//singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		singBHt_mix(DM_val, saximus_mix, sinimus_mix, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
 		msec = single_bh[0];	  	  
 		tsec = single_bh[1];
 		ksec = single_bh[2];
