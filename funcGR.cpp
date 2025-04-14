@@ -941,15 +941,17 @@ void Functions::singBHt_new(vector<double> zams_sin, vector<double> remn_sin, ve
   kick_for = 1.E30;
   
   vector<double> goodB, goodM, goodV, goodT;
-  
-  for(int i=0 ; i < kick_sin.size(); i++){
-    if(kick_sin[i] < vescape){
-      goodM.push_back(zams_sin[i]);
-      goodB.push_back(remn_sin[i]);
-      goodV.push_back(kick_sin[i]);
-      goodT.push_back(tdel_sin[i]);
+
+  if(kick_sin.size() > 1)
+    for(int i=0 ; i < kick_sin.size(); i++){
+      if(kick_sin[i] < vescape){
+	goodM.push_back(zams_sin[i]);
+	goodB.push_back(remn_sin[i]);
+	goodV.push_back(kick_sin[i]);
+	goodT.push_back(tdel_sin[i]);
+      }
     }
-  }
+    
   int flag = 0;
   sing_out[3] = 0.0;
   if(goodB.size() == 0){

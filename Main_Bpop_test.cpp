@@ -13,29 +13,30 @@
 #include <stdlib.h>
 #include <omp.h>
 #include <chrono>
+#include <algorithm>
 
 //#define THREAD 4
 #define Hubble 14.E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
-#define PREDIR "../../"
+#define PREDIR "../"
 #define zPATH   "gallazzi05ZDATA.ttt"
 #define SINGPTH "A5/" // "DATI_SingleBH/"
 #define PATH    "A5/" // "DATI_GiaMap18/"
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        5
+#define N        1000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
 #define Zsun     0.017
 
 //DYNAMICAL FRACTIONS
-#define DynOvTot  0.
+#define DynOvTot  1
 #define pYC 0.
 #define pGC 0.
-#define pNC 0.
+#define pNC 1.0
 
 #define uppergap "no"
 #define bhseed   "no"
@@ -48,7 +49,8 @@
 #define SFRTYPE_CLU "MF17" //"continuous" //"EB18_MF17" //
 
 
-#define mixing  0.5
+//#define mixing  0.5
+#define mixing  1.1
 #define fbin    1.0
 
 //YC mass-size relation
@@ -57,7 +59,7 @@
 #define TagR "AS20"
 
 //Sigma of Gaussian sma distribution
-#define SSMA 0.3
+#define SSMA -1
 
 //CLUSTER EVOLUTION
 #define CLfill       "GG23"
@@ -112,6 +114,12 @@
 #define spar 5
 #define numZ 12
 
+//ZAMS BINNING AND MINIMUM SAMPLE SIZE
+#define DM_val 1.0
+#define THRESHOLD_val 1000
+// Cristiano 07/04/2025
+// Should be deprecated (hopefully)
+
 //SIZE OF GENERAL VECTORS
 #define bin_st 50
 #define nsize 80
@@ -120,6 +128,9 @@
 
 using namespace std;
 
+// Cristiano 07/04/2025
+// Old version
+/*
 void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], double tbsx[], double tbdx[], double vbsx[], double vbdx[], double mbhmix[][nsize], double tbhmix[][tsize], double vbhmix[][vsize], double mslp, double *sing_out, double saximus_mix, double sinimus_mix, double maximus_mix, double minimus_mix, double vescape){
 
   Functions func;
@@ -157,9 +168,12 @@ void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], dou
     idy = ddy;
     maxtest = maxprob * func.rnd();
     maxpoint= mbhmix[idx][idy];
-    /*if(nsafe > 100){
-	cout<<"Warning mass. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-	}*/
+
+	// Cristiano 07/04/2025 
+	// Already commented
+    //if(nsafe > 100){
+	//cout<<"Warning mass. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
+	//}
     nsafe ++;
   }while(maxtest > maxpoint);	
   
@@ -199,9 +213,13 @@ void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], dou
       maxtest = maxprob * func.rnd();
       maxpoint= vbhmix[idy][idz];
       nsafe ++;
-      /*if(nsafe > 100){
+	
+	// Cristiano 07/04/2025 
+	// Already commented
+    //if(nsafe > 100){
 	cout<<"Warning vel. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-	}*/
+	//}
+
     }while(maxtest > maxpoint);
     
     vblack = vbsx[idz] + (vbdx[idz] - vbsx[idz]) * func.rnd();
@@ -228,9 +246,13 @@ void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], dou
       idz = ddz;
       maxtest = maxprob * func.rnd();
       maxpoint= tbhmix[idy][idz];
-      /*if(nsafe > 100){
-	cout<<"Warning time. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-	}*/
+
+	// Cristiano 07/04/2025 
+	// Already commented	
+    //if(nsafe > 100){
+	//cout<<"Warning time. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
+	//}
+
       nsafe ++;
     }while(maxtest > maxpoint);
     
@@ -248,7 +270,238 @@ void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], dou
   
   return ;
 }
-    
+*/
+
+// Cristiano 08/04/2025
+// New version of the function
+// The function:
+//   - reads the mixed catalog
+//   - generates a random mzams from the IMF
+//   - create a subsample catalog_true of the mixed catalog with | mzams - m| < dm
+//   - generates a subsample cat_retained that is not ejected at birth from the cluster (kick_mix_true[i] < vthree)
+//   - Now do a check on the lenght of the cat_retained
+//   - if the lenght is > threshold, then we can use the BH mass from the catalog randomly (as the number of sample is statistically significant)
+//   - if the lenght is < threshold, then we need to generate a cumulative distribution function (Cdf) of BH mass given mzams and extract the BH mass from the Cdf 
+
+void singBHt_mix(double dm, double vthre, int threshold,
+	const vector<double>& zams_mix,
+	const vector<double>& remn_mix,
+	const vector<double>& tdel_mix,
+	const vector<double>& kick_mix,
+	double mslp, double *single_bh) {
+
+	Functions func;
+
+	// Create arrays for the “retained” subsample
+	vector<double> zams_ret, bh_mix_ret, kick_mix_ret, tfor_mix_ret;
+
+	// Create arrays for the “true” subsample
+	vector<double> zams_true, bh_mix_true, kick_mix_true, tfor_mix_true;
+
+	// Now let's fill the retained sample
+	zams_ret.reserve(zams_mix.size());
+	bh_mix_ret.reserve(zams_mix.size());
+	kick_mix_ret.reserve(kick_mix.size());
+	tfor_mix_ret.reserve(tdel_mix.size());
+
+	double saximus_mix = -1e30;
+	double sinimus_mix = 1e30;
+
+	// Loop over the mixed catalog and select those stars that are not ejected at birth
+    for (int i = 0; i < zams_mix.size(); ++i) {
+        if (kick_mix[i] <= vthre ){
+            zams_ret.push_back(zams_mix[i]);
+			bh_mix_ret.push_back(remn_mix[i]);
+            kick_mix_ret.push_back(kick_mix[i]);
+            tfor_mix_ret.push_back(tdel_mix[i]);
+			// I check the extremes of the IMF at the same time, as I am after the filter
+			if (zams_mix[i] > saximus_mix) saximus_mix = zams_mix[i];
+        	if (zams_mix[i] < sinimus_mix) sinimus_mix = zams_mix[i];
+        }
+    }
+
+	// Now we have a subsample of the mixed catalog
+	cout << "Subsample for mass:" << zams_ret.size() << endl;
+	cout << "\nZAMS IMF extremes - Max: " << saximus_mix << ", Min: " << sinimus_mix << ", Cluster escape velocity: "<< vthre << endl;
+
+	// Now we have the extremes of the ZAMS mass
+	double P = func.rnd();
+	double mzams = pow( (P*pow(saximus_mix,1.+ mslp) + (1.-P)*pow(sinimus_mix,1.+mslp)), 1./(1.+mslp) );
+	cout << "ZAMS mass: " << mzams << endl;
+
+	// Loop once again over the subsample catalog and select those stars that are in the mass window.
+	for (int i = 0; i < zams_ret.size(); ++i) {
+		// Fork the Zams Mass 
+        if (zams_ret[i] >= (mzams - dm) && zams_ret[i] <= (mzams + dm)){
+            zams_true.push_back(zams_ret[i]);
+			bh_mix_true.push_back(bh_mix_ret[i]);
+            kick_mix_true.push_back(kick_mix_ret[i]);
+            tfor_mix_true.push_back(tfor_mix_ret[i]);
+        }
+    }
+	
+	// Now we have a subsample of the mixed catalog
+	// Let's store the size of the catalog
+	int cat_size = zams_true.size();
+	cout << "Subsample for mass:" << mzams << " with size: " << cat_size << endl;
+
+	// Check on the subsample
+	/*
+	// Now we have a subsample of the mixed catalog
+	cout << "Subsample for mass:" << mzams <<" with size: " << zams_true.size() << endl;
+	cout << "First 10 subsample entries:" << endl;
+	for (int i = 0; i < min(cat_size, int(3)); ++i) {
+		cout << "Entry " << i << ": zams = " << zams_true[i]
+			 << ", remnant = " << bh_mix_true[i]
+			 << ", tdelay = " << tfor_mix_true[i]
+			 << ", kick = " << kick_mix_true[i] << endl;
+	}
+	cout << "\nLast 10 subsample entries:" << endl;
+	size_t start = (cat_size >= 3) ? cat_size - 3 : 0;
+	for (size_t i = start; i < cat_size; ++i) {
+		cout << "Entry " << i << ": zams = " << zams_true[i]
+			 << ", remnant = " << bh_mix_true[i]
+			 << ", tdelay = " << tfor_mix_true[i]
+			 << ", kick = " << kick_mix_true[i] << endl;
+	}
+	*/
+
+	// Cristiano 11/04/2025
+	// Safety check to ensure the catalog is not emtpy
+	if(cat_size == 0){
+		cout << "Warning: no BHs in the subsample for mass " << mzams << endl;
+		cout << "Exiting..." << endl;
+		exit(0);
+	}
+	// Initialize to zero the outcome vector
+
+	single_bh[0] = 0.0;
+	single_bh[1] = 0.0;
+	single_bh[2] = 0.0;
+
+	// Now let's chose the Bh
+
+	int bh_index;
+	if(zams_true.size() >= threshold){
+		// If the subsample is big enough we can just select randomly
+		// in this way the possibility of catching extreme outcomes averages out and is naturally weightd in the catalog
+		bh_index = static_cast<int>(cat_size * func.rnd());
+		single_bh[0] = bh_mix_true[bh_index];
+		single_bh[1] = tfor_mix_true[bh_index];
+		single_bh[2] = kick_mix_true[bh_index];
+	}
+	
+	/*
+	else{
+		// Cristiano 10/04/2025
+		// If the subsample is not big enough we need to generate a cumulative distribution function and extract from it the BH properties
+		// In this way we avoid selecting to often the same BH
+		cout << "Sample too small, generating cumulative distribution function (CDF)..." << endl;
+	
+		// Initialize a vector to hold the cumulative weights and assign uniform weights to each BH in the subsample
+		// These represent the cumulative probability of selecting each BH candidate, assuming each entry is equally likely
+		
+		vector<double> cumulative_weights(cat_size);
+		cumulative_weights[0] = 1.0;
+
+		for (int i = 1; i < cat_size; ++i) {
+			cumulative_weights[i] = cumulative_weights[i - 1] + 1.0;
+		}
+	
+		// Normalize the weights so that the last value becomes 1
+		// This converts the list into a proper CDF between 0 and 1
+		for (int i = 0; i < cat_size; ++i) {
+			cumulative_weights[i] /= cumulative_weights[cat_size - 1];
+		}
+
+		// Find the first index in the cumulative weights that exceeds the random number
+		// This effectively samples from the CDF
+		
+		double rand_uniform = func.rnd();
+
+		int bh_index = 0;
+		while (bh_index < cat_size && cumulative_weights[bh_index] < rand_uniform) {
+			++bh_index;
+		}
+	*/
+	else {
+		// Cristiano 11/04/2025
+		// If the subsample is not big enough we perform inverse transform sampling
+		// from the empirical CDF of the BH mass distribution
+		cout << "Sample too small, generating empirical CDF and using inverse transform sampling..." << endl;
+
+
+		// Step 1: Sort BH masses
+		vector<double> bh_sorted = bh_mix_true;
+		sort(bh_sorted.begin(), bh_sorted.end());
+
+		// Step 2: Create the normalized CDF
+		vector<double> cdf(cat_size);
+		for (int i = 0; i < cat_size; ++i) {
+			cdf[i] = (i + 1.0) / cat_size;
+		}
+
+		// Step 3: Inverse sampling using binary search
+		double rand_uniform = func.rnd();
+		auto sampled_idx = lower_bound(cdf.begin(), cdf.end(), rand_uniform) - cdf.begin();
+
+		double sampled_mass;
+		if (sampled_idx == 0)
+			sampled_mass = bh_sorted[0];
+		else if (sampled_idx >= cat_size)
+			sampled_mass = bh_sorted.back();
+		else {
+			double x0 = cdf[sampled_idx - 1], x1 = cdf[sampled_idx];
+			double y0 = bh_sorted[sampled_idx - 1], y1 = bh_sorted[sampled_idx];
+			sampled_mass = y0 + (rand_uniform - x0) / (x1 - x0) * (y1 - y0);
+		}
+
+		// Step 4: Find the closest actual mass in the original unsorted subsample
+		double min_diff = fabs(bh_mix_true[0] - sampled_mass);
+		bh_index = 0;
+		for (int i = 1; i < cat_size; ++i) {
+			double diff = fabs(bh_mix_true[i] - sampled_mass);
+			if (diff < min_diff) {
+				min_diff = diff;
+				bh_index = i;
+			}
+		}
+
+		// Step 5: Assign interpolated mass and real BH properties
+		single_bh[0] = sampled_mass;  // Interpolated sampled mass
+		single_bh[1] = tfor_mix_true[bh_index];
+		single_bh[2] = kick_mix_true[bh_index];
+
+		cout << "Selected BH from inverse CDF - sampled mass: " << sampled_mass
+			 << ", matched index: " << bh_index
+			 << ", corresponding ZAMS in catalog: " << zams_true[bh_index]
+			 << ", actual mass in catalog: " << bh_mix_true[bh_index] << endl;
+	}
+
+	// Cristiano 10/04/2025 
+	// Let's check if the chosen BH is reasonable
+	cout << "BH properties - Mass: " << single_bh[0]
+		 << " Time delay: " << single_bh[1]
+		 << " Natal kick: " << single_bh[2] << endl; 
+
+	// Cristiano 10/04/2025
+	// Let's free the memory allocated for the subsample	    
+	zams_true.erase(zams_true.begin(), zams_true.end());
+	bh_mix_true.erase(bh_mix_true.begin(), bh_mix_true.end());
+	kick_mix_true.erase(kick_mix_true.begin(), kick_mix_true.end());
+	tfor_mix_true.erase(tfor_mix_true.begin(), tfor_mix_true.end());
+
+	// Also erase the retained subsample
+	zams_ret.erase(zams_ret.begin(), zams_ret.end());
+	bh_mix_ret.erase(bh_mix_ret.begin(), bh_mix_ret.end());
+	kick_mix_ret.erase(kick_mix_ret.begin(), kick_mix_ret.end());
+	tfor_mix_ret.erase(tfor_mix_ret.begin(), tfor_mix_ret.end());
+
+	cout << "" << endl;
+	
+	return;
+}
+
 int main(){
   srand(time(0));
   Functions func;
@@ -356,8 +609,9 @@ int main(){
   cmd = new char [cmdstr.length()+1];
   strcpy(cmd,cmdstr.c_str());
   int ck;
+  //if(yes=="Y") ck = system(cmd);
   delete [] cmd;
-
+  //delete [] yes;
 
   string sfr_iso = SFRTYPE_ISO;
   string sfr_clu = SFRTYPE_CLU;
@@ -382,7 +636,17 @@ int main(){
     
   double *Spinning;
   Spinning = new double [7];
- 
+
+  /*
+  double *sss;
+  sss = new double [1000];
+  for(int i=0;i<1000;i++)
+    sss[i] = 700.*func.rndgen(1.0, 0.1);
+  func.histo(sss,1000,30,"linear","test_general_GSS.txt");
+  delete [] sss;
+  exit(0);
+  */
+  
   Spinning[3] = -1.E30;
   
   string path   = predir+PATH;
@@ -411,7 +675,7 @@ int main(){
   ofstream out;
 
   double metdyn[13];
-  metdyn[0]  = 0.0002;
+  metdyn[0]  = 0.02;
   metdyn[1]  = 0.0004;
   metdyn[2]  = 0.0008;
   metdyn[3]  = 0.0012;
@@ -424,6 +688,46 @@ int main(){
   metdyn[10] = 0.016;
   metdyn[11] = 0.02;
   metdyn[12] = 0.03;
+
+/* //Cristiano 08/04/2025
+
+//Finte metallicità per test
+
+double met[13];
+met[0]  = 0.02;
+met[1]  = 0.02;
+met[2]  = 0.02;
+met[3]  = 0.02;
+met[4]  = 0.02;
+met[5]  = 0.02;
+met[6]  = 0.02;
+met[7]  = 0.02;
+met[8]  = 0.02;
+met[9]  = 0.02;
+met[10] = 0.02;
+met[11] = 0.02;
+met[12] = 0.03;
+
+double mis[13];
+for(int i = 0;i<13;i++)mis[i] = 0.0;
+
+ofstream out;
+
+double metdyn[13];
+metdyn[0]  = 0.02;
+metdyn[1]  = 0.02;
+metdyn[2]  = 0.02;
+metdyn[3]  = 0.02;
+metdyn[4]  = 0.02;
+metdyn[5]  = 0.02;
+metdyn[6]  = 0.02;
+metdyn[7]  = 0.02;
+metdyn[8]  = 0.02;
+metdyn[9]  = 0.02;
+metdyn[10] = 0.02;
+metdyn[11] = 0.02;
+metdyn[12] = 0.03;
+ */
 
   string singpthA = predir+SINGPTH;  
   double ndx;
@@ -447,8 +751,7 @@ int main(){
 
   double qmin, recy;
   string cluster = "none";
-  vector<double> mpost;
- 
+
   align = "whatever";
 
   // CREATING ESCAPE VEL ARRAYS //
@@ -998,25 +1301,21 @@ int main(){
 	  
       }while((miso1[ext] > mobs*1.2 || miso1[ext] < mobs*0.8) || tdel_iso[ext]+tfor[i] > Hubble);
 
-      
       if(jump == 1){
 	itot++;       
 	continue;
       }
       
-      
       mpri = miso1[ext];
       msec = miso2[ext];
       tdel = tdel_iso[ext];
-
-
+      
       Spinning[0] = 0.0;
       Spinning[1] = 0.0;
       Spinning[2] = 0.0;
-      Spinning[3] = 0.0;
-      Spinning[4] = 0.0;
       Spinning[5] = 0.0;
       Spinning[6] = 0.0;
+      Spinning[7] = 0.0;
       if(mpri > 0.0 && msec > 0.0)
 	func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);
 	
@@ -1027,30 +1326,26 @@ int main(){
       Cosa[i] = Spinning[4];
       Cosb[i] = Spinning[5];
       Cosg[i] = Spinning[6];
-      
+
       if(mpri < msec){
 	double mpri_sec = mpri;
 	mpri = msec;
 	msec = mpri;
       }
 
-      cout<<"Check3"<<endl;
 
       double tform = tfor[arr[k][i]];
       
       tdel += tform;
       smaiso = sma_iso[ext];
 	
-      if(tdel < 1.35E10){
-	zmer = func.inter(tdel / 1.E9, age, reds, redline);
-	zfor = func.inter(tform / 1.E9, age, reds, redline);
-      }
-      else{
+      zmer = func.inter(tdel / 1.E9, age, reds, redline);
+      if(tdel > 1.35E10)
 	zmer = func.zred(tdel/1.E9);
+
+      zfor = func.inter(tform / 1.E9, age, reds, redline);
+      if(tfor[arr[k][i]] > 1.35E10)
 	zfor = func.zred(tform/1.E9);
-      }
-      
-      
 
 
       
@@ -1090,9 +1385,9 @@ int main(){
   out2.open("Catalogue_clean.txt");      
   ofstream out3;
   out3.open("Catalogue_multiple_dyn.txt");
-
+  out3 << "ID m1[Msun] m2[Msun] a_1 a_2 semi semi_ej semi_gw tfor[yr] tSNe[yr] t12capt[yr] t3bb[yr] tdf[yr] t12[yr] tbbh[yr] tmer[yr] time[yr] N_multi Mcore[t] Rcore[t] Mh_cl_init Rh_cl_init tcc status Cluster Mfin[Msun] Afin Xeff Kick_fin[km/s] Vesc[km/s] itot" << endl;
   
-  hout.open("Larger_than_tH.txt",ios::app);
+  hout.open("Larger_than_tH.txt", ios::app);
   
   double semi_ej,semi_gw;
 
@@ -1282,7 +1577,10 @@ int main(){
 
 
 
-    
+    // Cristiano 07/04/2025
+	// Removing the matrix, that will be substitued by the new function
+	// reading the catalog just one time and keeping it saved in memory
+	/*
     double msdx[bin_st],mssx[bin_st];
     double mbdx[nsize],mbsx[nsize];
     double tbdx[nsize],tbsx[nsize];
@@ -1291,7 +1589,8 @@ int main(){
     double mbhmix[bin_st][nsize];
     double tbhmix[nsize][tsize];
     double vbhmix[nsize][vsize];
-       
+    
+
     //  cout<<"Filling the matrix"<<endl;
     double dm = (saximus_mix - sinimus_mix)/(double)bin_st;
     double db = (maximus_mix - minimus_mix)/(double)nsize;
@@ -1357,9 +1656,12 @@ int main(){
           
     }
 
-    /*for(int i=0;i<1000;i++)
-      func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, 1.E30);
-      exit(0);*/
+	//Cristiano
+	// this chunk was already commented
+    
+	//for(int i=0;i<1000;i++)
+    //  func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, 1.E30);
+    //  exit(0);
     
     double MSLP = mslope;
 
@@ -1394,7 +1696,8 @@ int main(){
 
 
     
-    
+    */
+
     ndx = 1000.;
     align="dynamical";
     
@@ -1773,7 +2076,12 @@ int main(){
 	  nsafe = 0;	 
 	  nhigen = 0;
 	  
-	  if(mixer > mixing){		
+	  // Here we generate the BHs, depending on the cluster properies and on 
+	  // the progenitors of the BHs
+
+
+	  if(mixer > mixing){
+	  //BH from an Isolated star remnant
 	    mpri = -1;
 	    kpri = 1.E30;
 	    do{
@@ -1789,20 +2097,29 @@ int main(){
 	    }while(mpri <= 0.0 || kpri > vthre);
 	  }
 	  else{	  
-	    MSLP = mslope;
+		// BH from a mixed channel, thus from either:
+		//	 Stellar merger
+		//	 Disrupted binary
+		//	 Ionized binary (e.g. isolated binary with merging time > 14 Gyr)
+		//	 Single star
+
+	    double MSLP = mslope;
 	    mpri = -1;
 	    kpri = 1.E30;
 	    int nsafe = 0;
-	    do{
-	      singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-	      mpri = single_bh[0];	  	  
-	      tpri = single_bh[1];
-	      kpri = single_bh[2];	      
-	      if(nsafe > 1000)
+		  do{
+		  //Old function		
+		  //singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		  cout << "Metallicity :" << met[k]<< endl;
+		  singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
+		  mpri = single_bh[0];	  	  
+		  tpri = single_bh[1];
+		  kpri = single_bh[2];	      
+		  if(nsafe > 1000)
 		break;
-	      
-	      nsafe ++;
-	    }while(mpri <= 0.0 || kpri > vthre);
+		  
+		  nsafe ++;
+		}while(mpri <= 0.0 || kpri > vthre);
 	  }	  
 	  apri   = func.spin(mpri,dynaS);	
 
@@ -1871,7 +2188,8 @@ int main(){
 	      msec = -1;
 	      ksec = 1.E30;
 	      do{
-		singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		//singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
 		msec = single_bh[0];	  	  
 		tsec = single_bh[1];
 		ksec = single_bh[2];	    
@@ -2036,14 +2354,13 @@ int main(){
 	  
 	  
 	  //FIRST MERGER
-	  Spinning[0] = 0.0;
-	  Spinning[1] = 0.0;
-	  Spinning[2] = 0.0;
-	  Spinning[3] = 0.0;
-	  Spinning[4] = 0.0;
+	  Spinning[0] = 0;
+	  Spinning[1] = 0;
+	  Spinning[2] = 0;
+	  Spinning[3] = 0;
 	  Spinning[5] = 0.0;
 	  Spinning[6] = 0.0;
-
+	  Spinning[7] = 0.0;
 	  if(mpri>0.0 && msec>0.0)
 	    func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
 	  Srem[i] = Spinning[0];
@@ -2155,7 +2472,7 @@ int main(){
 	  
 	  time += tbbhform;	  
 
-	  
+	
 	  
 	  //if(CLevo == "yes"){
 	    
@@ -2371,14 +2688,13 @@ int main(){
 
 
 	//MULTIPLE MERGER CHAIN//
-	Spinning[0] = 0.0;
-	Spinning[1] = 0.0;	
-	Spinning[2] = 0.0;
-	Spinning[3] = 0.0;
-	Spinning[4] = 0.0;
+	Spinning[0] = 0;
+	Spinning[1] = 0;	
+	Spinning[2] = 0;
+	Spinning[3] = 0;
 	Spinning[5] = 0.0;
 	Spinning[6] = 0.0;
-
+	Spinning[7] = 0.0;
 	if(mpri>0.0 && msec>0.0)
 	  func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
 
@@ -2505,7 +2821,8 @@ int main(){
 	  if(vthre < Krem[i] ||  (cj < 0.0 && abs(cj) > 1.E-10))
 	    rinfinite = 1.E10;
 
-	  out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
+	  out3<<i<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
+	  //out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
 	  
 	  if(mpri > msmbhmax && tsmbh == 0.0){
 	    tsmbh = time;
@@ -2578,7 +2895,8 @@ int main(){
 	      msec = -1;
 	      ksec = 1.E30;	      
 	      do{
-		singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		//singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
 		msec = single_bh[0];	  	  
 		tsec = single_bh[1];
 		ksec = single_bh[2];
@@ -2799,14 +3117,13 @@ int main(){
 	    exit(0);
 	  }
 	  
-	  Spinning[0] = 0.0;
-	  Spinning[1] = 0.0;
-	  Spinning[2] = 0.0;
-	  Spinning[3] = 0.0;
-	  Spinning[4] = 0.0;
+	  Spinning[0] = 0;
+	  Spinning[1] = 0;
+	  Spinning[2] = 0;
+	  Spinning[3] = 0;
 	  Spinning[5] = 0.0;
 	  Spinning[6] = 0.0;
-
+	  Spinning[7] = 0.0;
 	  if(mpri>0.0 && msec>0.0)
 	    func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  	 
 
@@ -2818,17 +3135,25 @@ int main(){
 	  nrecy += nhigen;
 
 	  //This will include all repeated mergers into the main catalogue ... 
-	  if(time < 1.35e10){
-	    zmer = func.inter(time / 1.E9, age, reds, redline);
-	    zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
-	    zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
-	  }
-	  else{
+	  zmer = func.inter(time / 1.E9, age, reds, redline);
+	  if(time > 1.35e10)
 	    zmer = func.zred(time/1.E9);
-	    zfor = func.zred(tfor[i]/1.E9);	  
+
+	  zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+	  if(tfor[i] > 1.35e10)
+	    zfor = func.zred(tfor[i]/1.E9);
+
+	  zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
+	  if(tsmbh > 1.35e10)
 	    zsmbh = func.zred(tsmbh/1.E9);
-	  }
-	 
+
+	  
+
+
+	  /*out<<itot<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
+	    out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<endl;*/ //Eccentricity added to output
+
+
 
 	}while(1>0);
 
@@ -2844,16 +3169,18 @@ int main(){
 	
 	
 
-	if(time < 1.35e10){
-	  zmer = func.inter(time / 1.E9, age, reds, redline);
-	  zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
-	  zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
-	}
-	else{
+	zmer = func.inter(time / 1.E9, age, reds, redline);
+	if(time > 1.35e10)
 	  zmer = func.zred(time/1.E9);
+
+	zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+	if(tfor[i] > 1.35e10)
 	  zfor = func.zred(tfor[i]/1.E9);
+
+	zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
+	if(tsmbh > 1.35e10)
 	  zsmbh = func.zred(tsmbh/1.E9);
-	}
+
 
 	itot++;
 	
@@ -2915,7 +3242,7 @@ int main(){
   hout.close();
   
   
-  
+  vector<double> mpost;
 
   for(int i=0;i<100;i++){
 
@@ -2947,13 +3274,12 @@ int main(){
     in.close();
   }
 
-  if(mpost.size() > 0){
-    double *X;
-    X = new double [mpost.size()];
-    for(int i=0;i<mpost.size();i++)X[i]=mpost[i];
-    func.histo(X,mpost.size(),30,"linear","Many_catalogues.txt");
-    delete [] X;
-  }
+  double *X;
+  X = new double [mpost.size()];
+  for(int i=0;i<mpost.size();i++)X[i]=mpost[i];
+  func.histo(X,mpost.size(),30,"linear","Many_catalogues.txt");
+  delete [] X;
+
 
   stringstream Fcl;
   
@@ -2979,6 +3305,31 @@ int main(){
   //FINAL FILE MOVING
   string cmdstr_zero =  "./SIM_Fdyn"+Fcl.str()+"_Ngc"+ggc.str()+"_Nyc"+gyc.str()+"_Nnc"+gnc.str()+"isolS_"+isolS+"dynaS_"+dynaS+"_"+"MetalDivi_"+metaldivi.str()+"_"+alg.str()+"_"+ZDIS+"_"+ZDYN+"_Correction_"+corr;
   
+  /*if(kick=="yes")
+    cmdstr_zero += "_kick_Yes";
+  else
+  cmdstr_zero += "_kick_No";*/
+  
+
+  /*cmdstr_zero += "_mratio";
+  cmdstr_zero += type_mrat;
+  if(type_mrat=="pwl"){
+    stringstream mrslp_str;
+    mrslp_str<<MRATIO_SLOPE;
+    cmdstr_zero +=  mrslp_str.str();
+    }*/
+  
+  /*if(delaytime=="yes")
+    cmdstr_zero += "_delaytimes_Yes";
+  else
+  cmdstr_zero += "_delaytimes_No";*/
+  
+  /*cmdstr_zero += "_primslope_";
+  stringstream msl;
+  msl<<obslope;
+  cmdstr_zero += msl.str();*/
+
+
   string SFR;
   if(sfr_iso == "katz13" || sfr_iso == "KR13")
     SFR = "KR13";
@@ -3089,8 +3440,6 @@ int main(){
   delete [] cmd;
   
 
-  
-  
   YCrx.erase(YCrx.begin(),YCrx.end());
   YCry.erase(YCry.begin(),YCry.end());
   YCmx.erase(YCmx.begin(),YCmx.end());
@@ -3130,9 +3479,8 @@ int main(){
   cout<<"Number of simulated mergers = "<<Niso_real + Ndyn_real<<endl;
   cout<<"Actual number of sources "<<Niso_real<<" "<<Ndyn_real<<" "<<Nyou_real<<" "<<Nglo_real<<" "<<Nnuc_real<<endl;
   cout<<"f_dyn = "<<Ndyn_real * 1./(Ndyn_real + Niso_real)<<endl;
-  if(Ndyn_real > 0)
-    cout<<"F_YC, GC, NC / Dyn = "<<Nyou_real * 1./Ndyn_real <<" "<<Nglo_real * 1./Ndyn_real<<" "<<Nnuc_real * 1./Ndyn_real<<endl;
-  cout<<"============="<<endl;
+  cout<<"F_YC, GC, NC / Dyn = "<<Nyou_real * 1./Ndyn_real <<" "<<Nglo_real * 1./Ndyn_real<<" "<<Nnuc_real * 1./Ndyn_real<<endl;
+
   
   const sec duration = clock::now() - before;
 
@@ -3145,5 +3493,5 @@ int main(){
   return 0;
   
   
-}
+  }
 
