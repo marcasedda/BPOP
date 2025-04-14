@@ -25,7 +25,7 @@
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        50000
+#define N        5
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
@@ -57,7 +57,7 @@
 #define TagR "AS20"
 
 //Sigma of Gaussian sma distribution
-#define SSMA -1
+#define SSMA 0.3
 
 //CLUSTER EVOLUTION
 #define CLfill       "GG23"
@@ -356,9 +356,8 @@ int main(){
   cmd = new char [cmdstr.length()+1];
   strcpy(cmd,cmdstr.c_str());
   int ck;
-  //if(yes=="Y") ck = system(cmd);
   delete [] cmd;
-  //delete [] yes;
+
 
   string sfr_iso = SFRTYPE_ISO;
   string sfr_clu = SFRTYPE_CLU;
@@ -383,17 +382,7 @@ int main(){
     
   double *Spinning;
   Spinning = new double [7];
-
-  /*
-  double *sss;
-  sss = new double [1000];
-  for(int i=0;i<1000;i++)
-    sss[i] = 700.*func.rndgen(1.0, 0.1);
-  func.histo(sss,1000,30,"linear","test_general_GSS.txt");
-  delete [] sss;
-  exit(0);
-  */
-  
+ 
   Spinning[3] = -1.E30;
   
   string path   = predir+PATH;
@@ -458,7 +447,8 @@ int main(){
 
   double qmin, recy;
   string cluster = "none";
-
+  vector<double> mpost;
+ 
   align = "whatever";
 
   // CREATING ESCAPE VEL ARRAYS //
@@ -1008,21 +998,25 @@ int main(){
 	  
       }while((miso1[ext] > mobs*1.2 || miso1[ext] < mobs*0.8) || tdel_iso[ext]+tfor[i] > Hubble);
 
+      
       if(jump == 1){
 	itot++;       
 	continue;
       }
       
+      
       mpri = miso1[ext];
       msec = miso2[ext];
       tdel = tdel_iso[ext];
-      
+
+
       Spinning[0] = 0.0;
       Spinning[1] = 0.0;
       Spinning[2] = 0.0;
+      Spinning[3] = 0.0;
+      Spinning[4] = 0.0;
       Spinning[5] = 0.0;
       Spinning[6] = 0.0;
-      Spinning[7] = 0.0;
       if(mpri > 0.0 && msec > 0.0)
 	func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);
 	
@@ -1033,26 +1027,30 @@ int main(){
       Cosa[i] = Spinning[4];
       Cosb[i] = Spinning[5];
       Cosg[i] = Spinning[6];
-
+      
       if(mpri < msec){
 	double mpri_sec = mpri;
 	mpri = msec;
 	msec = mpri;
       }
 
+      cout<<"Check3"<<endl;
 
       double tform = tfor[arr[k][i]];
       
       tdel += tform;
       smaiso = sma_iso[ext];
 	
-      zmer = func.inter(tdel / 1.E9, age, reds, redline);
-      if(tdel > 1.35E10)
+      if(tdel < 1.35E10){
+	zmer = func.inter(tdel / 1.E9, age, reds, redline);
+	zfor = func.inter(tform / 1.E9, age, reds, redline);
+      }
+      else{
 	zmer = func.zred(tdel/1.E9);
-
-      zfor = func.inter(tform / 1.E9, age, reds, redline);
-      if(tfor[arr[k][i]] > 1.35E10)
 	zfor = func.zred(tform/1.E9);
+      }
+      
+      
 
 
       
@@ -2038,13 +2036,14 @@ int main(){
 	  
 	  
 	  //FIRST MERGER
-	  Spinning[0] = 0;
-	  Spinning[1] = 0;
-	  Spinning[2] = 0;
-	  Spinning[3] = 0;
+	  Spinning[0] = 0.0;
+	  Spinning[1] = 0.0;
+	  Spinning[2] = 0.0;
+	  Spinning[3] = 0.0;
+	  Spinning[4] = 0.0;
 	  Spinning[5] = 0.0;
 	  Spinning[6] = 0.0;
-	  Spinning[7] = 0.0;
+
 	  if(mpri>0.0 && msec>0.0)
 	    func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
 	  Srem[i] = Spinning[0];
@@ -2156,7 +2155,7 @@ int main(){
 	  
 	  time += tbbhform;	  
 
-	
+	  
 	  
 	  //if(CLevo == "yes"){
 	    
@@ -2372,13 +2371,14 @@ int main(){
 
 
 	//MULTIPLE MERGER CHAIN//
-	Spinning[0] = 0;
-	Spinning[1] = 0;	
-	Spinning[2] = 0;
-	Spinning[3] = 0;
+	Spinning[0] = 0.0;
+	Spinning[1] = 0.0;	
+	Spinning[2] = 0.0;
+	Spinning[3] = 0.0;
+	Spinning[4] = 0.0;
 	Spinning[5] = 0.0;
 	Spinning[6] = 0.0;
-	Spinning[7] = 0.0;
+
 	if(mpri>0.0 && msec>0.0)
 	  func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
 
@@ -2799,13 +2799,14 @@ int main(){
 	    exit(0);
 	  }
 	  
-	  Spinning[0] = 0;
-	  Spinning[1] = 0;
-	  Spinning[2] = 0;
-	  Spinning[3] = 0;
+	  Spinning[0] = 0.0;
+	  Spinning[1] = 0.0;
+	  Spinning[2] = 0.0;
+	  Spinning[3] = 0.0;
+	  Spinning[4] = 0.0;
 	  Spinning[5] = 0.0;
 	  Spinning[6] = 0.0;
-	  Spinning[7] = 0.0;
+
 	  if(mpri>0.0 && msec>0.0)
 	    func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  	 
 
@@ -2817,25 +2818,17 @@ int main(){
 	  nrecy += nhigen;
 
 	  //This will include all repeated mergers into the main catalogue ... 
-	  zmer = func.inter(time / 1.E9, age, reds, redline);
-	  if(time > 1.35e10)
+	  if(time < 1.35e10){
+	    zmer = func.inter(time / 1.E9, age, reds, redline);
+	    zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+	    zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
+	  }
+	  else{
 	    zmer = func.zred(time/1.E9);
-
-	  zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
-	  if(tfor[i] > 1.35e10)
-	    zfor = func.zred(tfor[i]/1.E9);
-
-	  zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
-	  if(tsmbh > 1.35e10)
+	    zfor = func.zred(tfor[i]/1.E9);	  
 	    zsmbh = func.zred(tsmbh/1.E9);
-
-	  
-
-
-	  /*out<<itot<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
-	    out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<endl;*/ //Eccentricity added to output
-
-
+	  }
+	 
 
 	}while(1>0);
 
@@ -2851,18 +2844,16 @@ int main(){
 	
 	
 
-	zmer = func.inter(time / 1.E9, age, reds, redline);
-	if(time > 1.35e10)
+	if(time < 1.35e10){
+	  zmer = func.inter(time / 1.E9, age, reds, redline);
+	  zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+	  zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
+	}
+	else{
 	  zmer = func.zred(time/1.E9);
-
-	zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
-	if(tfor[i] > 1.35e10)
 	  zfor = func.zred(tfor[i]/1.E9);
-
-	zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
-	if(tsmbh > 1.35e10)
 	  zsmbh = func.zred(tsmbh/1.E9);
-
+	}
 
 	itot++;
 	
@@ -2924,7 +2915,7 @@ int main(){
   hout.close();
   
   
-  vector<double> mpost;
+  
 
   for(int i=0;i<100;i++){
 
@@ -2956,12 +2947,13 @@ int main(){
     in.close();
   }
 
-  double *X;
-  X = new double [mpost.size()];
-  for(int i=0;i<mpost.size();i++)X[i]=mpost[i];
-  func.histo(X,mpost.size(),30,"linear","Many_catalogues.txt");
-  delete [] X;
-
+  if(mpost.size() > 0){
+    double *X;
+    X = new double [mpost.size()];
+    for(int i=0;i<mpost.size();i++)X[i]=mpost[i];
+    func.histo(X,mpost.size(),30,"linear","Many_catalogues.txt");
+    delete [] X;
+  }
 
   stringstream Fcl;
   
@@ -2987,31 +2979,6 @@ int main(){
   //FINAL FILE MOVING
   string cmdstr_zero =  "./SIM_Fdyn"+Fcl.str()+"_Ngc"+ggc.str()+"_Nyc"+gyc.str()+"_Nnc"+gnc.str()+"isolS_"+isolS+"dynaS_"+dynaS+"_"+"MetalDivi_"+metaldivi.str()+"_"+alg.str()+"_"+ZDIS+"_"+ZDYN+"_Correction_"+corr;
   
-  /*if(kick=="yes")
-    cmdstr_zero += "_kick_Yes";
-  else
-  cmdstr_zero += "_kick_No";*/
-  
-
-  /*cmdstr_zero += "_mratio";
-  cmdstr_zero += type_mrat;
-  if(type_mrat=="pwl"){
-    stringstream mrslp_str;
-    mrslp_str<<MRATIO_SLOPE;
-    cmdstr_zero +=  mrslp_str.str();
-    }*/
-  
-  /*if(delaytime=="yes")
-    cmdstr_zero += "_delaytimes_Yes";
-  else
-  cmdstr_zero += "_delaytimes_No";*/
-  
-  /*cmdstr_zero += "_primslope_";
-  stringstream msl;
-  msl<<obslope;
-  cmdstr_zero += msl.str();*/
-
-
   string SFR;
   if(sfr_iso == "katz13" || sfr_iso == "KR13")
     SFR = "KR13";
@@ -3122,6 +3089,8 @@ int main(){
   delete [] cmd;
   
 
+  
+  
   YCrx.erase(YCrx.begin(),YCrx.end());
   YCry.erase(YCry.begin(),YCry.end());
   YCmx.erase(YCmx.begin(),YCmx.end());
@@ -3161,8 +3130,9 @@ int main(){
   cout<<"Number of simulated mergers = "<<Niso_real + Ndyn_real<<endl;
   cout<<"Actual number of sources "<<Niso_real<<" "<<Ndyn_real<<" "<<Nyou_real<<" "<<Nglo_real<<" "<<Nnuc_real<<endl;
   cout<<"f_dyn = "<<Ndyn_real * 1./(Ndyn_real + Niso_real)<<endl;
-  cout<<"F_YC, GC, NC / Dyn = "<<Nyou_real * 1./Ndyn_real <<" "<<Nglo_real * 1./Ndyn_real<<" "<<Nnuc_real * 1./Ndyn_real<<endl;
-
+  if(Ndyn_real > 0)
+    cout<<"F_YC, GC, NC / Dyn = "<<Nyou_real * 1./Ndyn_real <<" "<<Nglo_real * 1./Ndyn_real<<" "<<Nnuc_real * 1./Ndyn_real<<endl;
+  cout<<"============="<<endl;
   
   const sec duration = clock::now() - before;
 
@@ -3175,5 +3145,5 @@ int main(){
   return 0;
   
   
-  }
+}
 
