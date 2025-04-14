@@ -129,148 +129,6 @@
 using namespace std;
 
 // Cristiano 07/04/2025
-// Old version
-/*
-void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], double tbsx[], double tbdx[], double vbsx[], double vbdx[], double mbhmix[][nsize], double tbhmix[][tsize], double vbhmix[][vsize], double mslp, double *sing_out, double saximus_mix, double sinimus_mix, double maximus_mix, double minimus_mix, double vescape){
-
-  Functions func;
-
-  int nsafe;
-  
-  double P = func.rnd();
-  double mzams = pow((P*pow(saximus_mix,1.+mslp) + (1.-P)*pow(sinimus_mix,1.+mslp)),1./(1.+mslp));
-  int idx = -1;
-  for(int ii=0;ii<bin_st;ii++){
-    if(mzams >= mssx[ii] && mzams < msdx[ii]){
-      idx = ii;
-      break;
-    }
-  }
-
-
-  
-  double maxprob;
-  double maxtest;
-  double maxpoint;
-  int idy;
-
-  maxtest = 1.E30;
-  maxpoint= -1;
-  idy = -1;
-  nsafe = 0;
-  maxprob = -1;     
-  for(int jj=0;jj<nsize;jj++){    
-    if(maxprob < mbhmix[idx][jj])
-      maxprob = mbhmix[idx][jj];
-  }
-  do{
-    double ddy = 1.*nsize*func.rnd();
-    idy = ddy;
-    maxtest = maxprob * func.rnd();
-    maxpoint= mbhmix[idx][idy];
-
-	// Cristiano 07/04/2025 
-	// Already commented
-    //if(nsafe > 100){
-	//cout<<"Warning mass. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-	//}
-    nsafe ++;
-  }while(maxtest > maxpoint);	
-  
-  double mblack = mbsx[idy] + (mbdx[idy] - mbsx[idy]) * func.rnd();
-  
-  
-  int vsize_max = -1;
-  for(int jj=0;jj<vsize;jj++){
-    if(vbsx[jj] <=vescape)
-      vsize_max = jj;	    
-    if(vbsx[jj] > vescape)
-      break;    
-  }
-  if(vsize_max <= 0){
-    //cout<<"WARNING: no BHs can be retained in this cluster due to natal kick "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-    vsize_max = 0;    
-  }
-
-  //vsize_max = vsize;
-  
-  //cout<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-  //exit(0);
-  nsafe = 0;
-  maxprob = -1;
-  for(int jj=0;jj<vsize_max;jj++){
-    if(maxprob < vbhmix[idy][jj])
-      maxprob = vbhmix[idy][jj];
-  }
-  double vblack;
-  if(maxprob > 0){
-    maxtest = 1.E30;
-    maxpoint= -1;
-    int idz = -1;
-    do{
-      double ddz = 1.*vsize_max*func.rnd();
-      idz = ddz;
-      maxtest = maxprob * func.rnd();
-      maxpoint= vbhmix[idy][idz];
-      nsafe ++;
-	
-	// Cristiano 07/04/2025 
-	// Already commented
-    //if(nsafe > 100){
-	cout<<"Warning vel. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-	//}
-
-    }while(maxtest > maxpoint);
-    
-    vblack = vbsx[idz] + (vbdx[idz] - vbsx[idz]) * func.rnd();
-  }
-  else
-    vblack = 0.0;
-  
-  
-
-  nsafe = 0;
-  maxprob = -1;
-  for(int jj=0;jj<tsize;jj++){
-    if(maxprob < tbhmix[idy][jj])
-      maxprob = tbhmix[idy][jj];
-  }
-  double tblack;
-  if(maxprob > 0){
-    maxtest = 1.E30;
-    maxpoint= -1;
-    int idz = -1;
-    nsafe = 0;
-    do{
-      double ddz = 1.*tsize*func.rnd();
-      idz = ddz;
-      maxtest = maxprob * func.rnd();
-      maxpoint= tbhmix[idy][idz];
-
-	// Cristiano 07/04/2025 
-	// Already commented	
-    //if(nsafe > 100){
-	//cout<<"Warning time. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-	//}
-
-      nsafe ++;
-    }while(maxtest > maxpoint);
-    
-    tblack = tbsx[idz] + (tbdx[idz] - tbsx[idz]) * func.rnd();
-  }
-  else
-    tblack = 0.0;
-  
-       
-  sing_out[0] = mblack;
-  sing_out[1] = tblack;
-  sing_out[2] = vblack;
-
-  //cout<<mzams<<" "<<mblack<<" "<<tblack<<" "<<vblack<<endl;
-  
-  return ;
-}
-*/
 
 // Cristiano 08/04/2025
 // New version of the function
@@ -304,8 +162,13 @@ void singBHt_mix(double dm, double vthre, int threshold,
 	kick_mix_ret.reserve(kick_mix.size());
 	tfor_mix_ret.reserve(tdel_mix.size());
 
-	double saximus_mix = -1e30;
-	double sinimus_mix = 1e30;
+	zams_true.reserve(zams_ret.size());
+    bh_mix_true.reserve(bh_mix_ret.size());
+    kick_mix_true.reserve(kick_mix_ret.size());
+    tfor_mix_true.reserve(tfor_mix_ret.size());
+
+	//double saximus_mix = -1e30;
+	//double sinimus_mix = 1e30;
 
 	// Loop over the mixed catalog and select those stars that are not ejected at birth
     for (int i = 0; i < zams_mix.size(); ++i) {
@@ -315,19 +178,24 @@ void singBHt_mix(double dm, double vthre, int threshold,
             kick_mix_ret.push_back(kick_mix[i]);
             tfor_mix_ret.push_back(tdel_mix[i]);
 			// I check the extremes of the IMF at the same time, as I am after the filter
-			if (zams_mix[i] > saximus_mix) saximus_mix = zams_mix[i];
-        	if (zams_mix[i] < sinimus_mix) sinimus_mix = zams_mix[i];
+			//if (zams_mix[i] > saximus_mix) saximus_mix = zams_mix[i];
+        	//if (zams_mix[i] < sinimus_mix) sinimus_mix = zams_mix[i];
         }
     }
 
 	// Now we have a subsample of the mixed catalog
-	cout << "Subsample for mass:" << zams_ret.size() << endl;
-	cout << "\nZAMS IMF extremes - Max: " << saximus_mix << ", Min: " << sinimus_mix << ", Cluster escape velocity: "<< vthre << endl;
+	//cout << "Subsample for mass:" << zams_ret.size() << endl;
+	//cout << "\nZAMS IMF extremes - Max: " << saximus_mix << ", Min: " << sinimus_mix << ", Cluster escape velocity: "<< vthre << endl;
+    // Use std::minmax_element to get extremes of the ZAMS masses.
+    
+	auto mm = minmax_element(zams_ret.begin(), zams_ret.end());
+    double sinimus_mix = *mm.first;
+    double saximus_mix = *mm.second;
 
 	// Now we have the extremes of the ZAMS mass
 	double P = func.rnd();
 	double mzams = pow( (P*pow(saximus_mix,1.+ mslp) + (1.-P)*pow(sinimus_mix,1.+mslp)), 1./(1.+mslp) );
-	cout << "ZAMS mass: " << mzams << endl;
+	//cout << "ZAMS mass: " << mzams << endl;
 
 	// Loop once again over the subsample catalog and select those stars that are in the mass window.
 	for (int i = 0; i < zams_ret.size(); ++i) {
@@ -343,44 +211,23 @@ void singBHt_mix(double dm, double vthre, int threshold,
 	// Now we have a subsample of the mixed catalog
 	// Let's store the size of the catalog
 	int cat_size = zams_true.size();
-	cout << "Subsample for mass:" << mzams << " with size: " << cat_size << endl;
-
-	// Check on the subsample
-	/*
-	// Now we have a subsample of the mixed catalog
-	cout << "Subsample for mass:" << mzams <<" with size: " << zams_true.size() << endl;
-	cout << "First 10 subsample entries:" << endl;
-	for (int i = 0; i < min(cat_size, int(3)); ++i) {
-		cout << "Entry " << i << ": zams = " << zams_true[i]
-			 << ", remnant = " << bh_mix_true[i]
-			 << ", tdelay = " << tfor_mix_true[i]
-			 << ", kick = " << kick_mix_true[i] << endl;
-	}
-	cout << "\nLast 10 subsample entries:" << endl;
-	size_t start = (cat_size >= 3) ? cat_size - 3 : 0;
-	for (size_t i = start; i < cat_size; ++i) {
-		cout << "Entry " << i << ": zams = " << zams_true[i]
-			 << ", remnant = " << bh_mix_true[i]
-			 << ", tdelay = " << tfor_mix_true[i]
-			 << ", kick = " << kick_mix_true[i] << endl;
-	}
-	*/
+	//cout << "Subsample for mass:" << mzams << " with size: " << cat_size << endl;
 
 	// Cristiano 11/04/2025
 	// Safety check to ensure the catalog is not emtpy
-	if(cat_size == 0){
-		cout << "Warning: no BHs in the subsample for mass " << mzams << endl;
-		cout << "Exiting..." << endl;
-		exit(0);
-	}
-	// Initialize to zero the outcome vector
+	//if(cat_size == 0){
+		//cout << "Warning: no BHs in the subsample for mass " << mzams << endl;
+		//cout << "Exiting..." << endl;
+	//	exit(0);
+	//}
 
+
+	// Initialize to zero the outcome vector
 	single_bh[0] = 0.0;
 	single_bh[1] = 0.0;
 	single_bh[2] = 0.0;
 
 	// Now let's chose the Bh
-
 	int bh_index;
 	if(zams_true.size() >= threshold){
 		// If the subsample is big enough we can just select randomly
@@ -391,45 +238,13 @@ void singBHt_mix(double dm, double vthre, int threshold,
 		single_bh[2] = kick_mix_true[bh_index];
 	}
 	
-	/*
-	else{
-		// Cristiano 10/04/2025
-		// If the subsample is not big enough we need to generate a cumulative distribution function and extract from it the BH properties
-		// In this way we avoid selecting to often the same BH
-		cout << "Sample too small, generating cumulative distribution function (CDF)..." << endl;
-	
-		// Initialize a vector to hold the cumulative weights and assign uniform weights to each BH in the subsample
-		// These represent the cumulative probability of selecting each BH candidate, assuming each entry is equally likely
-		
-		vector<double> cumulative_weights(cat_size);
-		cumulative_weights[0] = 1.0;
-
-		for (int i = 1; i < cat_size; ++i) {
-			cumulative_weights[i] = cumulative_weights[i - 1] + 1.0;
-		}
-	
-		// Normalize the weights so that the last value becomes 1
-		// This converts the list into a proper CDF between 0 and 1
-		for (int i = 0; i < cat_size; ++i) {
-			cumulative_weights[i] /= cumulative_weights[cat_size - 1];
-		}
-
-		// Find the first index in the cumulative weights that exceeds the random number
-		// This effectively samples from the CDF
-		
-		double rand_uniform = func.rnd();
-
-		int bh_index = 0;
-		while (bh_index < cat_size && cumulative_weights[bh_index] < rand_uniform) {
-			++bh_index;
-		}
-	*/
 	else {
+		auto start = std::chrono::high_resolution_clock::now();
+
 		// Cristiano 11/04/2025
 		// If the subsample is not big enough we perform inverse transform sampling
 		// from the empirical CDF of the BH mass distribution
-		cout << "Sample too small, generating empirical CDF and using inverse transform sampling..." << endl;
-
+		//cout << "Sample too small, generating empirical CDF and using inverse transform sampling..." << endl;
 
 		// Step 1: Sort BH masses
 		vector<double> bh_sorted = bh_mix_true;
@@ -472,20 +287,27 @@ void singBHt_mix(double dm, double vthre, int threshold,
 		single_bh[1] = tfor_mix_true[bh_index];
 		single_bh[2] = kick_mix_true[bh_index];
 
+		/*
 		cout << "Selected BH from inverse CDF - sampled mass: " << sampled_mass
 			 << ", matched index: " << bh_index
 			 << ", corresponding ZAMS in catalog: " << zams_true[bh_index]
 			 << ", actual mass in catalog: " << bh_mix_true[bh_index] << endl;
+		*/		
+		//auto end = std::chrono::high_resolution_clock::now();
+		//auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		//cout << "Inverse transform sampling took " << duration.count() << " microseconds." << endl;
 	}
 
 	// Cristiano 10/04/2025 
 	// Let's check if the chosen BH is reasonable
+	/*
 	cout << "BH properties - Mass: " << single_bh[0]
 		 << " Time delay: " << single_bh[1]
 		 << " Natal kick: " << single_bh[2] << endl; 
-
+	*/
 	// Cristiano 10/04/2025
 	// Let's free the memory allocated for the subsample	    
+	/*
 	zams_true.erase(zams_true.begin(), zams_true.end());
 	bh_mix_true.erase(bh_mix_true.begin(), bh_mix_true.end());
 	kick_mix_true.erase(kick_mix_true.begin(), kick_mix_true.end());
@@ -497,8 +319,8 @@ void singBHt_mix(double dm, double vthre, int threshold,
 	kick_mix_ret.erase(kick_mix_ret.begin(), kick_mix_ret.end());
 	tfor_mix_ret.erase(tfor_mix_ret.begin(), tfor_mix_ret.end());
 
-	cout << "" << endl;
-	
+	//cout << "" << endl;
+	*/
 	return;
 }
     
@@ -2041,7 +1863,9 @@ int main(){
 	    mpri = -1;
 	    kpri = 1.E30;
 	    do{
+		  
 	      func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
+		  
 	      mpri = single_bh[0];	 
 	      tpri = single_bh[1];
 	      kpri = single_bh[2];
@@ -2066,8 +1890,14 @@ int main(){
 		  do{
 		  //Old function		
 		  //singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-		  cout << "Metallicity :" << met[k]<< endl;
+		  //cout << "Metallicity :" << met[k]<< endl;
+		  auto start = std::chrono::high_resolution_clock::now(); // Start timing
+
 		  singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
+		  auto end = std::chrono::high_resolution_clock::now(); // End timing
+		  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		  //std::cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << std::endl;
+		  
 		  mpri = single_bh[0];	  	  
 		  tpri = single_bh[1];
 		  kpri = single_bh[2];	      
@@ -2111,7 +1941,15 @@ int main(){
 	    if(mixer > mixing){
 	      do{
 		
+		auto start = std::chrono::high_resolution_clock::now(); // Start timing
+
 		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+
+		
+		auto end = std::chrono::high_resolution_clock::now(); // End timing
+		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		//std::cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << std::endl;
+
 		msec = single_bh[0];	 
 		tsec = single_bh[1];
 		ksec = single_bh[2];	    
@@ -2144,9 +1982,15 @@ int main(){
 	      msec = -1;
 	      ksec = 1.E30;
 	      do{
-			cout << "Metallicity :" << met[k]<< endl;
+			//cout << "Metallicity :" << met[k]<< endl;
+			auto start = std::chrono::high_resolution_clock::now(); // Start timing
+
 			singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
-  
+		
+			auto end = std::chrono::high_resolution_clock::now(); // End timing
+			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+			//std::cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << std::endl;
+	
 		//singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
 			msec = single_bh[0];	  	  
 			tsec = single_bh[1];
@@ -2854,9 +2698,13 @@ int main(){
 	      msec = -1;
 	      ksec = 1.E30;	      
 	      do{
-			cout << "Metallicity :" << met[k]<< endl;
+			//cout << "Metallicity :" << met[k]<< endl;
+			auto start = chrono::high_resolution_clock::now(); // Start timing
 			singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
-  
+			auto end = chrono::high_resolution_clock::now(); // End timing
+			auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
+			//cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << endl;
+			
 	  //singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
 			msec = single_bh[0];	  	  
 			tsec = single_bh[1];
