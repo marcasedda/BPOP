@@ -501,7 +501,7 @@ void singBHt_mix(double dm, double vthre, int threshold,
 	
 	return;
 }
-
+    
 int main(){
   srand(time(0));
   Functions func;
@@ -609,9 +609,8 @@ int main(){
   cmd = new char [cmdstr.length()+1];
   strcpy(cmd,cmdstr.c_str());
   int ck;
-  //if(yes=="Y") ck = system(cmd);
   delete [] cmd;
-  //delete [] yes;
+
 
   string sfr_iso = SFRTYPE_ISO;
   string sfr_clu = SFRTYPE_CLU;
@@ -636,17 +635,7 @@ int main(){
     
   double *Spinning;
   Spinning = new double [7];
-
-  /*
-  double *sss;
-  sss = new double [1000];
-  for(int i=0;i<1000;i++)
-    sss[i] = 700.*func.rndgen(1.0, 0.1);
-  func.histo(sss,1000,30,"linear","test_general_GSS.txt");
-  delete [] sss;
-  exit(0);
-  */
-  
+ 
   Spinning[3] = -1.E30;
   
   string path   = predir+PATH;
@@ -675,7 +664,7 @@ int main(){
   ofstream out;
 
   double metdyn[13];
-  metdyn[0]  = 0.02;
+  metdyn[0]  = 0.0002;
   metdyn[1]  = 0.0004;
   metdyn[2]  = 0.0008;
   metdyn[3]  = 0.0012;
@@ -688,46 +677,6 @@ int main(){
   metdyn[10] = 0.016;
   metdyn[11] = 0.02;
   metdyn[12] = 0.03;
-
-/* //Cristiano 08/04/2025
-
-//Finte metallicità per test
-
-double met[13];
-met[0]  = 0.02;
-met[1]  = 0.02;
-met[2]  = 0.02;
-met[3]  = 0.02;
-met[4]  = 0.02;
-met[5]  = 0.02;
-met[6]  = 0.02;
-met[7]  = 0.02;
-met[8]  = 0.02;
-met[9]  = 0.02;
-met[10] = 0.02;
-met[11] = 0.02;
-met[12] = 0.03;
-
-double mis[13];
-for(int i = 0;i<13;i++)mis[i] = 0.0;
-
-ofstream out;
-
-double metdyn[13];
-metdyn[0]  = 0.02;
-metdyn[1]  = 0.02;
-metdyn[2]  = 0.02;
-metdyn[3]  = 0.02;
-metdyn[4]  = 0.02;
-metdyn[5]  = 0.02;
-metdyn[6]  = 0.02;
-metdyn[7]  = 0.02;
-metdyn[8]  = 0.02;
-metdyn[9]  = 0.02;
-metdyn[10] = 0.02;
-metdyn[11] = 0.02;
-metdyn[12] = 0.03;
- */
 
   string singpthA = predir+SINGPTH;  
   double ndx;
@@ -751,7 +700,8 @@ metdyn[12] = 0.03;
 
   double qmin, recy;
   string cluster = "none";
-
+  vector<double> mpost;
+ 
   align = "whatever";
 
   // CREATING ESCAPE VEL ARRAYS //
@@ -1301,21 +1251,25 @@ metdyn[12] = 0.03;
 	  
       }while((miso1[ext] > mobs*1.2 || miso1[ext] < mobs*0.8) || tdel_iso[ext]+tfor[i] > Hubble);
 
+      
       if(jump == 1){
 	itot++;       
 	continue;
       }
       
+      
       mpri = miso1[ext];
       msec = miso2[ext];
       tdel = tdel_iso[ext];
-      
+
+
       Spinning[0] = 0.0;
       Spinning[1] = 0.0;
       Spinning[2] = 0.0;
+      Spinning[3] = 0.0;
+      Spinning[4] = 0.0;
       Spinning[5] = 0.0;
       Spinning[6] = 0.0;
-      Spinning[7] = 0.0;
       if(mpri > 0.0 && msec > 0.0)
 	func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);
 	
@@ -1326,26 +1280,30 @@ metdyn[12] = 0.03;
       Cosa[i] = Spinning[4];
       Cosb[i] = Spinning[5];
       Cosg[i] = Spinning[6];
-
+      
       if(mpri < msec){
 	double mpri_sec = mpri;
 	mpri = msec;
 	msec = mpri;
       }
 
+      cout<<"Check3"<<endl;
 
       double tform = tfor[arr[k][i]];
       
       tdel += tform;
       smaiso = sma_iso[ext];
 	
-      zmer = func.inter(tdel / 1.E9, age, reds, redline);
-      if(tdel > 1.35E10)
+      if(tdel < 1.35E10){
+	zmer = func.inter(tdel / 1.E9, age, reds, redline);
+	zfor = func.inter(tform / 1.E9, age, reds, redline);
+      }
+      else{
 	zmer = func.zred(tdel/1.E9);
-
-      zfor = func.inter(tform / 1.E9, age, reds, redline);
-      if(tfor[arr[k][i]] > 1.35E10)
 	zfor = func.zred(tform/1.E9);
+      }
+      
+      
 
 
       
@@ -1385,9 +1343,9 @@ metdyn[12] = 0.03;
   out2.open("Catalogue_clean.txt");      
   ofstream out3;
   out3.open("Catalogue_multiple_dyn.txt");
-  out3 << "ID m1[Msun] m2[Msun] a_1 a_2 semi semi_ej semi_gw tfor[yr] tSNe[yr] t12capt[yr] t3bb[yr] tdf[yr] t12[yr] tbbh[yr] tmer[yr] time[yr] N_multi Mcore[t] Rcore[t] Mh_cl_init Rh_cl_init tcc status Cluster Mfin[Msun] Afin Xeff Kick_fin[km/s] Vesc[km/s] itot" << endl;
+
   
-  hout.open("Larger_than_tH.txt", ios::app);
+  hout.open("Larger_than_tH.txt",ios::app);
   
   double semi_ej,semi_gw;
 
@@ -1576,7 +1534,6 @@ metdyn[12] = 0.03;
     in.close();
 
 
-
     // Cristiano 07/04/2025
 	// Removing the matrix, that will be substitued by the new function
 	// reading the catalog just one time and keeping it saved in memory
@@ -1697,7 +1654,6 @@ metdyn[12] = 0.03;
 
     
     */
-
     ndx = 1000.;
     align="dynamical";
     
@@ -2120,7 +2076,7 @@ metdyn[12] = 0.03;
 		  
 		  nsafe ++;
 		}while(mpri <= 0.0 || kpri > vthre);
-	  }	  
+	  } 
 	  apri   = func.spin(mpri,dynaS);	
 
 	  if(nsafe == 1000)
@@ -2188,14 +2144,16 @@ metdyn[12] = 0.03;
 	      msec = -1;
 	      ksec = 1.E30;
 	      do{
+			cout << "Metallicity :" << met[k]<< endl;
+			singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
+  
 		//singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-		singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
-		msec = single_bh[0];	  	  
-		tsec = single_bh[1];
-		ksec = single_bh[2];	    
-		if(nsafe > 1000)
-		  break;
-		nsafe ++;
+			msec = single_bh[0];	  	  
+			tsec = single_bh[1];
+			ksec = single_bh[2];	    
+			if(nsafe > 1000)
+			break;
+			nsafe ++;
 
 	      }while(msec <= 0.0 || ksec > vthre);
 	      
@@ -2354,13 +2312,14 @@ metdyn[12] = 0.03;
 	  
 	  
 	  //FIRST MERGER
-	  Spinning[0] = 0;
-	  Spinning[1] = 0;
-	  Spinning[2] = 0;
-	  Spinning[3] = 0;
+	  Spinning[0] = 0.0;
+	  Spinning[1] = 0.0;
+	  Spinning[2] = 0.0;
+	  Spinning[3] = 0.0;
+	  Spinning[4] = 0.0;
 	  Spinning[5] = 0.0;
 	  Spinning[6] = 0.0;
-	  Spinning[7] = 0.0;
+
 	  if(mpri>0.0 && msec>0.0)
 	    func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
 	  Srem[i] = Spinning[0];
@@ -2472,7 +2431,7 @@ metdyn[12] = 0.03;
 	  
 	  time += tbbhform;	  
 
-	
+	  
 	  
 	  //if(CLevo == "yes"){
 	    
@@ -2688,13 +2647,14 @@ metdyn[12] = 0.03;
 
 
 	//MULTIPLE MERGER CHAIN//
-	Spinning[0] = 0;
-	Spinning[1] = 0;	
-	Spinning[2] = 0;
-	Spinning[3] = 0;
+	Spinning[0] = 0.0;
+	Spinning[1] = 0.0;	
+	Spinning[2] = 0.0;
+	Spinning[3] = 0.0;
+	Spinning[4] = 0.0;
 	Spinning[5] = 0.0;
 	Spinning[6] = 0.0;
-	Spinning[7] = 0.0;
+
 	if(mpri>0.0 && msec>0.0)
 	  func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
 
@@ -2821,8 +2781,7 @@ metdyn[12] = 0.03;
 	  if(vthre < Krem[i] ||  (cj < 0.0 && abs(cj) > 1.E-10))
 	    rinfinite = 1.E10;
 
-	  out3<<i<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
-	  //out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
+	  out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
 	  
 	  if(mpri > msmbhmax && tsmbh == 0.0){
 	    tsmbh = time;
@@ -2895,12 +2854,14 @@ metdyn[12] = 0.03;
 	      msec = -1;
 	      ksec = 1.E30;	      
 	      do{
-		//singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-		singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
-		msec = single_bh[0];	  	  
-		tsec = single_bh[1];
-		ksec = single_bh[2];
-		nsafe ++;
+			cout << "Metallicity :" << met[k]<< endl;
+			singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
+  
+	  //singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+			msec = single_bh[0];	  	  
+			tsec = single_bh[1];
+			ksec = single_bh[2];
+			nsafe ++;
 		if(nsafe > 1000)
 		  break;
 	      }while(msec <= 0.0 || ksec > vthre);
@@ -3117,13 +3078,14 @@ metdyn[12] = 0.03;
 	    exit(0);
 	  }
 	  
-	  Spinning[0] = 0;
-	  Spinning[1] = 0;
-	  Spinning[2] = 0;
-	  Spinning[3] = 0;
+	  Spinning[0] = 0.0;
+	  Spinning[1] = 0.0;
+	  Spinning[2] = 0.0;
+	  Spinning[3] = 0.0;
+	  Spinning[4] = 0.0;
 	  Spinning[5] = 0.0;
 	  Spinning[6] = 0.0;
-	  Spinning[7] = 0.0;
+
 	  if(mpri>0.0 && msec>0.0)
 	    func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  	 
 
@@ -3135,25 +3097,17 @@ metdyn[12] = 0.03;
 	  nrecy += nhigen;
 
 	  //This will include all repeated mergers into the main catalogue ... 
-	  zmer = func.inter(time / 1.E9, age, reds, redline);
-	  if(time > 1.35e10)
+	  if(time < 1.35e10){
+	    zmer = func.inter(time / 1.E9, age, reds, redline);
+	    zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+	    zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
+	  }
+	  else{
 	    zmer = func.zred(time/1.E9);
-
-	  zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
-	  if(tfor[i] > 1.35e10)
-	    zfor = func.zred(tfor[i]/1.E9);
-
-	  zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
-	  if(tsmbh > 1.35e10)
+	    zfor = func.zred(tfor[i]/1.E9);	  
 	    zsmbh = func.zred(tsmbh/1.E9);
-
-	  
-
-
-	  /*out<<itot<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
-	    out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<endl;*/ //Eccentricity added to output
-
-
+	  }
+	 
 
 	}while(1>0);
 
@@ -3169,18 +3123,16 @@ metdyn[12] = 0.03;
 	
 	
 
-	zmer = func.inter(time / 1.E9, age, reds, redline);
-	if(time > 1.35e10)
+	if(time < 1.35e10){
+	  zmer = func.inter(time / 1.E9, age, reds, redline);
+	  zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+	  zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
+	}
+	else{
 	  zmer = func.zred(time/1.E9);
-
-	zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
-	if(tfor[i] > 1.35e10)
 	  zfor = func.zred(tfor[i]/1.E9);
-
-	zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
-	if(tsmbh > 1.35e10)
 	  zsmbh = func.zred(tsmbh/1.E9);
-
+	}
 
 	itot++;
 	
@@ -3242,7 +3194,7 @@ metdyn[12] = 0.03;
   hout.close();
   
   
-  vector<double> mpost;
+  
 
   for(int i=0;i<100;i++){
 
@@ -3274,12 +3226,13 @@ metdyn[12] = 0.03;
     in.close();
   }
 
-  double *X;
-  X = new double [mpost.size()];
-  for(int i=0;i<mpost.size();i++)X[i]=mpost[i];
-  func.histo(X,mpost.size(),30,"linear","Many_catalogues.txt");
-  delete [] X;
-
+  if(mpost.size() > 0){
+    double *X;
+    X = new double [mpost.size()];
+    for(int i=0;i<mpost.size();i++)X[i]=mpost[i];
+    func.histo(X,mpost.size(),30,"linear","Many_catalogues.txt");
+    delete [] X;
+  }
 
   stringstream Fcl;
   
@@ -3305,31 +3258,6 @@ metdyn[12] = 0.03;
   //FINAL FILE MOVING
   string cmdstr_zero =  "./SIM_Fdyn"+Fcl.str()+"_Ngc"+ggc.str()+"_Nyc"+gyc.str()+"_Nnc"+gnc.str()+"isolS_"+isolS+"dynaS_"+dynaS+"_"+"MetalDivi_"+metaldivi.str()+"_"+alg.str()+"_"+ZDIS+"_"+ZDYN+"_Correction_"+corr;
   
-  /*if(kick=="yes")
-    cmdstr_zero += "_kick_Yes";
-  else
-  cmdstr_zero += "_kick_No";*/
-  
-
-  /*cmdstr_zero += "_mratio";
-  cmdstr_zero += type_mrat;
-  if(type_mrat=="pwl"){
-    stringstream mrslp_str;
-    mrslp_str<<MRATIO_SLOPE;
-    cmdstr_zero +=  mrslp_str.str();
-    }*/
-  
-  /*if(delaytime=="yes")
-    cmdstr_zero += "_delaytimes_Yes";
-  else
-  cmdstr_zero += "_delaytimes_No";*/
-  
-  /*cmdstr_zero += "_primslope_";
-  stringstream msl;
-  msl<<obslope;
-  cmdstr_zero += msl.str();*/
-
-
   string SFR;
   if(sfr_iso == "katz13" || sfr_iso == "KR13")
     SFR = "KR13";
@@ -3440,6 +3368,8 @@ metdyn[12] = 0.03;
   delete [] cmd;
   
 
+  
+  
   YCrx.erase(YCrx.begin(),YCrx.end());
   YCry.erase(YCry.begin(),YCry.end());
   YCmx.erase(YCmx.begin(),YCmx.end());
@@ -3479,8 +3409,9 @@ metdyn[12] = 0.03;
   cout<<"Number of simulated mergers = "<<Niso_real + Ndyn_real<<endl;
   cout<<"Actual number of sources "<<Niso_real<<" "<<Ndyn_real<<" "<<Nyou_real<<" "<<Nglo_real<<" "<<Nnuc_real<<endl;
   cout<<"f_dyn = "<<Ndyn_real * 1./(Ndyn_real + Niso_real)<<endl;
-  cout<<"F_YC, GC, NC / Dyn = "<<Nyou_real * 1./Ndyn_real <<" "<<Nglo_real * 1./Ndyn_real<<" "<<Nnuc_real * 1./Ndyn_real<<endl;
-
+  if(Ndyn_real > 0)
+    cout<<"F_YC, GC, NC / Dyn = "<<Nyou_real * 1./Ndyn_real <<" "<<Nglo_real * 1./Ndyn_real<<" "<<Nnuc_real * 1./Ndyn_real<<endl;
+  cout<<"============="<<endl;
   
   const sec duration = clock::now() - before;
 
@@ -3493,5 +3424,5 @@ metdyn[12] = 0.03;
   return 0;
   
   
-  }
+}
 
