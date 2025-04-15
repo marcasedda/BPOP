@@ -26,7 +26,7 @@
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        1000
+#define N        100
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
@@ -133,10 +133,10 @@ using namespace std;
 // Cristiano 08/04/2025
 // New version of the function
 // The function:
-//   - reads the mixed catalog
+//   - reads the mixed catalog (already sorted in the main)
+//   - generates a subsample cat_retained that is not ejected at birth from the cluster (kick_mix_true[i] < vthree)
 //   - generates a random mzams from the IMF
 //   - create a subsample catalog_true of the mixed catalog with | mzams - m| < dm
-//   - generates a subsample cat_retained that is not ejected at birth from the cluster (kick_mix_true[i] < vthree)
 //   - Now do a check on the lenght of the cat_retained
 //   - if the lenght is > threshold, then we can use the BH mass from the catalog randomly (as the number of sample is statistically significant)
 //   - if the lenght is < threshold, then we need to generate a cumulative distribution function (Cdf) of BH mass given mzams and extract the BH mass from the Cdf 
@@ -156,6 +156,11 @@ void singBHt_mix(double dm, double vthre, int threshold,
 	// Create arrays for the “true” subsample
 	vector<double> zams_true, bh_mix_true, kick_mix_true, tfor_mix_true;
 
+	// ZAMS extremes
+	double saximus_mix = -1e30;
+	double sinimus_mix = 1e30;
+
+
 	// Now let's fill the retained sample
 	zams_ret.reserve(zams_mix.size());
 	bh_mix_ret.reserve(zams_mix.size());
@@ -167,36 +172,43 @@ void singBHt_mix(double dm, double vthre, int threshold,
     kick_mix_true.reserve(kick_mix_ret.size());
     tfor_mix_true.reserve(tfor_mix_ret.size());
 
-	//double saximus_mix = -1e30;
-	//double sinimus_mix = 1e30;
-
+	auto check = std::chrono::high_resolution_clock::now();
 	// Loop over the mixed catalog and select those stars that are not ejected at birth
-    for (int i = 0; i < zams_mix.size(); ++i) {
-        if (kick_mix[i] <= vthre ){
-            zams_ret.push_back(zams_mix[i]);
-			bh_mix_ret.push_back(remn_mix[i]);
-            kick_mix_ret.push_back(kick_mix[i]);
-            tfor_mix_ret.push_back(tdel_mix[i]);
-			// I check the extremes of the IMF at the same time, as I am after the filter
-			//if (zams_mix[i] > saximus_mix) saximus_mix = zams_mix[i];
-        	//if (zams_mix[i] < sinimus_mix) sinimus_mix = zams_mix[i];
-        }
-    }
+	for (int i = 0; i < zams_mix.size(); ++i) {
+		// Because the kick_mix array is sorted in ascending order, as soon as we encounter
+		// a kick value larger than vthre, we can stop.
+		if (kick_mix[i] > vthre) {
+			break;
+		}
+		// Only values with kick_mix[i] <= vthre are retained.
+		zams_ret.push_back(zams_mix[i]);
+		bh_mix_ret.push_back(remn_mix[i]);
+		kick_mix_ret.push_back(kick_mix[i]);
+		tfor_mix_ret.push_back(tdel_mix[i]);
+		
+		// Let's chose the ZAMS mass extremes
+		if (zams_mix[i] > saximus_mix) saximus_mix = zams_mix[i]; 
+		if (zams_mix[i] < sinimus_mix) sinimus_mix = zams_mix[i];
 
+	}
+	cout << "Time taken to filter the catalog: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
 	// Now we have a subsample of the mixed catalog
 	//cout << "Subsample for mass:" << zams_ret.size() << endl;
 	//cout << "\nZAMS IMF extremes - Max: " << saximus_mix << ", Min: " << sinimus_mix << ", Cluster escape velocity: "<< vthre << endl;
     // Use std::minmax_element to get extremes of the ZAMS masses.
     
-	auto mm = minmax_element(zams_ret.begin(), zams_ret.end());
-    double sinimus_mix = *mm.first;
-    double saximus_mix = *mm.second;
+	auto check2 = std::chrono::high_resolution_clock::now();
+	//auto mm = minmax_element(zams_ret.begin(), zams_ret.end());
+    //double sinimus_mix = *mm.first;
+    //double saximus_mix = *mm.second;
 
 	// Now we have the extremes of the ZAMS mass
 	double P = func.rnd();
 	double mzams = pow( (P*pow(saximus_mix,1.+ mslp) + (1.-P)*pow(sinimus_mix,1.+mslp)), 1./(1.+mslp) );
 	//cout << "ZAMS mass: " << mzams << endl;
+	cout << "Time taken to find the extremes of the ZAMS mass: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check2).count() << " microseconds." << endl;
 
+	auto check3 = std::chrono::high_resolution_clock::now();
 	// Loop once again over the subsample catalog and select those stars that are in the mass window.
 	for (int i = 0; i < zams_ret.size(); ++i) {
 		// Fork the Zams Mass 
@@ -207,6 +219,8 @@ void singBHt_mix(double dm, double vthre, int threshold,
             tfor_mix_true.push_back(tfor_mix_ret[i]);
         }
     }
+
+	cout << "Time taken to filter the catalog for the mass window: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check3).count() << " microseconds." << endl;
 	
 	// Now we have a subsample of the mixed catalog
 	// Let's store the size of the catalog
@@ -230,12 +244,14 @@ void singBHt_mix(double dm, double vthre, int threshold,
 	// Now let's chose the Bh
 	int bh_index;
 	if(zams_true.size() >= threshold){
+		auto start = std::chrono::high_resolution_clock::now();
 		// If the subsample is big enough we can just select randomly
 		// in this way the possibility of catching extreme outcomes averages out and is naturally weightd in the catalog
 		bh_index = static_cast<int>(cat_size * func.rnd());
 		single_bh[0] = bh_mix_true[bh_index];
 		single_bh[1] = tfor_mix_true[bh_index];
 		single_bh[2] = kick_mix_true[bh_index];
+		cout << "time to select BH if subsample is big enough: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " microseconds." << endl;
 	}
 	
 	else {
@@ -287,15 +303,9 @@ void singBHt_mix(double dm, double vthre, int threshold,
 		single_bh[1] = tfor_mix_true[bh_index];
 		single_bh[2] = kick_mix_true[bh_index];
 
-		/*
-		cout << "Selected BH from inverse CDF - sampled mass: " << sampled_mass
-			 << ", matched index: " << bh_index
-			 << ", corresponding ZAMS in catalog: " << zams_true[bh_index]
-			 << ", actual mass in catalog: " << bh_mix_true[bh_index] << endl;
-		*/		
-		//auto end = std::chrono::high_resolution_clock::now();
-		//auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-		//cout << "Inverse transform sampling took " << duration.count() << " microseconds." << endl;
+		auto end = std::chrono::high_resolution_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		cout << "Inverse transform sampling took " << duration.count() << " microseconds." << endl;
 	}
 
 	// Cristiano 10/04/2025 
@@ -321,6 +331,7 @@ void singBHt_mix(double dm, double vthre, int threshold,
 
 	//cout << "" << endl;
 	*/
+	cout <<"time for the whole function: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
 	return;
 }
     
@@ -1299,28 +1310,62 @@ int main(){
     do{
       double par[spar];
       for(int jj=0;jj<spar;jj++)
-	in>>par[jj];
+		in>>par[jj];
 		       
-      zams_mix.push_back(par[0]);
-      remn_mix.push_back(par[1]);
-      tdel_mix.push_back(1.E6 * par[3]);
-      kick_mix.push_back(par[4]);
-      
-      if(par[1] > maximus_mix && par[1] < 200.0)
-	maximus_mix = par[1];
-      if(par[1] < minimus_mix)
-	minimus_mix = par[1];
+		zams_mix.push_back(par[0]);
+		remn_mix.push_back(par[1]);
+		tdel_mix.push_back(1.E6 * par[3]);
+		kick_mix.push_back(par[4]);
+		
+		// Cristiano 15/04/2025
+		// We compute the extremes of the IMF in the singBHt_mix function
+		/*
+		if(par[1] > maximus_mix && par[1] < 200.0)
+			maximus_mix = par[1];
+		if(par[1] < minimus_mix)
+			minimus_mix = par[1];
 
-      if(par[0] > saximus_mix)
-	saximus_mix = par[0];
-      if(par[0] < sinimus_mix)
-	sinimus_mix = par[0];
-
-      
+		if(par[0] > saximus_mix)
+			saximus_mix = par[0];
+		if(par[0] < sinimus_mix)
+			sinimus_mix = par[0];
+		*/
     }while(!in.eof());
     in.close();
 
+	//Cristiano 15/04/2025
+	//Let's order the vectors with respect to the escape velocity
+	// In this way in the singBHt_mix function we can stop at the first index such that:
+	// kick_mix[i] >= vthre
 
+	vector<double> kick_index(kick_mix.size());
+
+	for (int i = 0; i < kick_mix.size(); i++){
+		kick_index[i] = i;
+	}
+
+	sort(kick_index.begin(), kick_index.end(), [&](int i1, int i2) {
+		return kick_mix[i1] < kick_mix[i2];
+	});
+
+	// Now we can create the sorted vectors
+	vector<double> zams_mix_sorted;
+	vector<double> remn_mix_sorted;
+	vector<double> tdel_mix_sorted;
+	vector<double> kick_mix_sorted;
+
+	for (int i = 0; i < kick_index.size(); i++) {
+		zams_mix_sorted.push_back(zams_mix[kick_index[i]]);
+		remn_mix_sorted.push_back(remn_mix[kick_index[i]]);
+		tdel_mix_sorted.push_back(tdel_mix[kick_index[i]]);
+		kick_mix_sorted.push_back(kick_mix[kick_index[i]]);
+	}
+
+	// Now we move the sorted vectors into the old ones
+	zams_mix = move(zams_mix_sorted);
+	remn_mix = move(remn_mix_sorted);	
+	tdel_mix = move(tdel_mix_sorted);
+	kick_mix = move(kick_mix_sorted);
     
     //SINGLE BHs
     filepath = path + pathse + pathsp + "/spectrum_cleaned" + sss.str() + ".txt";
