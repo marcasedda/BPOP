@@ -26,7 +26,7 @@
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        100
+#define N        1000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
@@ -114,12 +114,14 @@
 #define spar 5
 #define numZ 12
 
+// Cristiano 18/04/2025
+// Should be deprecated (hopefully)
 //ZAMS BINNING AND MINIMUM SAMPLE SIZE
 #define DM_val 1.0
 #define THRESHOLD_val 1000
+
 // Cristiano 07/04/2025
 // Should be deprecated (hopefully)
-
 //SIZE OF GENERAL VECTORS
 #define bin_st 50
 #define nsize 80
@@ -128,25 +130,29 @@
 
 using namespace std;
 
-// Cristiano 07/04/2025
+// Cristiano 18/04/2025
+// What's below is deprecated:
+// NEW APPROACH --> We randomly extract from the catalog that has embedded the info on the IMF
+// To Be Developed --> flag on the IMF that accounts for different IMFs (Larson, LogFlat, etc.)
 
-// Cristiano 08/04/2025
-// New version of the function
-// The function:
-//   - reads the mixed catalog (already sorted in the main)
-//   - generates a subsample cat_retained that is not ejected at birth from the cluster (kick_mix_true[i] < vthree)
-//   - generates a random mzams from the IMF
-//   - create a subsample catalog_true of the mixed catalog with | mzams - m| < dm
-//   - Now do a check on the lenght of the cat_retained
-//   - if the lenght is > threshold, then we can use the BH mass from the catalog randomly (as the number of sample is statistically significant)
-//   - if the lenght is < threshold, then we need to generate a cumulative distribution function (Cdf) of BH mass given mzams and extract the BH mass from the Cdf 
-
+/*
 void singBHt_mix(double dm, double vthre, int threshold,
 	const vector<double>& zams_mix,
 	const vector<double>& remn_mix,
 	const vector<double>& tdel_mix,
 	const vector<double>& kick_mix,
 	double mslp, double *single_bh) {
+
+	// Cristiano 08/04/2025
+	// New version of the function
+	// The function:
+	//   - reads the mixed catalog (already sorted in the main)
+	//   - generates a subsample cat_retained that is not ejected at birth from the cluster (kick_mix_true[i] < vthree)
+	//   - generates a random mzams from the IMF
+	//   - create a subsample catalog_true of the mixed catalog with | mzams - m| < dm
+	//   - Now do a check on the lenght of the cat_retained
+	//   - if the lenght is > threshold, then we can use the BH mass from the catalog randomly (as the number of sample is statistically significant)
+	//   - if the lenght is < threshold, then we need to generate a cumulative distribution function (Cdf) of BH mass given mzams and extract the BH mass from the Cdf 
 
 	Functions func;
 
@@ -191,7 +197,7 @@ void singBHt_mix(double dm, double vthre, int threshold,
 		if (zams_mix[i] < sinimus_mix) sinimus_mix = zams_mix[i];
 
 	}
-	cout << "Time taken to filter the catalog: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
+	//cout << "Time taken to filter the catalog: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
 	// Now we have a subsample of the mixed catalog
 	//cout << "Subsample for mass:" << zams_ret.size() << endl;
 	//cout << "\nZAMS IMF extremes - Max: " << saximus_mix << ", Min: " << sinimus_mix << ", Cluster escape velocity: "<< vthre << endl;
@@ -206,7 +212,7 @@ void singBHt_mix(double dm, double vthre, int threshold,
 	double P = func.rnd();
 	double mzams = pow( (P*pow(saximus_mix,1.+ mslp) + (1.-P)*pow(sinimus_mix,1.+mslp)), 1./(1.+mslp) );
 	//cout << "ZAMS mass: " << mzams << endl;
-	cout << "Time taken to find the extremes of the ZAMS mass: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check2).count() << " microseconds." << endl;
+	//cout << "Time taken to find the extremes of the ZAMS mass: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check2).count() << " microseconds." << endl;
 
 	auto check3 = std::chrono::high_resolution_clock::now();
 	// Loop once again over the subsample catalog and select those stars that are in the mass window.
@@ -220,7 +226,7 @@ void singBHt_mix(double dm, double vthre, int threshold,
         }
     }
 
-	cout << "Time taken to filter the catalog for the mass window: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check3).count() << " microseconds." << endl;
+	//cout << "Time taken to filter the catalog for the mass window: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check3).count() << " microseconds." << endl;
 	
 	// Now we have a subsample of the mixed catalog
 	// Let's store the size of the catalog
@@ -251,7 +257,7 @@ void singBHt_mix(double dm, double vthre, int threshold,
 		single_bh[0] = bh_mix_true[bh_index];
 		single_bh[1] = tfor_mix_true[bh_index];
 		single_bh[2] = kick_mix_true[bh_index];
-		cout << "time to select BH if subsample is big enough: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " microseconds." << endl;
+		//cout << "time to select BH if subsample is big enough: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " microseconds." << endl;
 	}
 	
 	else {
@@ -305,19 +311,19 @@ void singBHt_mix(double dm, double vthre, int threshold,
 
 		auto end = std::chrono::high_resolution_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-		cout << "Inverse transform sampling took " << duration.count() << " microseconds." << endl;
+		//cout << "Inverse transform sampling took " << duration.count() << " microseconds." << endl;
 	}
 
 	// Cristiano 10/04/2025 
 	// Let's check if the chosen BH is reasonable
-	/*
+
 	cout << "BH properties - Mass: " << single_bh[0]
 		 << " Time delay: " << single_bh[1]
 		 << " Natal kick: " << single_bh[2] << endl; 
-	*/
+
 	// Cristiano 10/04/2025
 	// Let's free the memory allocated for the subsample	    
-	/*
+
 	zams_true.erase(zams_true.begin(), zams_true.end());
 	bh_mix_true.erase(bh_mix_true.begin(), bh_mix_true.end());
 	kick_mix_true.erase(kick_mix_true.begin(), kick_mix_true.end());
@@ -330,8 +336,54 @@ void singBHt_mix(double dm, double vthre, int threshold,
 	tfor_mix_ret.erase(tfor_mix_ret.begin(), tfor_mix_ret.end());
 
 	//cout << "" << endl;
-	*/
-	cout <<"time for the whole function: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
+
+	//cout <<"time for the whole function: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
+	return;
+}
+*/
+
+
+void singBHt_mix(double vthre,
+	const vector<double>& zams_mix,
+	const vector<double>& remn_mix,
+	const vector<double>& tdel_mix,
+	const vector<double>& kick_mix,
+	double mslp, double *single_bh) {
+// Cristiano 18/04/2025
+// What's below is deprecated:
+// NEW APPROACH --> We randomly extract from the catalog that has embedded the info on the IMF
+// To Be Developed --> flag on the IMF that accounts for different IMFs (Larson, LogFlat, etc.)
+
+	Functions func;
+
+
+	auto check = std::chrono::high_resolution_clock::now();
+
+	// Initialize to zero the outcome vector
+	single_bh[0] = 0.0;
+	single_bh[1] = 0.0;
+	single_bh[2] = 0.0;
+
+	// Define the size of the catalog	
+	int cat_size = zams_mix.size();
+
+	// Now let's chose a Bh with a natal kick < vthre
+	int bh_index;
+	do{
+		auto start = std::chrono::high_resolution_clock::now();
+		// If the subsample is big enough we can just select randomly
+		// in this way the possibility of catching extreme outcomes averages out and is naturally weightd in the catalog
+		bh_index = static_cast<int>(cat_size * func.rnd());
+		cout << "time to select a suitable BH: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " microseconds." << endl;
+	} while(kick_mix[bh_index] > vthre);
+	
+	// If the kick is small enough we found a suitable BH
+	single_bh[0] = remn_mix[bh_index];
+	single_bh[1] = tdel_mix[bh_index];
+	single_bh[2] = kick_mix[bh_index];
+
+	
+	//cout <<"time for the whole function: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
 	return;
 }
     
@@ -475,6 +527,7 @@ int main(){
   string pathse = "";
   string pathsp = "";
 
+ 
   //METALLICITY AVAILABLES 0.0002 - 0.0004 - 0.0008 - 0.0012 - 0.0016 - 0.002 - 0.004 - 0.006 - 0.008 - 0.012 - 0.016 - 0.02 
   double met[13];
   met[0]  = 0.0002;
@@ -510,7 +563,33 @@ int main(){
   metdyn[10] = 0.016;
   metdyn[11] = 0.02;
   metdyn[12] = 0.03;
-
+  /*
+    //METALLICITY AVAILABLES 0.0002 - 0.0004 - 0.0008 - 0.0012 - 0.0016 - 0.002 - 0.004 - 0.006 - 0.008 - 0.012 - 0.016 - 0.02 
+	double met[13];
+	met[0]  = 0.0002;
+	met[1]  = 0.0003;
+	met[2]  = 0.0004;
+	met[3]  = 0.0007;
+	met[4]  = 0.0010;
+	met[5]  = 0.0014;
+	met[6]  = 0.002;
+	met[7]  = 0.004;
+	met[8]  = 0.007;
+	met[9]  = 0.010;
+	met[10] = 0.014;
+	met[11] = 0.02;
+	met[12] = 0.03;
+  
+	double mis[13];
+	for(int i = 0;i<13;i++)mis[i] = 0.0;
+	
+	ofstream out;
+  
+	double metdyn[13];
+	for (int i = 0; i < 13; i++) {
+		metdyn[i] = met[i];
+	}
+  */
   string singpthA = predir+SINGPTH;  
   double ndx;
   double apri;
@@ -1250,6 +1329,7 @@ int main(){
       Zmin = log10(0.0002);
     
   for(int k=0;k<numme;k++){
+	auto start = std::chrono::high_resolution_clock::now();
     cout<<"N. of dyn binaries with Z = "<<met[k]<<" "<<Npar[k]<<endl;
     if(Npar[k] == 0){
       continue;
@@ -1332,9 +1412,12 @@ int main(){
 		*/
     }while(!in.eof());
     in.close();
-
+	//Cristiano 18/04/2025
+	// Let's remove this part:
+	// NEW APPROACH --> We extract randmoly from the cataloge, as it has already embedded the info on the Kroupa IMF
+	/* 
 	//Cristiano 15/04/2025
-	//Let's order the vectors with respect to the escape velocity
+	// Let's order the vectors with respect to the escape velocity
 	// In this way in the singBHt_mix function we can stop at the first index such that:
 	// kick_mix[i] >= vthre
 
@@ -1366,7 +1449,8 @@ int main(){
 	remn_mix = move(remn_mix_sorted);	
 	tdel_mix = move(tdel_mix_sorted);
 	kick_mix = move(kick_mix_sorted);
-    
+    */
+
     //SINGLE BHs
     filepath = path + pathse + pathsp + "/spectrum_cleaned" + sss.str() + ".txt";
     //cout<<"      -- -- -- opening "<<filepath<<endl;
@@ -1938,7 +2022,7 @@ int main(){
 		  //cout << "Metallicity :" << met[k]<< endl;
 		  auto start = std::chrono::high_resolution_clock::now(); // Start timing
 
-		  singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
+		  singBHt_mix(vthre, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
 		  auto end = std::chrono::high_resolution_clock::now(); // End timing
 		  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 		  //std::cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << std::endl;
@@ -2030,7 +2114,7 @@ int main(){
 			//cout << "Metallicity :" << met[k]<< endl;
 			auto start = std::chrono::high_resolution_clock::now(); // Start timing
 
-			singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
+			singBHt_mix(vthre, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
 		
 			auto end = std::chrono::high_resolution_clock::now(); // End timing
 			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -2745,7 +2829,7 @@ int main(){
 	      do{
 			//cout << "Metallicity :" << met[k]<< endl;
 			auto start = chrono::high_resolution_clock::now(); // Start timing
-			singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
+			singBHt_mix(vthre, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
 			auto end = chrono::high_resolution_clock::now(); // End timing
 			auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
 			//cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << endl;
@@ -3075,9 +3159,12 @@ int main(){
     kick_mix.erase(kick_mix.begin(),kick_mix.end());
     kick_sin.erase(kick_sin.begin(),kick_sin.end());
 
-    
-    
-    
+    // Cristiano 16/04/2025
+	// Let's check how long it take per metallicity
+	cout << "time for the metallicity function: " 
+		 << chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count() 
+		 << " seconds." << endl;
+	
   }
   clout.close();
 
