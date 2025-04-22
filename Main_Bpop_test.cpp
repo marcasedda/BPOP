@@ -350,7 +350,6 @@ void singBHt_mix(double vthre,
 	const vector<double>& kick_mix,
 	double mslp, double *single_bh) {
 // Cristiano 18/04/2025
-// What's below is deprecated:
 // NEW APPROACH --> We randomly extract from the catalog that has embedded the info on the IMF
 // To Be Developed --> flag on the IMF that accounts for different IMFs (Larson, LogFlat, etc.)
 
