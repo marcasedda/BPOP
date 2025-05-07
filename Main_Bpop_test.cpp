@@ -21,22 +21,22 @@
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
 #define PREDIR "../"
 #define zPATH   "gallazzi05ZDATA.ttt"
-#define SINGPTH "A5/" // "DATI_SingleBH/"
-#define PATH    "A5/" // "DATI_GiaMap18/"
+#define SINGPTH "rapid_M20/" // "DATI_SingleBH/"
+#define PATH    "rapid_M20/" // "DATI_GiaMap18/"
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        1000
+#define N        1000000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
 #define Zsun     0.017
 
 //DYNAMICAL FRACTIONS
-#define DynOvTot  1
-#define pYC 0.
-#define pGC 0.
-#define pNC 1.0
+#define DynOvTot  0.9
+#define pYC 0.75
+#define pGC 0.15
+#define pNC 0.10
 
 #define uppergap "no"
 #define bhseed   "no"
@@ -45,12 +45,10 @@
 #define fupgp    0.15
 #define mass_gap  60.0
 #define upgtp   "dicarlo"
-#define SFRTYPE_ISO "MF17" //"continuous" //"MF17" //
-#define SFRTYPE_CLU "MF17" //"continuous" //"EB18_MF17" //
+#define SFRTYPE_ISO "bigbang" //"continuous" //"MF17" //
+#define SFRTYPE_CLU "bigbang" //"continuous" //"EB18_MF17" //
 
-
-//#define mixing  0.5
-#define mixing  1.1
+#define mixing  0.5
 #define fbin    1.0
 
 //YC mass-size relation
@@ -348,7 +346,7 @@ void singBHt_mix(double vthre,
 	const vector<double>& remn_mix,
 	const vector<double>& tdel_mix,
 	const vector<double>& kick_mix,
-	double mslp, double *single_bh) {
+	double *single_bh) {
 // Cristiano 18/04/2025
 // NEW APPROACH --> We randomly extract from the catalog that has embedded the info on the IMF
 // To Be Developed --> flag on the IMF that accounts for different IMFs (Larson, LogFlat, etc.)
@@ -369,17 +367,62 @@ void singBHt_mix(double vthre,
 	// Now let's chose a Bh with a natal kick < vthre
 	int bh_index;
 	do{
-		auto start = std::chrono::high_resolution_clock::now();
+		//auto start = std::chrono::high_resolution_clock::now();
 		// If the subsample is big enough we can just select randomly
 		// in this way the possibility of catching extreme outcomes averages out and is naturally weightd in the catalog
 		bh_index = static_cast<int>(cat_size * func.rnd());
-		cout << "time to select a suitable BH: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " microseconds." << endl;
+		//cout << "time to select a suitable BH: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " microseconds." << endl;
 	} while(kick_mix[bh_index] > vthre);
 	
 	// If the kick is small enough we found a suitable BH
 	single_bh[0] = remn_mix[bh_index];
 	single_bh[1] = tdel_mix[bh_index];
 	single_bh[2] = kick_mix[bh_index];
+
+	
+	//cout <<"time for the whole function: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
+	return;
+}
+
+
+void singBHt_iso(double vthre,
+	const vector<double>& zams_sin,
+	const vector<double>& remn_sin,
+	const vector<double>& tdel_sin,
+	const vector<double>& kick_sin,
+	double *single_bh) {
+
+	// Cristiano 18/04/2025
+	// NEW APPROACH --> We randomly extract from the catalog that has embedded the info on the IMF also for isolated stars
+	// To Be Developed --> flag on the IMF that accounts for different IMFs (Larson, LogFlat, etc.)
+
+
+	Functions func;
+
+	auto check = std::chrono::high_resolution_clock::now();
+
+	// Initialize to zero the outcome vector
+	single_bh[0] = 0.0;
+	single_bh[1] = 0.0;
+	single_bh[2] = 0.0;
+
+	// Define the size of the catalog	
+	int cat_size = zams_sin.size();
+
+	// Now let's chose a Bh with a natal kick < vthre
+	int bh_index;
+	do{
+		//auto start = std::chrono::high_resolution_clock::now();
+		// If the subsample is big enough we can just select randomly
+		// in this way the possibility of catching extreme outcomes averages out and is naturally weightd in the catalog
+		bh_index = static_cast<int>(cat_size * func.rnd());
+		//cout << "time to select a suitable BH: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " microseconds." << endl;
+	} while(kick_sin[bh_index] > vthre);
+	
+	// If the kick is small enough we found a suitable BH
+	single_bh[0] = remn_sin[bh_index];
+	single_bh[1] = tdel_sin[bh_index];
+	single_bh[2] = kick_sin[bh_index];
 
 	
 	//cout <<"time for the whole function: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
@@ -526,7 +569,7 @@ int main(){
   string pathse = "";
   string pathsp = "";
 
- 
+ /*
   //METALLICITY AVAILABLES 0.0002 - 0.0004 - 0.0008 - 0.0012 - 0.0016 - 0.002 - 0.004 - 0.006 - 0.008 - 0.012 - 0.016 - 0.02 
   double met[13];
   met[0]  = 0.0002;
@@ -562,7 +605,7 @@ int main(){
   metdyn[10] = 0.016;
   metdyn[11] = 0.02;
   metdyn[12] = 0.03;
-  /*
+  */
     //METALLICITY AVAILABLES 0.0002 - 0.0004 - 0.0008 - 0.0012 - 0.0016 - 0.002 - 0.004 - 0.006 - 0.008 - 0.012 - 0.016 - 0.02 
 	double met[13];
 	met[0]  = 0.0002;
@@ -588,7 +631,7 @@ int main(){
 	for (int i = 0; i < 13; i++) {
 		metdyn[i] = met[i];
 	}
-  */
+  
   string singpthA = predir+SINGPTH;  
   double ndx;
   double apri;
@@ -856,7 +899,6 @@ int main(){
     double logz_me;            
     logz_me = func.metcor(metal_dis, sigmaZ, red_del);
     double logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
-    double logz2 = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
 
     logz = logz1;
 
@@ -883,7 +925,6 @@ int main(){
     double logz_me;            
     logz_me = func.metcor(metal_dis, sigmaZ, red_del);
     double logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
-    double logz2 = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
 
     logz = logz1;
     
@@ -1198,7 +1239,7 @@ int main(){
 	msec = mpri;
       }
 
-      cout<<"Check3"<<endl;
+      //cout<<"Check3"<<endl;
 
       double tform = tfor[arr[k][i]];
       
@@ -1992,8 +2033,8 @@ int main(){
 	    kpri = 1.E30;
 	    do{
 		  
-	      func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
-		  
+	      //func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
+		  singBHt_iso(vthre, zams_sin, remn_sin, tdel_sin, kick_sin, single_bh);
 	      mpri = single_bh[0];	 
 	      tpri = single_bh[1];
 	      kpri = single_bh[2];
@@ -2016,12 +2057,10 @@ int main(){
 	    kpri = 1.E30;
 	    int nsafe = 0;
 		  do{
-		  //Old function		
-		  //singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
 		  //cout << "Metallicity :" << met[k]<< endl;
 		  auto start = std::chrono::high_resolution_clock::now(); // Start timing
 
-		  singBHt_mix(vthre, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
+		  singBHt_mix(vthre, zams_mix, remn_mix, tdel_mix, kick_mix, single_bh);
 		  auto end = std::chrono::high_resolution_clock::now(); // End timing
 		  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 		  //std::cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << std::endl;
@@ -2071,8 +2110,8 @@ int main(){
 		
 		auto start = std::chrono::high_resolution_clock::now(); // Start timing
 
-		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
-
+		//func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		singBHt_iso(vthre, zams_sin, remn_sin, tdel_sin, kick_sin, single_bh);
 		
 		auto end = std::chrono::high_resolution_clock::now(); // End timing
 		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -2113,13 +2152,12 @@ int main(){
 			//cout << "Metallicity :" << met[k]<< endl;
 			auto start = std::chrono::high_resolution_clock::now(); // Start timing
 
-			singBHt_mix(vthre, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
+			singBHt_mix(vthre, zams_mix, remn_mix, tdel_mix, kick_mix, single_bh);
 		
 			auto end = std::chrono::high_resolution_clock::now(); // End timing
 			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 			//std::cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << std::endl;
 	
-		//singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
 			msec = single_bh[0];	  	  
 			tsec = single_bh[1];
 			ksec = single_bh[2];	    
@@ -2798,7 +2836,9 @@ int main(){
 	    if(mixer > mixing){
 	      do{
 		
-		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		//func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		singBHt_iso(vthre, zams_sin, remn_sin, tdel_sin, kick_sin, single_bh);
+
 		msec = single_bh[0];	 
 		tsec = single_bh[1];
 		ksec = single_bh[2];	    
@@ -2828,12 +2868,11 @@ int main(){
 	      do{
 			//cout << "Metallicity :" << met[k]<< endl;
 			auto start = chrono::high_resolution_clock::now(); // Start timing
-			singBHt_mix(vthre, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
+			singBHt_mix(vthre, zams_mix, remn_mix, tdel_mix, kick_mix, single_bh);
 			auto end = chrono::high_resolution_clock::now(); // End timing
 			auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
 			//cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << endl;
 			
-	  //singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
 			msec = single_bh[0];	  	  
 			tsec = single_bh[1];
 			ksec = single_bh[2];
