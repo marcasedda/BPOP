@@ -3,7 +3,7 @@
 #include <cstring>
 #include <sstream>
 #include <fstream>
-#include <iomanip> 
+#include <iomanip>
 #include <cmath>
 #include <cstdlib>
 #include <omp.h>
@@ -18,34 +18,34 @@
 #define Hubble 14.E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
-#define PREDIR "../../"
+#define PREDIR "../"
 #define zPATH   "gallazzi05ZDATA.ttt"
-#define SINGPTH "A5/" // "DATI_SingleBH/"
-#define PATH    "A5/" // "DATI_GiaMap18/"
+#define SINGPTH "rapid_M20/" // "DATI_SingleBH/"
+#define PATH    "rapid_M20/" // "DATI_GiaMap18/"
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        5
+#define N        1000000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
-#define Zsun     0.017
+#define Zsun     0.02
 
 //DYNAMICAL FRACTIONS
-#define DynOvTot  0.
-#define pYC 0.
-#define pGC 0.
-#define pNC 0.
+#define DynOvTot  0.9
+#define pYC 0.75
+#define pGC 0.15
+#define pNC 0.10
 
-#define uppergap "no"
-#define bhseed   "no"
+#define uppergap "yes"
+#define bhseed   "bifrost"
 #define bifZ     0.001
 #define bhpisn   270.
 #define fupgp    0.15
 #define mass_gap  60.0
 #define upgtp   "dicarlo"
-#define SFRTYPE_ISO "MF17" //"continuous" //"MF17" //
-#define SFRTYPE_CLU "MF17" //"continuous" //"EB18_MF17" //
+#define SFRTYPE_ISO "bigbang" //"continuous" //"MF17" //
+#define SFRTYPE_CLU "bigbang" //"continuous" //"EB18_MF17" //
 
 
 #define mixing  0.5
@@ -65,7 +65,7 @@
 #define mono_Z       0.02
 #define cluster_test "no"
 #define cluster_test_env "NC"
-#define msmbhmax 2.E3
+#define msmbhmax 5.E7
 
 //BH SEED
 #define f_seed    0.2
@@ -388,7 +388,8 @@ int main(){
   string path   = predir+PATH;
   string pathse = "";
   string pathsp = "";
-
+  
+ /* 
   //METALLICITY AVAILABLES 0.0002 - 0.0004 - 0.0008 - 0.0012 - 0.0016 - 0.002 - 0.004 - 0.006 - 0.008 - 0.012 - 0.016 - 0.02 
   double met[13];
   met[0]  = 0.0002;
@@ -424,6 +425,32 @@ int main(){
   metdyn[10] = 0.016;
   metdyn[11] = 0.02;
   metdyn[12] = 0.03;
+  */
+    //METALLICITY AVAILABLES 0.0002 - 0.0004 - 0.0008 - 0.0012 - 0.0016 - 0.002 - 0.004 - 0.006 - 0.008 - 0.012 - 0.016 - 0.02 
+	double met[13];
+	met[0]  = 0.0002;
+	met[1]  = 0.0003;
+	met[2]  = 0.0004;
+	met[3]  = 0.0007;
+	met[4]  = 0.0010;
+	met[5]  = 0.0014;
+	met[6]  = 0.002;
+	met[7]  = 0.004;
+	met[8]  = 0.007;
+	met[9]  = 0.010;
+	met[10] = 0.014;
+	met[11] = 0.02;
+	met[12] = 0.03;
+  
+	double mis[13];
+	for(int i = 0;i<13;i++)mis[i] = 0.0;
+	
+	ofstream out;
+  
+	double metdyn[13];
+	for (int i = 0; i < 13; i++) {
+		metdyn[i] = met[i];
+	}
 
   string singpthA = predir+SINGPTH;  
   double ndx;
@@ -692,8 +719,7 @@ int main(){
     double logz_me;            
     logz_me = func.metcor(metal_dis, sigmaZ, red_del);
     double logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
-    double logz2 = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
-
+    
     logz = logz1;
 
     z = pow(10.,logz);  
@@ -719,7 +745,6 @@ int main(){
     double logz_me;            
     logz_me = func.metcor(metal_dis, sigmaZ, red_del);
     double logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
-    double logz2 = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
 
     logz = logz1;
     
@@ -1034,7 +1059,7 @@ int main(){
 	msec = mpri;
       }
 
-      cout<<"Check3"<<endl;
+      //cout<<"Check3"<<endl;
 
       double tform = tfor[arr[k][i]];
       
@@ -1164,6 +1189,7 @@ int main(){
       Zmin = log10(0.0002);
     
   for(int k=0;k<numme;k++){
+	auto start = std::chrono::high_resolution_clock::now();
     cout<<"N. of dyn binaries with Z = "<<met[k]<<" "<<Npar[k]<<endl;
     if(Npar[k] == 0){
       continue;
@@ -2904,7 +2930,11 @@ int main(){
     kick_sin.erase(kick_sin.begin(),kick_sin.end());
 
     
-    
+    // Cristiano 16/04/2025
+	// Let's check how long it take per metallicity
+	cout << "time for the metallicity function: " 
+	<< chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count() 
+	<< " seconds." << endl;
     
   }
   clout.close();
