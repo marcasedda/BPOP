@@ -354,7 +354,7 @@ int main(){
   double reds[redline],age[redline],lkbk[redline];
   in.open(predir+"redshift_time.txt");
   if(!in.is_open()){
-    cout<<"File redshift vs time not found"<<endl;
+    cout<<"File "<<predir<<"redshift_time.txt not found"<<endl;
     exit(0);
   }
   double d1, d2, d3;
