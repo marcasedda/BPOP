@@ -1464,6 +1464,10 @@ double Functions::angmom2(double a1, double a2, double v, double q, double cosa,
 
 
 void Functions::SREM2(double ndx, double a1, double a2, double m1, double m2, string align, double *spins){
+
+  double originalm1 = m1;
+  double originalm2 = m2;
+    
   double afin = 2.0;
   double afin1,afin2,afin3;
   double CHI;
@@ -1611,6 +1615,13 @@ void Functions::SREM2(double ndx, double a1, double a2, double m1, double m2, st
   //// RECOILING KICK VELOCITIES.... Ref: Campanelli+06, Lousto & Zlochower (2008), Antonini+2019, Gonzalez et al. 2007a (numerical values)
   double vkick = kicks(m1, m2, a1, a2, q, cosa, cosb, cosg); 
 
+  double cos_primary   = cosg;
+  double cos_secondary = cosb;
+
+  if(originalm1 < originalm2){
+    cos_primary = cosb;
+    cos_secondary= cosg;
+  }
   
   
   spins[0] = afin;
@@ -1619,8 +1630,8 @@ void Functions::SREM2(double ndx, double a1, double a2, double m1, double m2, st
   spins[3] = vkick;
 
   spins[4] = cosa;
-  spins[5] = cosb;
-  spins[6] = cosg;
+  spins[5] = cos_primary;
+  spins[6] = cos_secondary;
 
   return;
 
