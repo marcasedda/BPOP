@@ -109,6 +109,7 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
   
   // Let's define the quantities intervining in the interaction rate
   mstar_avg = 17.4 - 4.0 * log10(tbbhform/trelax);
+  cout << "time for the BBH formation: " << tbbhform << " trelax: " << trelax << endl;
   double m_bin = m1 + m2;
  
 
@@ -148,6 +149,8 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
       //Let's compute POTENTIAL the merger remnant and its natal kick
       func.SREM2(8.0, a2, a2b, m2, m2b, "dynamical", s);
 
+      cout << "ID: " << id << " m1: " << m1 << " m2: " <<  m2 << " m2b: " << m2b << endl;
+
       // Let's compute the interaction rate
       // Old implementation:
       // interaction_rate = mstar_avg/mcore * pow(s[2]/mstar_avg, 3./2.) * (m_bin + s[2]) / (m_bin + mstar_avg);
@@ -174,13 +177,26 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
 
       double r_hier = max(r_inf, r_wand);
 
-      double rho_star = mcore / (mstar_avg * pow(rcore, 3));
+      double rho_star = (mcore - m1) / (mstar_avg * pow(rcore, 3));
       double rho_hier = 1 / pow(r_hier, 3);
 
-      interaction_rate = rho_hier/rho_star * pow(s[2]/mstar_avg, 3./2.) * (m_bin + s[2]) / (m_bin + mstar_avg);
+      // Print out the components for debugging the interaction rate calculation:
+      cout << "mcore: " << mcore << endl;
+      cout << "r_core: " << rcore << endl;
+      cout << "r_inf: " << r_inf << endl;
+      cout << "r_wand: " << r_wand << endl;
+      cout << "rho_hier: " << rho_hier << endl;
+      cout << "rho_star: " << rho_star << endl;
+      cout << "s[2]: " << s[2] << endl;
+      cout << "mstar_avg: " << mstar_avg << endl;
+      cout << "m_bin: " << m_bin << endl;
+
+      interaction_rate = (rho_hier / rho_star) *
+             pow(s[2] / mstar_avg, 3. / 2.) *
+             (m_bin + s[2]) / (m_bin + mstar_avg);
       // Now I trow a dice, if the interaction rate is high enough, I can have a merger
       double dice = func.rnd();
-      //cout << "interaction_rate: " << interaction_rate <<  " dice:" << dice << endl;
+      cout << "interaction_rate: " << interaction_rate <<  " dice:" << dice << endl;
       //cout << "density ratio: " << rho_hier/rho_star << endl;
       double vrec = s[3];
       
@@ -189,23 +205,23 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
 
       //If the 1g BH is not expelled from the cluster
       if(vrec > vesc){
-        //cout << "ejected => 0-th gen secondary" << endl;
+        cout << " ejected => 0-th gen secondary - vrec: " << vrec << " vesc: " << vesc << endl;
         break;
       }
-      cout <<  "ID: " << id << " interaction rate: " << interaction_rate << " dice: " << dice << endl;
+      //cout <<  "ID: " << id << " interaction rate: " << interaction_rate << " dice: " << dice << endl;
 
       //And, only then, if the interaction rate is enough to find the hierarchical merger
       if(dice > interaction_rate){
         // If the interaction rate is low, I keep the stellar secondary
-        // cout << "#####################################" << endl;
-        // cout << "interaction rate too low => 0-th gen secondary" << endl;
-        // cout <<  "ID: " << id << " interaction rate: " << interaction_rate << " dice: " << dice << endl;
+        //cout << "#####################################" << endl;
+        cout << "interaction rate too low => 0-th gen secondary" << endl;
+        cout <<  "Interaction rate: " << interaction_rate << " dice: " << dice << endl;
         // cout << "#####################################" << endl;
         break;
       }
       cout << "#####################################" << endl;
       cout << "interacted" << endl;
-      cout <<  "ID: " << id << " interaction rate: " << interaction_rate << " dice: " << dice << endl;
+      cout <<  "Interaction rate: " << interaction_rate << " dice: " << dice << endl;
       cout << "#####################################" << endl;
       // I can have a merger and the new secondary is the result of the merger of 
       // the 0-g stellar BH and the secondary stellar BH giving birth to a 1-g secondary BH
@@ -225,7 +241,7 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
     
   }
   // If I have no hierarchical merger, I can still have a 0-g merger
-  //cout << "success: " << success << endl;
+  cout << "Able to enter the hierarchical phase: " << success << endl;
 
   c[0] = m2;
   c[1] = a2;
@@ -279,11 +295,8 @@ int main(){
   else if(pcluster == "nuclear")
     fb = 0.01;
 
-  //double mint = 7.0; // Mc = exp(mint)
-  //double rint = 1.0; // Mc = exp(rint)
-
   // Let's draw the catalog of initial masses of the binary components
-
+  
   // Let's input the catalogs
   vector<double> zams_mix, remn_mix;
   vector<double> tdel_mix, kick_mix;
@@ -313,22 +326,22 @@ int main(){
   //outfile << "i mhalf rhalf mcore m1 m2 a1 a2 interaction_rate number" << endl;
   outfile << "ID time mhalf rhalf mcore m1 m2 a1 a2 interaction_rate nhier N" << endl;
   
-  for(int ID=0; ID<10000; ID++){
+  for(int ID=0; ID<100000; ID++){
     // cout << "i: " << i << endl;
     
     //Let's add some randomness to the mass of the cluster (lines from BPOP)
-    //double mean = log(pow(10.,5.0));  //NC
+    double mean = log(pow(10.,5.0));  //NC
     //double mean = log(pow(10.,3.7));  //GC
-    double mean = log(pow(10.,3.3));   //YC
+    //double mean = log(pow(10.,3.3));   //YC
 
 
     double sigma = log(pow(10.,0.4));
     double rhoint = func.LogGaussian(mean, sigma);
     rhoint = log10(rhoint);
     
-    //double mint = 6.0+4.0*func.rnd(); //NC
+    double mint = 6.0+4.0*func.rnd(); //NC
     //double mint = 4.0 + 3.0*func.rnd(); //GC
-    double mint= 3.0 + 2.0*func.rnd(); //YC
+    //double mint= 3.0 + 2.0*func.rnd(); //YC
 
 
     double rint = (mint - rhoint)/3.0;
@@ -370,7 +383,7 @@ int main(){
     rho_cubicpc = rho_clu / mstar;
 
     // Let's compute the relaxation time and the core-collapse time
-    double trelax =  0.78E9 /log(0.11 * mhalf) * pow(mhalf/1.E5, 0.5) * pow(mhalf, 1.5); 
+    double trelax =  0.78E9 /log(0.11 * mhalf) * pow(mhalf/1.E5, 0.5) * pow(rhalf, 1.5);
     double trelax0 = trelax;
     double tcc = 0.138*mhalf/(150. * log(0.11*mhalf/150.))*sqrt(pow(rhalf*3.08E16,3.)/(6.67E-11*1.99E30*mhalf))/(365.*24.*3600.);
 
@@ -406,13 +419,24 @@ int main(){
     singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, primary_bh, vthre);
     singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, secondary_bh, vthre);
 
-    m1 = primary_bh[0];	 
-	  double tpri = primary_bh[1];
-	  double kpri = primary_bh[2];
-
-		m2 = secondary_bh[0];	 
-		double tsec = secondary_bh[1];
-		double ksec = secondary_bh[2];
+    double tpri, tsec, kpri, ksec;
+    if(primary_bh[0]>secondary_bh[0]){
+     
+      m1 = primary_bh[0];	 
+      m2 = secondary_bh[0];	 
+      tpri = primary_bh[1];
+      kpri = primary_bh[2];
+      tsec = secondary_bh[1];
+      ksec = secondary_bh[2];
+    }
+    else{
+      m1 = secondary_bh[0];	 
+      m2 = primary_bh[0];	 
+      tpri = secondary_bh[1];
+      kpri = secondary_bh[2];
+      tsec = primary_bh[1];
+      ksec = primary_bh[2];
+    }
     
     // Let's define the spin type for the primary and secondary BHs
     // lines from BPOP
@@ -436,7 +460,7 @@ int main(){
 
     tbbhform = 0.0; // Let's initialize the time for the BBH formation
     double t_star = max(tpri, tsec); //minimum time for BHs
-    double time=max(t_star, tcc); // Let's initialize the time of the cluster evolution
+    double time = max(t_star, tcc); // Let's initialize the time of the cluster evolution
     
     while(time < 13.5E9 && Nbhs>0) { // Let's evolve the cluster until 13.5 Gyr
       // Let's simulate the evolution of the cluster
@@ -469,7 +493,7 @@ int main(){
       tbbhform *= func.rndgen(1.0, 0.1); //resampling gaussiano intorno al valore medio
       
       time += tbbhform;
-      hgen(eps, m1, a1, m2, a2, vthre, spintype,zams_mix, remn_mix, tdel_mix, kick_mix, Comp, Spinning, Nbhs, Nrecy, nmerg, ID, mhalf, m_core, r_core, trelax, t12capt, time, tcc, pcluster);
+      hgen(eps, m1, a1, m2, a2, vthre, spintype,zams_mix, remn_mix, tdel_mix, kick_mix, Comp, Spinning, Nbhs, Nrecy, nmerg, ID, mhalf, m_core, r_core, trelax0, t12capt, time, tcc, pcluster);
         
       m2 = Comp[0];
       a2 = Comp[1];
@@ -508,7 +532,7 @@ int main(){
       a1 = Spinning[0];
 
       if(Spinning[3] > vthre) {
-        //cout << "Primary ejected => end of growth" << endl;
+        cout << "Primary ejected => end of growth - kick: " << Spinning[3] << " vesc: " << vthre << endl;
         break; // If the primary is ejected, we stop the evolution
       }
       else {
