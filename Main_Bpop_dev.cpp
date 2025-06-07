@@ -3,39 +3,45 @@
 #include <cstring>
 #include <sstream>
 #include <fstream>
-#include <iomanip>
+#include <iomanip> 
 #include <cmath>
 #include <cstdlib>
 #include <omp.h>
 #include <vector>
-#include "funcGR.h"
 #include <ctime>
 #include <stdlib.h>
 #include <omp.h>
 #include <chrono>
 
+#include "funcGR.h"
+#include "input_params.h"
+
+//Note June 4: Added IBs to Larger_than_tH catalogue. Added tformation printout in Larger_than_tH catalogue
+
+
+/*
 //#define THREAD 4
-#define Hubble 14.E9 //13.803E9
+#define Hubble 13.99E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
-#define PREDIR "../"
+#define PREDIR "../../../"
 #define zPATH   "gallazzi05ZDATA.ttt"
-#define SINGPTH "rapid_M20/" // "DATI_SingleBH/"
-#define PATH    "rapid_M20/" // "DATI_GiaMap18/"
-#define PATHSIN "DATI_SingleBH/"
+#define SINGPTH  "A5/" //"A5/" //"../SEVN_Catalog/rapid_M20_a1/" //"A5/"
+#define PATH     "A5/" //"A5/" //"../SEVN_Catalog/rapid_M20_a1/" //"A5/"
+#define SEVN "no"
 
 // GLOBAL
 #define N        1000000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
-#define Zsun     0.02
+#define Zsun     0.019
 
 //DYNAMICAL FRACTIONS
-#define DynOvTot  0.9
-#define pYC 0.75
-#define pGC 0.15
-#define pNC 0.10
+#define DynOvTot 0.95
+#define pYC      0.3
+#define pGC      0.4
+#define pNC      0.3
 
 #define uppergap "yes"
 #define bhseed   "bifrost"
@@ -44,12 +50,12 @@
 #define fupgp    0.15
 #define mass_gap  60.0
 #define upgtp   "dicarlo"
-#define SFRTYPE_ISO "bigbang" //"continuous" //"MF17" //
-#define SFRTYPE_CLU "bigbang" //"continuous" //"EB18_MF17" //
+#define SFRTYPE_ISO "MF17" //"MF17" //"continuous" //"bigbang" //
+#define SFRTYPE_CLU "KR13" //"EB18_MF17" //"KR13" //"EB18_MF17" //"continuous" //"bigbang" //
 
 
-#define mixing  0.5
-#define fbin    1.0
+#define mixing  1.0
+#define fbin    0.5
 
 //YC mass-size relation
 //Marks12, Rantala24, Mapelli20, AS20
@@ -117,10 +123,45 @@
 #define nsize 80
 #define tsize 80
 #define vsize 80
+*/
 
 using namespace std;
 
-void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], double tbsx[], double tbdx[], double vbsx[], double vbdx[], double mbhmix[][nsize], double tbhmix[][tsize], double vbhmix[][vsize], double mslp, double *sing_out, double saximus_mix, double sinimus_mix, double maximus_mix, double minimus_mix, double vescape){
+
+void singBHt_mix(vector<double>& zams_mix,
+		 vector<double>& remn_mix,
+		 vector<double>& tdel_mix,
+		 vector<double>& kick_mix,
+		 double *sing_out,
+		 double vescape){
+
+      
+  Functions func;
+  double mblack, vblack, tblack;
+  sing_out[0] = 0.0;
+  sing_out[1] = 0.0;
+  sing_out[2] = 0.0;
+
+  int cat_size = zams_mix.size() ;
+  int id;
+  int nctn = 0;
+  do{
+    id = static_cast<int>(cat_size * func.rnd());
+    nctn++;    
+  }while(kick_mix[id] > vescape);
+  
+  //cout<<id<<" "<<zams_mix[id]<<" "<<remn_mix[id]<<" "<<tdel_mix[id]<<" "<<kick_mix[id]<<" "<<vescape<<endl;
+  
+  sing_out[0] = remn_mix[id];
+  sing_out[1] = tdel_mix[id];
+  sing_out[2] = kick_mix[id];
+  
+  //cout<<sing_out[0]<<" "<<sing_out[1]<<" "<<sing_out[2]<<" "<<vescape<<" "<<nctn<<endl;
+  return ;
+}
+
+  
+void singBHt_mix_old(double mssx[], double msdx[], double mbsx[], double mbdx[], double tbsx[], double tbdx[], double vbsx[], double vbdx[], double mbhmix[][nsize], double tbhmix[][tsize], double vbhmix[][vsize], double mslp, double *sing_out, double saximus_mix, double sinimus_mix, double maximus_mix, double minimus_mix, double vescape){
 
   Functions func;
 
@@ -209,8 +250,6 @@ void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], dou
   else
     vblack = 0.0;
   
-  
-
   nsafe = 0;
   maxprob = -1;
   for(int jj=0;jj<tsize;jj++){
@@ -228,9 +267,6 @@ void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], dou
       idz = ddz;
       maxtest = maxprob * func.rnd();
       maxpoint= tbhmix[idy][idz];
-      /*if(nsafe > 100){
-	cout<<"Warning time. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-	}*/
       nsafe ++;
     }while(maxtest > maxpoint);
     
@@ -243,8 +279,6 @@ void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], dou
   sing_out[0] = mblack;
   sing_out[1] = tblack;
   sing_out[2] = vblack;
-
-  //cout<<mzams<<" "<<mblack<<" "<<tblack<<" "<<vblack<<endl;
   
   return ;
 }
@@ -321,9 +355,9 @@ int main(){
   
   int redline = 100;
   double reds[redline],age[redline],lkbk[redline];
-  in.open(predir+"redshift_time.ttt");
+  in.open(predir+"redshift_time.txt");
   if(!in.is_open()){
-    cout<<"File redshift vs time not found"<<endl;
+    cout<<"File "<<predir<<"redshift_time.txt not found"<<endl;
     exit(0);
   }
   double d1, d2, d3;
@@ -388,70 +422,76 @@ int main(){
   string path   = predir+PATH;
   string pathse = "";
   string pathsp = "";
-  
- /* 
+
   //METALLICITY AVAILABLES 0.0002 - 0.0004 - 0.0008 - 0.0012 - 0.0016 - 0.002 - 0.004 - 0.006 - 0.008 - 0.012 - 0.016 - 0.02 
   double met[13];
-  met[0]  = 0.0002;
-  met[1]  = 0.0004;
-  met[2]  = 0.0008;
-  met[3]  = 0.0012;
-  met[4]  = 0.0016;
-  met[5]  = 0.002;
-  met[6]  = 0.004;
-  met[7]  = 0.006;
-  met[8]  = 0.008;
-  met[9]  = 0.012;
-  met[10] = 0.016;
-  met[11] = 0.02;
-  met[12] = 0.03;
-
+  if(SEVN == "no"){
+    met[0]  = 0.0002;
+    met[1]  = 0.0004;
+    met[2]  = 0.0008;
+    met[3]  = 0.0012;
+    met[4]  = 0.0016;
+    met[5]  = 0.002;
+    met[6]  = 0.004;
+    met[7]  = 0.006;
+    met[8]  = 0.008;
+    met[9]  = 0.012;
+    met[10] = 0.016;
+    met[11] = 0.02;
+    met[12] = 0.03;
+  }
+  else{
+    met[0]  = 0.0002;
+    met[1]  = 0.0003;
+    met[2]  = 0.0004;
+    met[3]  = 0.0007;
+    met[4]  = 0.0010;
+    met[5]  = 0.0014;
+    met[6]  = 0.002;
+    met[7]  = 0.004;
+    met[8]  = 0.007;
+    met[9]  = 0.010;
+    met[10] = 0.014;
+    met[11] = 0.02;
+    met[12] = 0.03;
+  }
   double mis[13];
   for(int i = 0;i<13;i++)mis[i] = 0.0;
   
   ofstream out;
 
   double metdyn[13];
-  metdyn[0]  = 0.0002;
-  metdyn[1]  = 0.0004;
-  metdyn[2]  = 0.0008;
-  metdyn[3]  = 0.0012;
-  metdyn[4]  = 0.0016;
-  metdyn[5]  = 0.002;
-  metdyn[6]  = 0.004;
-  metdyn[7]  = 0.006;
-  metdyn[8]  = 0.008;
-  metdyn[9]  = 0.012;
-  metdyn[10] = 0.016;
-  metdyn[11] = 0.02;
-  metdyn[12] = 0.03;
-  */
-    //METALLICITY AVAILABLES 0.0002 - 0.0004 - 0.0008 - 0.0012 - 0.0016 - 0.002 - 0.004 - 0.006 - 0.008 - 0.012 - 0.016 - 0.02 
-	double met[13];
-	met[0]  = 0.0002;
-	met[1]  = 0.0003;
-	met[2]  = 0.0004;
-	met[3]  = 0.0007;
-	met[4]  = 0.0010;
-	met[5]  = 0.0014;
-	met[6]  = 0.002;
-	met[7]  = 0.004;
-	met[8]  = 0.007;
-	met[9]  = 0.010;
-	met[10] = 0.014;
-	met[11] = 0.02;
-	met[12] = 0.03;
+  if(SEVN == "no"){
+    metdyn[0]  = 0.0002;
+    metdyn[1]  = 0.0004;
+    metdyn[2]  = 0.0008;
+    metdyn[3]  = 0.0012;
+    metdyn[4]  = 0.0016;
+    metdyn[5]  = 0.002;
+    metdyn[6]  = 0.004;
+    metdyn[7]  = 0.006;
+    metdyn[8]  = 0.008;
+    metdyn[9]  = 0.012;
+    metdyn[10] = 0.016;
+    metdyn[11] = 0.02;
+    metdyn[12] = 0.03;
+  }
+  else{
+    metdyn[0]  = 0.0002;
+    metdyn[1]  = 0.0003;
+    metdyn[2]  = 0.0004;
+    metdyn[3]  = 0.0007;
+    metdyn[4]  = 0.0010;
+    metdyn[5]  = 0.0014;
+    metdyn[6]  = 0.002;
+    metdyn[7]  = 0.004;
+    metdyn[8]  = 0.007;
+    metdyn[9]  = 0.010;
+    metdyn[10] = 0.014;
+    metdyn[11] = 0.02;
+    metdyn[12] = 0.03;
+  }
   
-	double mis[13];
-	for(int i = 0;i<13;i++)mis[i] = 0.0;
-	
-	ofstream out;
-  
-	double metdyn[13];
-	for (int i = 0; i < 13; i++) {
-		metdyn[i] = met[i];
-	}
-
   string singpthA = predir+SINGPTH;  
   double ndx;
   double apri;
@@ -692,7 +732,6 @@ int main(){
     double toff = 1.E9*func.inter(zred0, reds, age, redline);
     tfor.push_back(toff);
   }
-
   for(int i=0;i<Ngc;i++){
     double zred0 = func.sfr_red(sfr_clu_gc);      
     double toff  = 1.E9*func.inter(zred0, reds, age, redline);
@@ -714,11 +753,17 @@ int main(){
     double tof = tfor[i] / 1.E9;      
     double zinit = z;
     double red_del = func.inter(tof, age, reds, redline);
+
     
-    double logz;
-    double logz_me;            
-    logz_me = func.metcor(metal_dis, sigmaZ, red_del);
-    double logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
+    double logz, logz1;
+    if(sfr_iso == "bigbang")
+      logz1 = log10(met[0]) + (log10(met[11])-log10(met[0]))*func.rnd();
+    else{
+      double logz_me;    
+      logz_me = func.metcor(metal_dis, sigmaZ, red_del);
+      logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
+    //double logz2 = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
+    }
     
     logz = logz1;
 
@@ -741,11 +786,17 @@ int main(){
     double zinit = z;
     
     double red_del = func.inter(tof, age, reds, redline);
-    double logz;
-    double logz_me;            
-    logz_me = func.metcor(metal_dis, sigmaZ, red_del);
-    double logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
 
+    double logz, logz1;
+    if(sfr_clu == "bigbang")
+      logz1 = log10(met[0]/Zsun) + (log10(met[11]/Zsun)-log10(met[0]/Zsun))*func.rnd();
+    else{
+      double logz_me;    
+      logz_me = func.metcor(metal_dis, sigmaZ, red_del);
+      logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
+    //double logz2 = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
+    }
+    
     logz = logz1;
     
     z = pow(10.,logz);  
@@ -970,23 +1021,16 @@ int main(){
     REC = "RecNO";
     mpri = -10000.0;
 
-    //int manuel = NTH;
-    //#pragma omp parallel for num_threads(4) 
     for(int i=0; i<Npar[k];i++){
-      int jump = 0;
-      REC = "RecIS";
-      ndx = INDEX_ALIGN;
-      align = "whatever";
-      double extract = chk * func.rnd();
-      int ext = extract;
-      P = func.rnd();
-      mobs = pow( pow(maxbhiso,1.+obslope)*(1.-P) + P*pow(minbhiso,1.+obslope)   ,1./(1.+obslope));
+      int ext = miso1.size() * func.rnd();
 
+      /*do{
+	extract = chk * func.rnd();
+	ext = extract;
+	}while(tdel_iso[ext]+tfor[i] > Hubble);*/
       
-      safe = 0;
-      deltabh = 1.E30;
-      bhcandi = 1.E30;
-      //BH SPINS SELECTION (TO BE DECIDED)    
+      mpri = miso1[ext];
+      msec = miso2[ext];
       if(isospin != "giacobbo" || isospin != "Giacobbo"){
 	apri   = func.spin(mpri,isospin);
 	asec   = func.spin(msec,isospin);	
@@ -995,43 +1039,7 @@ int main(){
 	apri = aiso1[ext];
 	asec = aiso2[ext];
       }
-
-
       
-      do{
-	extract = chk * func.rnd();
-	ext = extract;
-	if(abs(mpri-mobs) < deltabh){
-	  deltabh = abs(mpri-mobs);
-	  bhcandi = mpri;
-	}
-	
-	safe += 1;
-	if(safe > 1000){
-	  mpri = bhcandi;
-	  mis[k] += 1./Npar[k];
-	  break;
-	}
-
-	if(miso1[ext] < mobs*1.2 && miso1[ext] > mobs*0.8 && tdel_iso[ext]+tfor[i] > Hubble){
-	  hout<<itot<<" 0.0 0.0 0.0 1.E30 1.E30 0.0 0.0 0.0 0.0 0.0 "<<tdel_iso[ext]<<" "<<safe<<" "<<Z[k]<<" none "<<miso1[ext]<<" "<<miso2[ext]<<" "<<apri<<" "<<asec<<" 0.0 "<<sma_iso[ext]<<" 0.0 0"<<" "<<tdel_iso[ext]<<endl;
-	  jump = 1;
-	  break;
-	  
-	}
-
-	  
-      }while((miso1[ext] > mobs*1.2 || miso1[ext] < mobs*0.8) || tdel_iso[ext]+tfor[i] > Hubble);
-
-      
-      if(jump == 1){
-	itot++;       
-	continue;
-      }
-      
-      
-      mpri = miso1[ext];
-      msec = miso2[ext];
       tdel = tdel_iso[ext];
 
 
@@ -1056,7 +1064,8 @@ int main(){
       if(mpri < msec){
 	double mpri_sec = mpri;
 	mpri = msec;
-	msec = mpri;
+	msec = mpri_sec;
+	apri = asec;	
       }
 
       //cout<<"Check3"<<endl;
@@ -1066,7 +1075,7 @@ int main(){
       tdel += tform;
       smaiso = sma_iso[ext];
 	
-      if(tdel < 1.35E10){
+      if(tdel < Hubble){
 	zmer = func.inter(tdel / 1.E9, age, reds, redline);
 	zfor = func.inter(tform / 1.E9, age, reds, redline);
       }
@@ -1080,11 +1089,17 @@ int main(){
 
       
       //Dec 23: a space was missing between 0.0 and zmer, resulting in error for isolated binaries ...
-      out<<itot<<" "<<met[k]<<" "<<label<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tform<<" "<<tdel;
-      out<<" 0.0 0.0 0.0 none "<<smaiso<<" "<<smaiso<<" 0.0 0.0 0.0 "<<zmer<<" "<<zfor<<" -1 -1 " <<mpri<<" 0.0 "<<smaiso<<" "<<smaiso<<" "<<tdel<<" "<<Cosa[i]<<" "<<Cosb[i]<<" "<<Cosg[i]<<endl;
-      
+      if(tdel < Hubble){
+	out<<itot<<" "<<met[k]<<" "<<label<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tform<<" "<<tdel;
+	out<<" 0.0 0.0 0.0 none "<<smaiso<<" "<<smaiso<<" 0.0 0.0 0.0 "<<zmer<<" "<<zfor<<" -1 -1 " <<mpri<<" 0.0 "<<smaiso<<" "<<smaiso<<" "<<tdel<<" "<<Cosa[i]<<" "<<Cosb[i]<<" "<<Cosg[i]<<endl;
+	Niso_real++;
+      }
 
-      Niso_real++;
+      else{
+	
+	hout<<itot<<" 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 "<<tdel<<" 0.0 "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" 0.0 "<<smaiso<<" "<<smaiso<<" 0 "<<time<<" "<<tfor[i]<<endl;
+	
+      }
       
       if(mpri!=0.0)	
 	out2<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tform<<" "<<tdel<<"-1 -1"<<endl;
@@ -1189,7 +1204,6 @@ int main(){
       Zmin = log10(0.0002);
     
   for(int k=0;k<numme;k++){
-	auto start = std::chrono::high_resolution_clock::now();
     cout<<"N. of dyn binaries with Z = "<<met[k]<<" "<<Npar[k]<<endl;
     if(Npar[k] == 0){
       continue;
@@ -1305,21 +1319,18 @@ int main(){
       
     }while(!in.eof());
     in.close();
-
-
-
     
-    double msdx[bin_st],mssx[bin_st];
+    /*double msdx[bin_st],mssx[bin_st];
     double mbdx[nsize],mbsx[nsize];
     double tbdx[nsize],tbsx[nsize];
     double vbdx[nsize],vbsx[nsize];
 
     double mbhmix[bin_st][nsize];
     double tbhmix[nsize][tsize];
-    double vbhmix[nsize][vsize];
+    double vbhmix[nsize][vsize];*/
        
     //  cout<<"Filling the matrix"<<endl;
-    double dm = (saximus_mix - sinimus_mix)/(double)bin_st;
+    /*double dm = (saximus_mix - sinimus_mix)/(double)bin_st;
     double db = (maximus_mix - minimus_mix)/(double)nsize;
     double dtb= 500.E6  / (double) tsize;
     double dvb= 1.E3 / (double) vsize;
@@ -1382,23 +1393,23 @@ int main(){
       }
           
     }
+    */
 
     /*for(int i=0;i<1000;i++)
       func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, 1.E30);
       exit(0);*/
     
-    double MSLP = mslope;
-
+    
     for(int i=0;i<1000;i++){
       double kikki;
-      func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, 0.0, single_bh, saximus,sinimus,maximus,minimus, 1.E30);
+      func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, 1.E30);
       kikki = single_bh[2];
       for(int im=0;im<50;im++){
 	if(kikki < vnat_dx[im]){
 	  nnat_dx[im] += 1.0;	  
 	}	
       }
-      singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, 0.0, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, 1.E30);
+      singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, 1.e30);
       kikki = single_bh[2];
       for(int im=0;im<50;im++){
 	if(kikki < vnat_dx[im]){
@@ -1417,9 +1428,10 @@ int main(){
       escout<<vnat_dx[im]<<" "<<double(nnat_dx[im])*1./1000.0 <<" "<<double(nmix_dx[im])*1./1000.0 <<endl;
     }
     escout.close();
-
-
     
+
+    double MSLP = mslope;
+
     
     ndx = 1000.;
     align="dynamical";
@@ -1643,6 +1655,10 @@ int main(){
 		rint = (mint - rhoint)/3.0;
 
 	      }
+	      else if(TagR == "lupi"){
+		mint = log10(1.E6);
+		rint = log10(1.0);
+	      }
 	      else if(TagR == "AS20" && cluster == "nuclear"){
 		//Select if it's late type (50%) or early type (50%)
 		//calculate rint from mint using a 3sigma dispersion
@@ -1667,7 +1683,7 @@ int main(){
 
 		rint = func.geo16Rnc(mint, c1_nc, c2_nc, a_nc, b_nc, e_nc);
 
-	      }
+	      }	      
 	      else{
 		if(TagR != "AS20" && cluster=="young"){
 		  cout<<"Please choose a recipe for initial cluster radii"<<endl;
@@ -1803,7 +1819,8 @@ int main(){
 	    mpri = -1;
 	    kpri = 1.E30;
 	    do{
-	      func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
+	      //func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
+	      func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, vthre);
 	      mpri = single_bh[0];	 
 	      tpri = single_bh[1];
 	      kpri = single_bh[2];
@@ -1820,7 +1837,8 @@ int main(){
 	    kpri = 1.E30;
 	    int nsafe = 0;
 	    do{
-	      singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+	      //singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+	      singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
 	      mpri = single_bh[0];	  	  
 	      tpri = single_bh[1];
 	      kpri = single_bh[2];	      
@@ -1864,7 +1882,8 @@ int main(){
 	    if(mixer > mixing){
 	      do{
 		
-		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		//func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh,vthre);	  
 		msec = single_bh[0];	 
 		tsec = single_bh[1];
 		ksec = single_bh[2];	    
@@ -1897,7 +1916,8 @@ int main(){
 	      msec = -1;
 	      ksec = 1.E30;
 	      do{
-		singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		//singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
 		msec = single_bh[0];	  	  
 		tsec = single_bh[1];
 		ksec = single_bh[2];	    
@@ -2049,7 +2069,10 @@ int main(){
 	    }
 	    	  
 	  }
-
+	  else if(bhseed == "lupi"){
+	    mpri = 300.;
+	  }
+	  
 
 
 	  
@@ -2376,7 +2399,7 @@ int main(){
 	
 	//ADDED PRINTOUT OF BINARY PROPERTIES      
 	if(time > Hubble){ //The other condition is not needed if nsafe_cal is just 1 --> || nsafe_cal > 1){
-	  hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<endl;
+	  hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<" "<<tfor[i]<<endl;
 	}
 
 	stringstream nan;
@@ -2474,7 +2497,7 @@ int main(){
 	    Cosb[i] = Spinning[5];
 	    Cosg[i] = Spinning[6];
 
-	    hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<endl;
+	    hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<" "<<tfor[i]<<endl;
 	  
 
 	    break;
@@ -2576,7 +2599,8 @@ int main(){
 	    if(mixer > mixing){
 	      do{
 		
-		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		//func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh,vthre);	  
 		msec = single_bh[0];	 
 		tsec = single_bh[1];
 		ksec = single_bh[2];	    
@@ -2604,7 +2628,8 @@ int main(){
 	      msec = -1;
 	      ksec = 1.E30;	      
 	      do{
-		singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		//singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
 		msec = single_bh[0];	  	  
 		tsec = single_bh[1];
 		ksec = single_bh[2];
@@ -2844,7 +2869,7 @@ int main(){
 	  nrecy += nhigen;
 
 	  //This will include all repeated mergers into the main catalogue ... 
-	  if(time < 1.35e10){
+	  if(time < Hubble){
 	    zmer = func.inter(time / 1.E9, age, reds, redline);
 	    zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
 	    zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
@@ -2870,7 +2895,7 @@ int main(){
 	
 	
 
-	if(time < 1.35e10){
+	if(time < Hubble){
 	  zmer = func.inter(time / 1.E9, age, reds, redline);
 	  zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
 	  zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
@@ -2930,11 +2955,7 @@ int main(){
     kick_sin.erase(kick_sin.begin(),kick_sin.end());
 
     
-    // Cristiano 16/04/2025
-	// Let's check how long it take per metallicity
-	cout << "time for the metallicity function: " 
-	<< chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count() 
-	<< " seconds." << endl;
+    
     
   }
   clout.close();

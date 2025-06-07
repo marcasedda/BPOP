@@ -58,7 +58,8 @@ class Functions
   
 
   void singBHt_mix_old(vector<double> zams_mix, vector<double> remn_mix, vector<double> tdel_mix, vector<double> kick_mix, double obslope, double mslope, double *sing_out, double msmax, double msmin, double mbmax, double mbmin, double vescape);
-  void singBHt_new(vector<double> zams_sin, vector<double> remn_sin, vector<double> tdel_sin, vector<double> kick_sin, double obslope, double mslope, double *sing_out, double msmax, double msmin, double mbmax, double mbmin, double vescape);
+  //void singBHt_new(vector<double> zams_sin, vector<double> remn_sin, vector<double> tdel_sin, vector<double> kick_sin, double obslope, double mslope, double *sing_out, double msmax, double msmin, double mbmax, double mbmin, double vescape);
+  void singBHt_new(vector<double>& zams_sin, vector<double>& remn_sin, vector<double>& tdel_sin, vector<double>& kick_sin, double *sing_out, double vescape);
 
 
   double mratio(double mpri, double MRATIO_SLOPE, string stri_mrat);

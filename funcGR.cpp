@@ -314,13 +314,13 @@ double Functions::sfr_red(string sfrtype){
 
   }
   else if(sfr=="continuous" || sfr == "constant"){
-    zred = reds_max*rnd(); //REFERENCE?
+    zred = 15.0*rnd(); //REFERENCE?
   }
   else if(sfr=="burst"){
-    zred = 4.0;
+    zred = 20.0;
   }
   else if(sfr=="bigbang"){
-    zred = 10.;
+    zred = 1100.;
   }
   else if(sfr=="elba18" || sfr=="EB18"){
     double Zn,Sn;
@@ -335,9 +335,9 @@ double Functions::sfr_red(string sfrtype){
       pup = rnd();
       zup = reds_max * rnd();
       pgas = exp(-pow(zup-Zn,2.) / (2.*Sn*Sn));
-      if(pgas < pup)
+      if(pgas > pup)
 	break;
-    }while(pgas > pup);
+    }while(pgas < pup);
     
     zred = zup;
     
@@ -348,7 +348,7 @@ double Functions::sfr_red(string sfrtype){
   }  
   
   
-  if(zred > reds_max){  
+  if(zred > 1100){  
     cout<<"ATTENZIONE: ERRORE REDSHIFT - "<<zred<<" "<<endl;
     exit(0);
   }
@@ -488,6 +488,7 @@ double Functions::inter(double x, double *X, double *Y, int N){
     }
 
   }
+  
   if(id2 == 0){
     id1 = 0;
     id2 = 1;
@@ -918,9 +919,39 @@ void Functions::singBHt_mix_old(vector<double> zams_mix, vector<double> remn_mix
 
 
 
+void Functions::singBHt_new(vector<double>& zams_sin,
+		 vector<double>& remn_sin,
+		 vector<double>& tdel_sin,
+		 vector<double>& kick_sin,
+		 double *sing_out,
+		 double vescape){
+
+  
+  double mblack, vblack, tblack;
+  sing_out[0] = 0.0;
+  sing_out[1] = 0.0;
+  sing_out[2] = 0.0;
+
+  int cat_size = zams_sin.size() ;
+  int id;
+  int nctn = 0;
+  do{
+    id = static_cast<int>(cat_size * rnd());
+    nctn++;    
+  }while(kick_sin[id] > vescape);
+  
+
+  
+  sing_out[0] = remn_sin[id];
+  sing_out[1] = tdel_sin[id];
+  sing_out[2] = kick_sin[id];
+  
+  
+  return ;
+}
 
 
-void Functions::singBHt_new(vector<double> zams_sin, vector<double> remn_sin, vector<double> tdel_sin, vector<double> kick_sin, double obslope, double mslope, double *sing_out, double msmax, double msmin, double mbmax, double mbmin, double vescape){
+/*void Functions::singBHt_new_no(vector<double>& zams_sin, vector<double>& remn_sin, vector<double>& tdel_sin, vector<double>& kick_sin, double obslope, double mslope, double *sing_out, double msmax, double msmin, double mbmax, double mbmin, double vescape){
 
   double mpri;
 
@@ -1010,7 +1041,7 @@ void Functions::singBHt_new(vector<double> zams_sin, vector<double> remn_sin, ve
   
   return;
 
-}
+  }*/
 
 
 double Functions::mratio(double mpri, double MRATIO_SLOPE, string MRATIO_STR){
@@ -1433,6 +1464,10 @@ double Functions::angmom2(double a1, double a2, double v, double q, double cosa,
 
 
 void Functions::SREM2(double ndx, double a1, double a2, double m1, double m2, string align, double *spins){
+
+  double originalm1 = m1;
+  double originalm2 = m2;
+    
   double afin = 2.0;
   double afin1,afin2,afin3;
   double CHI;
@@ -1580,6 +1615,13 @@ void Functions::SREM2(double ndx, double a1, double a2, double m1, double m2, st
   //// RECOILING KICK VELOCITIES.... Ref: Campanelli+06, Lousto & Zlochower (2008), Antonini+2019, Gonzalez et al. 2007a (numerical values)
   double vkick = kicks(m1, m2, a1, a2, q, cosa, cosb, cosg); 
 
+  double cos_primary   = cosg;
+  double cos_secondary = cosb;
+
+  if(originalm1 < originalm2){
+    cos_primary = cosb;
+    cos_secondary= cosg;
+  }
   
   
   spins[0] = afin;
@@ -1588,8 +1630,8 @@ void Functions::SREM2(double ndx, double a1, double a2, double m1, double m2, st
   spins[3] = vkick;
 
   spins[4] = cosa;
-  spins[5] = cosb;
-  spins[6] = cosg;
+  spins[5] = cos_primary;
+  spins[6] = cos_secondary;
 
   return;
 

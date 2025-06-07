@@ -21,22 +21,22 @@
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
 #define PREDIR "../"
 #define zPATH   "gallazzi05ZDATA.ttt"
-#define SINGPTH "A5/" // "DATI_SingleBH/"
-#define PATH    "A5/" // "DATI_GiaMap18/"
+#define SINGPTH "rapid_M20/" // "DATI_SingleBH/"
+#define PATH    "rapid_M20/" // "DATI_GiaMap18/"
 #define PATHSIN "DATI_SingleBH/"
 
 // GLOBAL
-#define N        1000
+#define N        1000000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
 #define Zsun     0.017
 
 //DYNAMICAL FRACTIONS
-#define DynOvTot  1
-#define pYC 0.
-#define pGC 0.
-#define pNC 1.0
+#define DynOvTot  0.9
+#define pYC 0.75
+#define pGC 0.15
+#define pNC 0.10
 
 #define uppergap "no"
 #define bhseed   "no"
@@ -45,12 +45,10 @@
 #define fupgp    0.15
 #define mass_gap  60.0
 #define upgtp   "dicarlo"
-#define SFRTYPE_ISO "MF17" //"continuous" //"MF17" //
-#define SFRTYPE_CLU "MF17" //"continuous" //"EB18_MF17" //
+#define SFRTYPE_ISO "bigbang" //"continuous" //"MF17" //
+#define SFRTYPE_CLU "bigbang" //"continuous" //"EB18_MF17" //
 
-
-//#define mixing  0.5
-#define mixing  1.1
+#define mixing  0.5
 #define fbin    1.0
 
 //YC mass-size relation
@@ -114,12 +112,14 @@
 #define spar 5
 #define numZ 12
 
+// Cristiano 18/04/2025
+// Should be deprecated (hopefully)
 //ZAMS BINNING AND MINIMUM SAMPLE SIZE
 #define DM_val 1.0
 #define THRESHOLD_val 1000
+
 // Cristiano 07/04/2025
 // Should be deprecated (hopefully)
-
 //SIZE OF GENERAL VECTORS
 #define bin_st 50
 #define nsize 80
@@ -128,167 +128,29 @@
 
 using namespace std;
 
-// Cristiano 07/04/2025
-// Old version
+// Cristiano 18/04/2025
+// What's below is deprecated:
+// NEW APPROACH --> We randomly extract from the catalog that has embedded the info on the IMF
+// To Be Developed --> flag on the IMF that accounts for different IMFs (Larson, LogFlat, etc.)
+
 /*
-void singBHt_mix(double mssx[], double msdx[], double mbsx[], double mbdx[], double tbsx[], double tbdx[], double vbsx[], double vbdx[], double mbhmix[][nsize], double tbhmix[][tsize], double vbhmix[][vsize], double mslp, double *sing_out, double saximus_mix, double sinimus_mix, double maximus_mix, double minimus_mix, double vescape){
-
-  Functions func;
-
-  int nsafe;
-  
-  double P = func.rnd();
-  double mzams = pow((P*pow(saximus_mix,1.+mslp) + (1.-P)*pow(sinimus_mix,1.+mslp)),1./(1.+mslp));
-  int idx = -1;
-  for(int ii=0;ii<bin_st;ii++){
-    if(mzams >= mssx[ii] && mzams < msdx[ii]){
-      idx = ii;
-      break;
-    }
-  }
-
-
-  
-  double maxprob;
-  double maxtest;
-  double maxpoint;
-  int idy;
-
-  maxtest = 1.E30;
-  maxpoint= -1;
-  idy = -1;
-  nsafe = 0;
-  maxprob = -1;     
-  for(int jj=0;jj<nsize;jj++){    
-    if(maxprob < mbhmix[idx][jj])
-      maxprob = mbhmix[idx][jj];
-  }
-  do{
-    double ddy = 1.*nsize*func.rnd();
-    idy = ddy;
-    maxtest = maxprob * func.rnd();
-    maxpoint= mbhmix[idx][idy];
-
-	// Cristiano 07/04/2025 
-	// Already commented
-    //if(nsafe > 100){
-	//cout<<"Warning mass. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-	//}
-    nsafe ++;
-  }while(maxtest > maxpoint);	
-  
-  double mblack = mbsx[idy] + (mbdx[idy] - mbsx[idy]) * func.rnd();
-  
-  
-  int vsize_max = -1;
-  for(int jj=0;jj<vsize;jj++){
-    if(vbsx[jj] <=vescape)
-      vsize_max = jj;	    
-    if(vbsx[jj] > vescape)
-      break;    
-  }
-  if(vsize_max <= 0){
-    //cout<<"WARNING: no BHs can be retained in this cluster due to natal kick "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-    vsize_max = 0;    
-  }
-
-  //vsize_max = vsize;
-  
-  //cout<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-  //exit(0);
-  nsafe = 0;
-  maxprob = -1;
-  for(int jj=0;jj<vsize_max;jj++){
-    if(maxprob < vbhmix[idy][jj])
-      maxprob = vbhmix[idy][jj];
-  }
-  double vblack;
-  if(maxprob > 0){
-    maxtest = 1.E30;
-    maxpoint= -1;
-    int idz = -1;
-    do{
-      double ddz = 1.*vsize_max*func.rnd();
-      idz = ddz;
-      maxtest = maxprob * func.rnd();
-      maxpoint= vbhmix[idy][idz];
-      nsafe ++;
-	
-	// Cristiano 07/04/2025 
-	// Already commented
-    //if(nsafe > 100){
-	cout<<"Warning vel. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-	//}
-
-    }while(maxtest > maxpoint);
-    
-    vblack = vbsx[idz] + (vbdx[idz] - vbsx[idz]) * func.rnd();
-  }
-  else
-    vblack = 0.0;
-  
-  
-
-  nsafe = 0;
-  maxprob = -1;
-  for(int jj=0;jj<tsize;jj++){
-    if(maxprob < tbhmix[idy][jj])
-      maxprob = tbhmix[idy][jj];
-  }
-  double tblack;
-  if(maxprob > 0){
-    maxtest = 1.E30;
-    maxpoint= -1;
-    int idz = -1;
-    nsafe = 0;
-    do{
-      double ddz = 1.*tsize*func.rnd();
-      idz = ddz;
-      maxtest = maxprob * func.rnd();
-      maxpoint= tbhmix[idy][idz];
-
-	// Cristiano 07/04/2025 
-	// Already commented	
-    //if(nsafe > 100){
-	//cout<<"Warning time. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-	//}
-
-      nsafe ++;
-    }while(maxtest > maxpoint);
-    
-    tblack = tbsx[idz] + (tbdx[idz] - tbsx[idz]) * func.rnd();
-  }
-  else
-    tblack = 0.0;
-  
-       
-  sing_out[0] = mblack;
-  sing_out[1] = tblack;
-  sing_out[2] = vblack;
-
-  //cout<<mzams<<" "<<mblack<<" "<<tblack<<" "<<vblack<<endl;
-  
-  return ;
-}
-*/
-
-// Cristiano 08/04/2025
-// New version of the function
-// The function:
-//   - reads the mixed catalog
-//   - generates a random mzams from the IMF
-//   - create a subsample catalog_true of the mixed catalog with | mzams - m| < dm
-//   - generates a subsample cat_retained that is not ejected at birth from the cluster (kick_mix_true[i] < vthree)
-//   - Now do a check on the lenght of the cat_retained
-//   - if the lenght is > threshold, then we can use the BH mass from the catalog randomly (as the number of sample is statistically significant)
-//   - if the lenght is < threshold, then we need to generate a cumulative distribution function (Cdf) of BH mass given mzams and extract the BH mass from the Cdf 
-
 void singBHt_mix(double dm, double vthre, int threshold,
 	const vector<double>& zams_mix,
 	const vector<double>& remn_mix,
 	const vector<double>& tdel_mix,
 	const vector<double>& kick_mix,
 	double mslp, double *single_bh) {
+
+	// Cristiano 08/04/2025
+	// New version of the function
+	// The function:
+	//   - reads the mixed catalog (already sorted in the main)
+	//   - generates a subsample cat_retained that is not ejected at birth from the cluster (kick_mix_true[i] < vthree)
+	//   - generates a random mzams from the IMF
+	//   - create a subsample catalog_true of the mixed catalog with | mzams - m| < dm
+	//   - Now do a check on the lenght of the cat_retained
+	//   - if the lenght is > threshold, then we can use the BH mass from the catalog randomly (as the number of sample is statistically significant)
+	//   - if the lenght is < threshold, then we need to generate a cumulative distribution function (Cdf) of BH mass given mzams and extract the BH mass from the Cdf 
 
 	Functions func;
 
@@ -298,37 +160,59 @@ void singBHt_mix(double dm, double vthre, int threshold,
 	// Create arrays for the “true” subsample
 	vector<double> zams_true, bh_mix_true, kick_mix_true, tfor_mix_true;
 
+	// ZAMS extremes
+	double saximus_mix = -1e30;
+	double sinimus_mix = 1e30;
+
+
 	// Now let's fill the retained sample
 	zams_ret.reserve(zams_mix.size());
 	bh_mix_ret.reserve(zams_mix.size());
 	kick_mix_ret.reserve(kick_mix.size());
 	tfor_mix_ret.reserve(tdel_mix.size());
 
-	double saximus_mix = -1e30;
-	double sinimus_mix = 1e30;
+	zams_true.reserve(zams_ret.size());
+    bh_mix_true.reserve(bh_mix_ret.size());
+    kick_mix_true.reserve(kick_mix_ret.size());
+    tfor_mix_true.reserve(tfor_mix_ret.size());
 
+	auto check = std::chrono::high_resolution_clock::now();
 	// Loop over the mixed catalog and select those stars that are not ejected at birth
-    for (int i = 0; i < zams_mix.size(); ++i) {
-        if (kick_mix[i] <= vthre ){
-            zams_ret.push_back(zams_mix[i]);
-			bh_mix_ret.push_back(remn_mix[i]);
-            kick_mix_ret.push_back(kick_mix[i]);
-            tfor_mix_ret.push_back(tdel_mix[i]);
-			// I check the extremes of the IMF at the same time, as I am after the filter
-			if (zams_mix[i] > saximus_mix) saximus_mix = zams_mix[i];
-        	if (zams_mix[i] < sinimus_mix) sinimus_mix = zams_mix[i];
-        }
-    }
+	for (int i = 0; i < zams_mix.size(); ++i) {
+		// Because the kick_mix array is sorted in ascending order, as soon as we encounter
+		// a kick value larger than vthre, we can stop.
+		if (kick_mix[i] > vthre) {
+			break;
+		}
+		// Only values with kick_mix[i] <= vthre are retained.
+		zams_ret.push_back(zams_mix[i]);
+		bh_mix_ret.push_back(remn_mix[i]);
+		kick_mix_ret.push_back(kick_mix[i]);
+		tfor_mix_ret.push_back(tdel_mix[i]);
+		
+		// Let's chose the ZAMS mass extremes
+		if (zams_mix[i] > saximus_mix) saximus_mix = zams_mix[i]; 
+		if (zams_mix[i] < sinimus_mix) sinimus_mix = zams_mix[i];
 
+	}
+	//cout << "Time taken to filter the catalog: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
 	// Now we have a subsample of the mixed catalog
-	cout << "Subsample for mass:" << zams_ret.size() << endl;
-	cout << "\nZAMS IMF extremes - Max: " << saximus_mix << ", Min: " << sinimus_mix << ", Cluster escape velocity: "<< vthre << endl;
+	//cout << "Subsample for mass:" << zams_ret.size() << endl;
+	//cout << "\nZAMS IMF extremes - Max: " << saximus_mix << ", Min: " << sinimus_mix << ", Cluster escape velocity: "<< vthre << endl;
+    // Use std::minmax_element to get extremes of the ZAMS masses.
+    
+	auto check2 = std::chrono::high_resolution_clock::now();
+	//auto mm = minmax_element(zams_ret.begin(), zams_ret.end());
+    //double sinimus_mix = *mm.first;
+    //double saximus_mix = *mm.second;
 
 	// Now we have the extremes of the ZAMS mass
 	double P = func.rnd();
 	double mzams = pow( (P*pow(saximus_mix,1.+ mslp) + (1.-P)*pow(sinimus_mix,1.+mslp)), 1./(1.+mslp) );
-	cout << "ZAMS mass: " << mzams << endl;
+	//cout << "ZAMS mass: " << mzams << endl;
+	//cout << "Time taken to find the extremes of the ZAMS mass: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check2).count() << " microseconds." << endl;
 
+	auto check3 = std::chrono::high_resolution_clock::now();
 	// Loop once again over the subsample catalog and select those stars that are in the mass window.
 	for (int i = 0; i < zams_ret.size(); ++i) {
 		// Fork the Zams Mass 
@@ -339,97 +223,48 @@ void singBHt_mix(double dm, double vthre, int threshold,
             tfor_mix_true.push_back(tfor_mix_ret[i]);
         }
     }
+
+	//cout << "Time taken to filter the catalog for the mass window: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check3).count() << " microseconds." << endl;
 	
 	// Now we have a subsample of the mixed catalog
 	// Let's store the size of the catalog
 	int cat_size = zams_true.size();
-	cout << "Subsample for mass:" << mzams << " with size: " << cat_size << endl;
-
-	// Check on the subsample
-	/*
-	// Now we have a subsample of the mixed catalog
-	cout << "Subsample for mass:" << mzams <<" with size: " << zams_true.size() << endl;
-	cout << "First 10 subsample entries:" << endl;
-	for (int i = 0; i < min(cat_size, int(3)); ++i) {
-		cout << "Entry " << i << ": zams = " << zams_true[i]
-			 << ", remnant = " << bh_mix_true[i]
-			 << ", tdelay = " << tfor_mix_true[i]
-			 << ", kick = " << kick_mix_true[i] << endl;
-	}
-	cout << "\nLast 10 subsample entries:" << endl;
-	size_t start = (cat_size >= 3) ? cat_size - 3 : 0;
-	for (size_t i = start; i < cat_size; ++i) {
-		cout << "Entry " << i << ": zams = " << zams_true[i]
-			 << ", remnant = " << bh_mix_true[i]
-			 << ", tdelay = " << tfor_mix_true[i]
-			 << ", kick = " << kick_mix_true[i] << endl;
-	}
-	*/
+	//cout << "Subsample for mass:" << mzams << " with size: " << cat_size << endl;
 
 	// Cristiano 11/04/2025
 	// Safety check to ensure the catalog is not emtpy
-	if(cat_size == 0){
-		cout << "Warning: no BHs in the subsample for mass " << mzams << endl;
-		cout << "Exiting..." << endl;
-		exit(0);
-	}
-	// Initialize to zero the outcome vector
+	//if(cat_size == 0){
+		//cout << "Warning: no BHs in the subsample for mass " << mzams << endl;
+		//cout << "Exiting..." << endl;
+	//	exit(0);
+	//}
 
+
+	// Initialize to zero the outcome vector
 	single_bh[0] = 0.0;
 	single_bh[1] = 0.0;
 	single_bh[2] = 0.0;
 
 	// Now let's chose the Bh
-
 	int bh_index;
 	if(zams_true.size() >= threshold){
+		auto start = std::chrono::high_resolution_clock::now();
 		// If the subsample is big enough we can just select randomly
 		// in this way the possibility of catching extreme outcomes averages out and is naturally weightd in the catalog
 		bh_index = static_cast<int>(cat_size * func.rnd());
 		single_bh[0] = bh_mix_true[bh_index];
 		single_bh[1] = tfor_mix_true[bh_index];
 		single_bh[2] = kick_mix_true[bh_index];
+		//cout << "time to select BH if subsample is big enough: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " microseconds." << endl;
 	}
 	
-	/*
-	else{
-		// Cristiano 10/04/2025
-		// If the subsample is not big enough we need to generate a cumulative distribution function and extract from it the BH properties
-		// In this way we avoid selecting to often the same BH
-		cout << "Sample too small, generating cumulative distribution function (CDF)..." << endl;
-	
-		// Initialize a vector to hold the cumulative weights and assign uniform weights to each BH in the subsample
-		// These represent the cumulative probability of selecting each BH candidate, assuming each entry is equally likely
-		
-		vector<double> cumulative_weights(cat_size);
-		cumulative_weights[0] = 1.0;
-
-		for (int i = 1; i < cat_size; ++i) {
-			cumulative_weights[i] = cumulative_weights[i - 1] + 1.0;
-		}
-	
-		// Normalize the weights so that the last value becomes 1
-		// This converts the list into a proper CDF between 0 and 1
-		for (int i = 0; i < cat_size; ++i) {
-			cumulative_weights[i] /= cumulative_weights[cat_size - 1];
-		}
-
-		// Find the first index in the cumulative weights that exceeds the random number
-		// This effectively samples from the CDF
-		
-		double rand_uniform = func.rnd();
-
-		int bh_index = 0;
-		while (bh_index < cat_size && cumulative_weights[bh_index] < rand_uniform) {
-			++bh_index;
-		}
-	*/
 	else {
+		auto start = std::chrono::high_resolution_clock::now();
+
 		// Cristiano 11/04/2025
 		// If the subsample is not big enough we perform inverse transform sampling
 		// from the empirical CDF of the BH mass distribution
-		cout << "Sample too small, generating empirical CDF and using inverse transform sampling..." << endl;
-
+		//cout << "Sample too small, generating empirical CDF and using inverse transform sampling..." << endl;
 
 		// Step 1: Sort BH masses
 		vector<double> bh_sorted = bh_mix_true;
@@ -472,20 +307,21 @@ void singBHt_mix(double dm, double vthre, int threshold,
 		single_bh[1] = tfor_mix_true[bh_index];
 		single_bh[2] = kick_mix_true[bh_index];
 
-		cout << "Selected BH from inverse CDF - sampled mass: " << sampled_mass
-			 << ", matched index: " << bh_index
-			 << ", corresponding ZAMS in catalog: " << zams_true[bh_index]
-			 << ", actual mass in catalog: " << bh_mix_true[bh_index] << endl;
+		auto end = std::chrono::high_resolution_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		//cout << "Inverse transform sampling took " << duration.count() << " microseconds." << endl;
 	}
 
 	// Cristiano 10/04/2025 
 	// Let's check if the chosen BH is reasonable
+
 	cout << "BH properties - Mass: " << single_bh[0]
 		 << " Time delay: " << single_bh[1]
 		 << " Natal kick: " << single_bh[2] << endl; 
 
 	// Cristiano 10/04/2025
 	// Let's free the memory allocated for the subsample	    
+
 	zams_true.erase(zams_true.begin(), zams_true.end());
 	bh_mix_true.erase(bh_mix_true.begin(), bh_mix_true.end());
 	kick_mix_true.erase(kick_mix_true.begin(), kick_mix_true.end());
@@ -497,11 +333,102 @@ void singBHt_mix(double dm, double vthre, int threshold,
 	kick_mix_ret.erase(kick_mix_ret.begin(), kick_mix_ret.end());
 	tfor_mix_ret.erase(tfor_mix_ret.begin(), tfor_mix_ret.end());
 
-	cout << "" << endl;
+	//cout << "" << endl;
+
+	//cout <<"time for the whole function: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
+	return;
+}
+*/
+
+
+void singBHt_mix(double vthre,
+	const vector<double>& zams_mix,
+	const vector<double>& remn_mix,
+	const vector<double>& tdel_mix,
+	const vector<double>& kick_mix,
+	double *single_bh) {
+// Cristiano 18/04/2025
+// NEW APPROACH --> We randomly extract from the catalog that has embedded the info on the IMF
+// To Be Developed --> flag on the IMF that accounts for different IMFs (Larson, LogFlat, etc.)
+
+	Functions func;
+
+
+	auto check = std::chrono::high_resolution_clock::now();
+
+	// Initialize to zero the outcome vector
+	single_bh[0] = 0.0;
+	single_bh[1] = 0.0;
+	single_bh[2] = 0.0;
+
+	// Define the size of the catalog	
+	int cat_size = zams_mix.size();
+
+	// Now let's chose a Bh with a natal kick < vthre
+	int bh_index;
+	do{
+		//auto start = std::chrono::high_resolution_clock::now();
+		// If the subsample is big enough we can just select randomly
+		// in this way the possibility of catching extreme outcomes averages out and is naturally weightd in the catalog
+		bh_index = static_cast<int>(cat_size * func.rnd());
+		//cout << "time to select a suitable BH: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " microseconds." << endl;
+	} while(kick_mix[bh_index] > vthre);
 	
+	// If the kick is small enough we found a suitable BH
+	single_bh[0] = remn_mix[bh_index];
+	single_bh[1] = tdel_mix[bh_index];
+	single_bh[2] = kick_mix[bh_index];
+
+	
+	//cout <<"time for the whole function: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
 	return;
 }
 
+
+void singBHt_iso(double vthre,
+	const vector<double>& zams_sin,
+	const vector<double>& remn_sin,
+	const vector<double>& tdel_sin,
+	const vector<double>& kick_sin,
+	double *single_bh) {
+
+	// Cristiano 18/04/2025
+	// NEW APPROACH --> We randomly extract from the catalog that has embedded the info on the IMF also for isolated stars
+	// To Be Developed --> flag on the IMF that accounts for different IMFs (Larson, LogFlat, etc.)
+
+
+	Functions func;
+
+	auto check = std::chrono::high_resolution_clock::now();
+
+	// Initialize to zero the outcome vector
+	single_bh[0] = 0.0;
+	single_bh[1] = 0.0;
+	single_bh[2] = 0.0;
+
+	// Define the size of the catalog	
+	int cat_size = zams_sin.size();
+
+	// Now let's chose a Bh with a natal kick < vthre
+	int bh_index;
+	do{
+		//auto start = std::chrono::high_resolution_clock::now();
+		// If the subsample is big enough we can just select randomly
+		// in this way the possibility of catching extreme outcomes averages out and is naturally weightd in the catalog
+		bh_index = static_cast<int>(cat_size * func.rnd());
+		//cout << "time to select a suitable BH: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() << " microseconds." << endl;
+	} while(kick_sin[bh_index] > vthre);
+	
+	// If the kick is small enough we found a suitable BH
+	single_bh[0] = remn_sin[bh_index];
+	single_bh[1] = tdel_sin[bh_index];
+	single_bh[2] = kick_sin[bh_index];
+
+	
+	//cout <<"time for the whole function: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - check).count() << " microseconds." << endl;
+	return;
+}
+    
 int main(){
   srand(time(0));
   Functions func;
@@ -609,9 +536,8 @@ int main(){
   cmd = new char [cmdstr.length()+1];
   strcpy(cmd,cmdstr.c_str());
   int ck;
-  //if(yes=="Y") ck = system(cmd);
   delete [] cmd;
-  //delete [] yes;
+
 
   string sfr_iso = SFRTYPE_ISO;
   string sfr_clu = SFRTYPE_CLU;
@@ -636,23 +562,14 @@ int main(){
     
   double *Spinning;
   Spinning = new double [7];
-
-  /*
-  double *sss;
-  sss = new double [1000];
-  for(int i=0;i<1000;i++)
-    sss[i] = 700.*func.rndgen(1.0, 0.1);
-  func.histo(sss,1000,30,"linear","test_general_GSS.txt");
-  delete [] sss;
-  exit(0);
-  */
-  
+ 
   Spinning[3] = -1.E30;
   
   string path   = predir+PATH;
   string pathse = "";
   string pathsp = "";
 
+ /*
   //METALLICITY AVAILABLES 0.0002 - 0.0004 - 0.0008 - 0.0012 - 0.0016 - 0.002 - 0.004 - 0.006 - 0.008 - 0.012 - 0.016 - 0.02 
   double met[13];
   met[0]  = 0.0002;
@@ -675,7 +592,7 @@ int main(){
   ofstream out;
 
   double metdyn[13];
-  metdyn[0]  = 0.02;
+  metdyn[0]  = 0.0002;
   metdyn[1]  = 0.0004;
   metdyn[2]  = 0.0008;
   metdyn[3]  = 0.0012;
@@ -688,47 +605,33 @@ int main(){
   metdyn[10] = 0.016;
   metdyn[11] = 0.02;
   metdyn[12] = 0.03;
-
-/* //Cristiano 08/04/2025
-
-//Finte metallicità per test
-
-double met[13];
-met[0]  = 0.02;
-met[1]  = 0.02;
-met[2]  = 0.02;
-met[3]  = 0.02;
-met[4]  = 0.02;
-met[5]  = 0.02;
-met[6]  = 0.02;
-met[7]  = 0.02;
-met[8]  = 0.02;
-met[9]  = 0.02;
-met[10] = 0.02;
-met[11] = 0.02;
-met[12] = 0.03;
-
-double mis[13];
-for(int i = 0;i<13;i++)mis[i] = 0.0;
-
-ofstream out;
-
-double metdyn[13];
-metdyn[0]  = 0.02;
-metdyn[1]  = 0.02;
-metdyn[2]  = 0.02;
-metdyn[3]  = 0.02;
-metdyn[4]  = 0.02;
-metdyn[5]  = 0.02;
-metdyn[6]  = 0.02;
-metdyn[7]  = 0.02;
-metdyn[8]  = 0.02;
-metdyn[9]  = 0.02;
-metdyn[10] = 0.02;
-metdyn[11] = 0.02;
-metdyn[12] = 0.03;
- */
-
+  */
+    //METALLICITY AVAILABLES 0.0002 - 0.0004 - 0.0008 - 0.0012 - 0.0016 - 0.002 - 0.004 - 0.006 - 0.008 - 0.012 - 0.016 - 0.02 
+	double met[13];
+	met[0]  = 0.0002;
+	met[1]  = 0.0003;
+	met[2]  = 0.0004;
+	met[3]  = 0.0007;
+	met[4]  = 0.0010;
+	met[5]  = 0.0014;
+	met[6]  = 0.002;
+	met[7]  = 0.004;
+	met[8]  = 0.007;
+	met[9]  = 0.010;
+	met[10] = 0.014;
+	met[11] = 0.02;
+	met[12] = 0.03;
+  
+	double mis[13];
+	for(int i = 0;i<13;i++)mis[i] = 0.0;
+	
+	ofstream out;
+  
+	double metdyn[13];
+	for (int i = 0; i < 13; i++) {
+		metdyn[i] = met[i];
+	}
+  
   string singpthA = predir+SINGPTH;  
   double ndx;
   double apri;
@@ -751,7 +654,8 @@ metdyn[12] = 0.03;
 
   double qmin, recy;
   string cluster = "none";
-
+  vector<double> mpost;
+ 
   align = "whatever";
 
   // CREATING ESCAPE VEL ARRAYS //
@@ -995,7 +899,6 @@ metdyn[12] = 0.03;
     double logz_me;            
     logz_me = func.metcor(metal_dis, sigmaZ, red_del);
     double logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
-    double logz2 = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
 
     logz = logz1;
 
@@ -1022,7 +925,6 @@ metdyn[12] = 0.03;
     double logz_me;            
     logz_me = func.metcor(metal_dis, sigmaZ, red_del);
     double logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
-    double logz2 = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
 
     logz = logz1;
     
@@ -1301,21 +1203,25 @@ metdyn[12] = 0.03;
 	  
       }while((miso1[ext] > mobs*1.2 || miso1[ext] < mobs*0.8) || tdel_iso[ext]+tfor[i] > Hubble);
 
+      
       if(jump == 1){
 	itot++;       
 	continue;
       }
       
+      
       mpri = miso1[ext];
       msec = miso2[ext];
       tdel = tdel_iso[ext];
-      
+
+
       Spinning[0] = 0.0;
       Spinning[1] = 0.0;
       Spinning[2] = 0.0;
+      Spinning[3] = 0.0;
+      Spinning[4] = 0.0;
       Spinning[5] = 0.0;
       Spinning[6] = 0.0;
-      Spinning[7] = 0.0;
       if(mpri > 0.0 && msec > 0.0)
 	func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);
 	
@@ -1326,26 +1232,30 @@ metdyn[12] = 0.03;
       Cosa[i] = Spinning[4];
       Cosb[i] = Spinning[5];
       Cosg[i] = Spinning[6];
-
+      
       if(mpri < msec){
 	double mpri_sec = mpri;
 	mpri = msec;
 	msec = mpri;
       }
 
+      //cout<<"Check3"<<endl;
 
       double tform = tfor[arr[k][i]];
       
       tdel += tform;
       smaiso = sma_iso[ext];
 	
-      zmer = func.inter(tdel / 1.E9, age, reds, redline);
-      if(tdel > 1.35E10)
+      if(tdel < 1.35E10){
+	zmer = func.inter(tdel / 1.E9, age, reds, redline);
+	zfor = func.inter(tform / 1.E9, age, reds, redline);
+      }
+      else{
 	zmer = func.zred(tdel/1.E9);
-
-      zfor = func.inter(tform / 1.E9, age, reds, redline);
-      if(tfor[arr[k][i]] > 1.35E10)
 	zfor = func.zred(tform/1.E9);
+      }
+      
+      
 
 
       
@@ -1385,9 +1295,9 @@ metdyn[12] = 0.03;
   out2.open("Catalogue_clean.txt");      
   ofstream out3;
   out3.open("Catalogue_multiple_dyn.txt");
-  out3 << "ID m1[Msun] m2[Msun] a_1 a_2 semi semi_ej semi_gw tfor[yr] tSNe[yr] t12capt[yr] t3bb[yr] tdf[yr] t12[yr] tbbh[yr] tmer[yr] time[yr] N_multi Mcore[t] Rcore[t] Mh_cl_init Rh_cl_init tcc status Cluster Mfin[Msun] Afin Xeff Kick_fin[km/s] Vesc[km/s] itot" << endl;
+
   
-  hout.open("Larger_than_tH.txt", ios::app);
+  hout.open("Larger_than_tH.txt",ios::app);
   
   double semi_ej,semi_gw;
 
@@ -1459,6 +1369,7 @@ metdyn[12] = 0.03;
       Zmin = log10(0.0002);
     
   for(int k=0;k<numme;k++){
+	auto start = std::chrono::high_resolution_clock::now();
     cout<<"N. of dyn binaries with Z = "<<met[k]<<" "<<Npar[k]<<endl;
     if(Npar[k] == 0){
       continue;
@@ -1519,29 +1430,67 @@ metdyn[12] = 0.03;
     do{
       double par[spar];
       for(int jj=0;jj<spar;jj++)
-	in>>par[jj];
+		in>>par[jj];
 		       
-      zams_mix.push_back(par[0]);
-      remn_mix.push_back(par[1]);
-      tdel_mix.push_back(1.E6 * par[3]);
-      kick_mix.push_back(par[4]);
-      
-      if(par[1] > maximus_mix && par[1] < 200.0)
-	maximus_mix = par[1];
-      if(par[1] < minimus_mix)
-	minimus_mix = par[1];
+		zams_mix.push_back(par[0]);
+		remn_mix.push_back(par[1]);
+		tdel_mix.push_back(1.E6 * par[3]);
+		kick_mix.push_back(par[4]);
+		
+		// Cristiano 15/04/2025
+		// We compute the extremes of the IMF in the singBHt_mix function
+		/*
+		if(par[1] > maximus_mix && par[1] < 200.0)
+			maximus_mix = par[1];
+		if(par[1] < minimus_mix)
+			minimus_mix = par[1];
 
-      if(par[0] > saximus_mix)
-	saximus_mix = par[0];
-      if(par[0] < sinimus_mix)
-	sinimus_mix = par[0];
-
-      
+		if(par[0] > saximus_mix)
+			saximus_mix = par[0];
+		if(par[0] < sinimus_mix)
+			sinimus_mix = par[0];
+		*/
     }while(!in.eof());
     in.close();
+	//Cristiano 18/04/2025
+	// Let's remove this part:
+	// NEW APPROACH --> We extract randmoly from the cataloge, as it has already embedded the info on the Kroupa IMF
+	/* 
+	//Cristiano 15/04/2025
+	// Let's order the vectors with respect to the escape velocity
+	// In this way in the singBHt_mix function we can stop at the first index such that:
+	// kick_mix[i] >= vthre
 
+	vector<double> kick_index(kick_mix.size());
 
-    
+	for (int i = 0; i < kick_mix.size(); i++){
+		kick_index[i] = i;
+	}
+
+	sort(kick_index.begin(), kick_index.end(), [&](int i1, int i2) {
+		return kick_mix[i1] < kick_mix[i2];
+	});
+
+	// Now we can create the sorted vectors
+	vector<double> zams_mix_sorted;
+	vector<double> remn_mix_sorted;
+	vector<double> tdel_mix_sorted;
+	vector<double> kick_mix_sorted;
+
+	for (int i = 0; i < kick_index.size(); i++) {
+		zams_mix_sorted.push_back(zams_mix[kick_index[i]]);
+		remn_mix_sorted.push_back(remn_mix[kick_index[i]]);
+		tdel_mix_sorted.push_back(tdel_mix[kick_index[i]]);
+		kick_mix_sorted.push_back(kick_mix[kick_index[i]]);
+	}
+
+	// Now we move the sorted vectors into the old ones
+	zams_mix = move(zams_mix_sorted);
+	remn_mix = move(remn_mix_sorted);	
+	tdel_mix = move(tdel_mix_sorted);
+	kick_mix = move(kick_mix_sorted);
+    */
+
     //SINGLE BHs
     filepath = path + pathse + pathsp + "/spectrum_cleaned" + sss.str() + ".txt";
     //cout<<"      -- -- -- opening "<<filepath<<endl;
@@ -1574,7 +1523,6 @@ metdyn[12] = 0.03;
       
     }while(!in.eof());
     in.close();
-
 
 
     // Cristiano 07/04/2025
@@ -1697,7 +1645,6 @@ metdyn[12] = 0.03;
 
     
     */
-
     ndx = 1000.;
     align="dynamical";
     
@@ -2085,7 +2032,9 @@ metdyn[12] = 0.03;
 	    mpri = -1;
 	    kpri = 1.E30;
 	    do{
-	      func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
+		  
+	      //func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
+		  singBHt_iso(vthre, zams_sin, remn_sin, tdel_sin, kick_sin, single_bh);
 	      mpri = single_bh[0];	 
 	      tpri = single_bh[1];
 	      kpri = single_bh[2];
@@ -2108,10 +2057,14 @@ metdyn[12] = 0.03;
 	    kpri = 1.E30;
 	    int nsafe = 0;
 		  do{
-		  //Old function		
-		  //singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-		  cout << "Metallicity :" << met[k]<< endl;
-		  singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
+		  //cout << "Metallicity :" << met[k]<< endl;
+		  auto start = std::chrono::high_resolution_clock::now(); // Start timing
+
+		  singBHt_mix(vthre, zams_mix, remn_mix, tdel_mix, kick_mix, single_bh);
+		  auto end = std::chrono::high_resolution_clock::now(); // End timing
+		  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		  //std::cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << std::endl;
+		  
 		  mpri = single_bh[0];	  	  
 		  tpri = single_bh[1];
 		  kpri = single_bh[2];	      
@@ -2120,7 +2073,7 @@ metdyn[12] = 0.03;
 		  
 		  nsafe ++;
 		}while(mpri <= 0.0 || kpri > vthre);
-	  }	  
+	  } 
 	  apri   = func.spin(mpri,dynaS);	
 
 	  if(nsafe == 1000)
@@ -2155,7 +2108,15 @@ metdyn[12] = 0.03;
 	    if(mixer > mixing){
 	      do{
 		
-		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		auto start = std::chrono::high_resolution_clock::now(); // Start timing
+
+		//func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		singBHt_iso(vthre, zams_sin, remn_sin, tdel_sin, kick_sin, single_bh);
+		
+		auto end = std::chrono::high_resolution_clock::now(); // End timing
+		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		//std::cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << std::endl;
+
 		msec = single_bh[0];	 
 		tsec = single_bh[1];
 		ksec = single_bh[2];	    
@@ -2188,14 +2149,21 @@ metdyn[12] = 0.03;
 	      msec = -1;
 	      ksec = 1.E30;
 	      do{
-		//singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-		singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
-		msec = single_bh[0];	  	  
-		tsec = single_bh[1];
-		ksec = single_bh[2];	    
-		if(nsafe > 1000)
-		  break;
-		nsafe ++;
+			//cout << "Metallicity :" << met[k]<< endl;
+			auto start = std::chrono::high_resolution_clock::now(); // Start timing
+
+			singBHt_mix(vthre, zams_mix, remn_mix, tdel_mix, kick_mix, single_bh);
+		
+			auto end = std::chrono::high_resolution_clock::now(); // End timing
+			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+			//std::cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << std::endl;
+	
+			msec = single_bh[0];	  	  
+			tsec = single_bh[1];
+			ksec = single_bh[2];	    
+			if(nsafe > 1000)
+			break;
+			nsafe ++;
 
 	      }while(msec <= 0.0 || ksec > vthre);
 	      
@@ -2354,13 +2322,14 @@ metdyn[12] = 0.03;
 	  
 	  
 	  //FIRST MERGER
-	  Spinning[0] = 0;
-	  Spinning[1] = 0;
-	  Spinning[2] = 0;
-	  Spinning[3] = 0;
+	  Spinning[0] = 0.0;
+	  Spinning[1] = 0.0;
+	  Spinning[2] = 0.0;
+	  Spinning[3] = 0.0;
+	  Spinning[4] = 0.0;
 	  Spinning[5] = 0.0;
 	  Spinning[6] = 0.0;
-	  Spinning[7] = 0.0;
+
 	  if(mpri>0.0 && msec>0.0)
 	    func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
 	  Srem[i] = Spinning[0];
@@ -2472,7 +2441,7 @@ metdyn[12] = 0.03;
 	  
 	  time += tbbhform;	  
 
-	
+	  
 	  
 	  //if(CLevo == "yes"){
 	    
@@ -2688,13 +2657,14 @@ metdyn[12] = 0.03;
 
 
 	//MULTIPLE MERGER CHAIN//
-	Spinning[0] = 0;
-	Spinning[1] = 0;	
-	Spinning[2] = 0;
-	Spinning[3] = 0;
+	Spinning[0] = 0.0;
+	Spinning[1] = 0.0;	
+	Spinning[2] = 0.0;
+	Spinning[3] = 0.0;
+	Spinning[4] = 0.0;
 	Spinning[5] = 0.0;
 	Spinning[6] = 0.0;
-	Spinning[7] = 0.0;
+
 	if(mpri>0.0 && msec>0.0)
 	  func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
 
@@ -2821,8 +2791,7 @@ metdyn[12] = 0.03;
 	  if(vthre < Krem[i] ||  (cj < 0.0 && abs(cj) > 1.E-10))
 	    rinfinite = 1.E10;
 
-	  out3<<i<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
-	  //out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
+	  out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
 	  
 	  if(mpri > msmbhmax && tsmbh == 0.0){
 	    tsmbh = time;
@@ -2867,7 +2836,9 @@ metdyn[12] = 0.03;
 	    if(mixer > mixing){
 	      do{
 		
-		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		//func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		singBHt_iso(vthre, zams_sin, remn_sin, tdel_sin, kick_sin, single_bh);
+
 		msec = single_bh[0];	 
 		tsec = single_bh[1];
 		ksec = single_bh[2];	    
@@ -2895,12 +2866,17 @@ metdyn[12] = 0.03;
 	      msec = -1;
 	      ksec = 1.E30;	      
 	      do{
-		//singBHt_mix(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-		singBHt_mix(DM_val, vthre, THRESHOLD_val, zams_mix, remn_mix, tdel_mix, kick_mix, MSLP, single_bh);
-		msec = single_bh[0];	  	  
-		tsec = single_bh[1];
-		ksec = single_bh[2];
-		nsafe ++;
+			//cout << "Metallicity :" << met[k]<< endl;
+			auto start = chrono::high_resolution_clock::now(); // Start timing
+			singBHt_mix(vthre, zams_mix, remn_mix, tdel_mix, kick_mix, single_bh);
+			auto end = chrono::high_resolution_clock::now(); // End timing
+			auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
+			//cout << "Time spent in singBHt_mix: " << duration.count() << " microseconds." << endl;
+			
+			msec = single_bh[0];	  	  
+			tsec = single_bh[1];
+			ksec = single_bh[2];
+			nsafe ++;
 		if(nsafe > 1000)
 		  break;
 	      }while(msec <= 0.0 || ksec > vthre);
@@ -3117,13 +3093,14 @@ metdyn[12] = 0.03;
 	    exit(0);
 	  }
 	  
-	  Spinning[0] = 0;
-	  Spinning[1] = 0;
-	  Spinning[2] = 0;
-	  Spinning[3] = 0;
+	  Spinning[0] = 0.0;
+	  Spinning[1] = 0.0;
+	  Spinning[2] = 0.0;
+	  Spinning[3] = 0.0;
+	  Spinning[4] = 0.0;
 	  Spinning[5] = 0.0;
 	  Spinning[6] = 0.0;
-	  Spinning[7] = 0.0;
+
 	  if(mpri>0.0 && msec>0.0)
 	    func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  	 
 
@@ -3135,25 +3112,17 @@ metdyn[12] = 0.03;
 	  nrecy += nhigen;
 
 	  //This will include all repeated mergers into the main catalogue ... 
-	  zmer = func.inter(time / 1.E9, age, reds, redline);
-	  if(time > 1.35e10)
+	  if(time < 1.35e10){
+	    zmer = func.inter(time / 1.E9, age, reds, redline);
+	    zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+	    zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
+	  }
+	  else{
 	    zmer = func.zred(time/1.E9);
-
-	  zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
-	  if(tfor[i] > 1.35e10)
-	    zfor = func.zred(tfor[i]/1.E9);
-
-	  zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
-	  if(tsmbh > 1.35e10)
+	    zfor = func.zred(tfor[i]/1.E9);	  
 	    zsmbh = func.zred(tsmbh/1.E9);
-
-	  
-
-
-	  /*out<<itot<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
-	    out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<endl;*/ //Eccentricity added to output
-
-
+	  }
+	 
 
 	}while(1>0);
 
@@ -3169,18 +3138,16 @@ metdyn[12] = 0.03;
 	
 	
 
-	zmer = func.inter(time / 1.E9, age, reds, redline);
-	if(time > 1.35e10)
+	if(time < 1.35e10){
+	  zmer = func.inter(time / 1.E9, age, reds, redline);
+	  zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+	  zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
+	}
+	else{
 	  zmer = func.zred(time/1.E9);
-
-	zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
-	if(tfor[i] > 1.35e10)
 	  zfor = func.zred(tfor[i]/1.E9);
-
-	zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
-	if(tsmbh > 1.35e10)
 	  zsmbh = func.zred(tsmbh/1.E9);
-
+	}
 
 	itot++;
 	
@@ -3230,9 +3197,12 @@ metdyn[12] = 0.03;
     kick_mix.erase(kick_mix.begin(),kick_mix.end());
     kick_sin.erase(kick_sin.begin(),kick_sin.end());
 
-    
-    
-    
+    // Cristiano 16/04/2025
+	// Let's check how long it take per metallicity
+	cout << "time for the metallicity function: " 
+		 << chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count() 
+		 << " seconds." << endl;
+	
   }
   clout.close();
 
@@ -3242,7 +3212,7 @@ metdyn[12] = 0.03;
   hout.close();
   
   
-  vector<double> mpost;
+  
 
   for(int i=0;i<100;i++){
 
@@ -3274,12 +3244,13 @@ metdyn[12] = 0.03;
     in.close();
   }
 
-  double *X;
-  X = new double [mpost.size()];
-  for(int i=0;i<mpost.size();i++)X[i]=mpost[i];
-  func.histo(X,mpost.size(),30,"linear","Many_catalogues.txt");
-  delete [] X;
-
+  if(mpost.size() > 0){
+    double *X;
+    X = new double [mpost.size()];
+    for(int i=0;i<mpost.size();i++)X[i]=mpost[i];
+    func.histo(X,mpost.size(),30,"linear","Many_catalogues.txt");
+    delete [] X;
+  }
 
   stringstream Fcl;
   
@@ -3305,31 +3276,6 @@ metdyn[12] = 0.03;
   //FINAL FILE MOVING
   string cmdstr_zero =  "./SIM_Fdyn"+Fcl.str()+"_Ngc"+ggc.str()+"_Nyc"+gyc.str()+"_Nnc"+gnc.str()+"isolS_"+isolS+"dynaS_"+dynaS+"_"+"MetalDivi_"+metaldivi.str()+"_"+alg.str()+"_"+ZDIS+"_"+ZDYN+"_Correction_"+corr;
   
-  /*if(kick=="yes")
-    cmdstr_zero += "_kick_Yes";
-  else
-  cmdstr_zero += "_kick_No";*/
-  
-
-  /*cmdstr_zero += "_mratio";
-  cmdstr_zero += type_mrat;
-  if(type_mrat=="pwl"){
-    stringstream mrslp_str;
-    mrslp_str<<MRATIO_SLOPE;
-    cmdstr_zero +=  mrslp_str.str();
-    }*/
-  
-  /*if(delaytime=="yes")
-    cmdstr_zero += "_delaytimes_Yes";
-  else
-  cmdstr_zero += "_delaytimes_No";*/
-  
-  /*cmdstr_zero += "_primslope_";
-  stringstream msl;
-  msl<<obslope;
-  cmdstr_zero += msl.str();*/
-
-
   string SFR;
   if(sfr_iso == "katz13" || sfr_iso == "KR13")
     SFR = "KR13";
@@ -3440,6 +3386,8 @@ metdyn[12] = 0.03;
   delete [] cmd;
   
 
+  
+  
   YCrx.erase(YCrx.begin(),YCrx.end());
   YCry.erase(YCry.begin(),YCry.end());
   YCmx.erase(YCmx.begin(),YCmx.end());
@@ -3479,8 +3427,9 @@ metdyn[12] = 0.03;
   cout<<"Number of simulated mergers = "<<Niso_real + Ndyn_real<<endl;
   cout<<"Actual number of sources "<<Niso_real<<" "<<Ndyn_real<<" "<<Nyou_real<<" "<<Nglo_real<<" "<<Nnuc_real<<endl;
   cout<<"f_dyn = "<<Ndyn_real * 1./(Ndyn_real + Niso_real)<<endl;
-  cout<<"F_YC, GC, NC / Dyn = "<<Nyou_real * 1./Ndyn_real <<" "<<Nglo_real * 1./Ndyn_real<<" "<<Nnuc_real * 1./Ndyn_real<<endl;
-
+  if(Ndyn_real > 0)
+    cout<<"F_YC, GC, NC / Dyn = "<<Nyou_real * 1./Ndyn_real <<" "<<Nglo_real * 1./Ndyn_real<<" "<<Nnuc_real * 1./Ndyn_real<<endl;
+  cout<<"============="<<endl;
   
   const sec duration = clock::now() - before;
 
@@ -3493,5 +3442,5 @@ metdyn[12] = 0.03;
   return 0;
   
   
-  }
+}
 
