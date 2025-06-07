@@ -756,8 +756,11 @@ int main(){
 
     
     double logz, logz1;
+    
     if(sfr_iso == "bigbang")
       logz1 = log10(met[0]) + (log10(met[11])-log10(met[0]))*func.rnd();
+    else if(sfr_iso == "single")
+      logz1 = log10(mono_Z);
     else{
       double logz_me;    
       logz_me = func.metcor(metal_dis, sigmaZ, red_del);
@@ -790,6 +793,8 @@ int main(){
     double logz, logz1;
     if(sfr_clu == "bigbang")
       logz1 = log10(met[0]/Zsun) + (log10(met[11]/Zsun)-log10(met[0]/Zsun))*func.rnd();
+    else if(sfr_iso == "single")
+      logz1 = log10(mono_Z);
     else{
       double logz_me;    
       logz_me = func.metcor(metal_dis, sigmaZ, red_del);
