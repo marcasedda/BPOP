@@ -16,6 +16,9 @@
 #include "funcGR.h"
 #include "input_params.h"
 
+//Note June 4: Added IBs to Larger_than_tH catalogue. Added tformation printout in Larger_than_tH catalogue
+
+
 /*
 //#define THREAD 4
 #define Hubble 13.99E9 //13.803E9
@@ -729,7 +732,6 @@ int main(){
     double toff = 1.E9*func.inter(zred0, reds, age, redline);
     tfor.push_back(toff);
   }
-
   for(int i=0;i<Ngc;i++){
     double zred0 = func.sfr_red(sfr_clu_gc);      
     double toff  = 1.E9*func.inter(zred0, reds, age, redline);
@@ -1091,6 +1093,12 @@ int main(){
 	out<<itot<<" "<<met[k]<<" "<<label<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tform<<" "<<tdel;
 	out<<" 0.0 0.0 0.0 none "<<smaiso<<" "<<smaiso<<" 0.0 0.0 0.0 "<<zmer<<" "<<zfor<<" -1 -1 " <<mpri<<" 0.0 "<<smaiso<<" "<<smaiso<<" "<<tdel<<" "<<Cosa[i]<<" "<<Cosb[i]<<" "<<Cosg[i]<<endl;
 	Niso_real++;
+      }
+
+      else{
+	
+	hout<<itot<<" 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 "<<tdel<<" 0.0 "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" 0.0 "<<smaiso<<" "<<smaiso<<" 0 "<<time<<" "<<tfor[i]<<endl;
+	
       }
       
       if(mpri!=0.0)	
@@ -2391,7 +2399,7 @@ int main(){
 	
 	//ADDED PRINTOUT OF BINARY PROPERTIES      
 	if(time > Hubble){ //The other condition is not needed if nsafe_cal is just 1 --> || nsafe_cal > 1){
-	  hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<endl;
+	  hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<" "<<tfor[i]<<endl;
 	}
 
 	stringstream nan;
@@ -2489,7 +2497,7 @@ int main(){
 	    Cosb[i] = Spinning[5];
 	    Cosg[i] = Spinning[6];
 
-	    hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<endl;
+	    hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<" "<<tfor[i]<<endl;
 	  
 
 	    break;
