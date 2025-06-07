@@ -322,6 +322,9 @@ double Functions::sfr_red(string sfrtype){
   else if(sfr=="bigbang"){
     zred = 1100.;
   }
+  else if(sfr=="single"){
+    zred = 20.;
+  }
   else if(sfr=="elba18" || sfr=="EB18"){
     double Zn,Sn;
     
