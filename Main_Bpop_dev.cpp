@@ -355,7 +355,7 @@ int main(){
   
   int redline = 100;
   double reds[redline],age[redline],lkbk[redline];
-  in.open(predir+"redshift_time.txt");
+  in.open(predir+"redshift_time.ttt");
   if(!in.is_open()){
     cout<<"File "<<predir<<"redshift_time.txt not found"<<endl;
     exit(0);
@@ -1749,6 +1749,7 @@ int main(){
 	  
 	  trelax =  0.78E9 /log(0.11 * mhalf) * pow(mhalf/1.E5, 0.5) * pow(rhalf, 1.5); //4.2E9 * (15./logL) * pow(rhalf/4.0,1.5) * sqrt(mhalf/1.E7) ;
 	  trelax0 = trelax;
+	  cout << "	  -- Cluster relaxation time: " << trelax << " Gyr" << endl;
 
 	  tcc = 0.138*mhalf/(150. * log(0.11*mhalf/150.))*sqrt(pow(rhalf*3.08E16,3.)/(6.67E-11*1.99E30*mhalf))/(365.*24.*3600.);
 
