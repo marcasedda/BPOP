@@ -89,7 +89,7 @@ double GWeff(string pcluster, double met){
 void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, string stype, // star variables
           vector<double>& zams_mix, vector<double>& remn_mix, vector<double>& tdel_mix, vector<double>& kick_mix,// catalog variables
           double *c, double *s, double nbhs, double nrecy, double nmerg, int id, // storage vectors
-          double mhalf, double mcore, double rcore, // core properties
+          double mhalf, double mcore, double rcore, double n_bin, // core properties
           double trelax, double t12capt, double tbbhform, double tcc, string pcluster){ //timescales
   //What about the probability for a higher gen merger to occur? interaction rate?
   //What about the delay time for high-gen merger to develop?
@@ -178,7 +178,13 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
       double r_hier = max(r_inf, r_wand);
 
       double rho_star = (mcore - m1) / (mstar_avg * pow(rcore, 3));
-      double rho_hier = 1 / pow(r_hier, 3);
+
+      // for the 1-g BH, we assume to generate n_hier = n_bin * nBHs
+      // Thus, rho_hier = n_hier * m_hier / V_hier 
+      // as a first approx we can assume m_hier = s[2], so that we have extracted a "typical" hierarchical merger
+      // todo: we need to fix this number with the fraction of retained 1-g BHs, as GW recoils will eject part of them
+
+      double rho_hier = n_bin * nbhs * 2 * mstar_avg  / pow(r_hier, 3);
 
       // Print out the components for debugging the interaction rate calculation:
       cout << "mcore: " << mcore << endl;
@@ -326,7 +332,7 @@ int main(){
   //outfile << "i mhalf rhalf mcore m1 m2 a1 a2 interaction_rate number" << endl;
   outfile << "ID time mhalf rhalf mcore m1 m2 a1 a2 interaction_rate nhier N" << endl;
   
-  for(int ID=0; ID<100000; ID++){
+  for(int ID=0; ID<1000; ID++){
     // cout << "i: " << i << endl;
     
     //Let's add some randomness to the mass of the cluster (lines from BPOP)
@@ -493,7 +499,7 @@ int main(){
       tbbhform *= func.rndgen(1.0, 0.1); //resampling gaussiano intorno al valore medio
       
       time += tbbhform;
-      hgen(eps, m1, a1, m2, a2, vthre, spintype,zams_mix, remn_mix, tdel_mix, kick_mix, Comp, Spinning, Nbhs, Nrecy, nmerg, ID, mhalf, m_core, r_core, trelax0, t12capt, time, tcc, pcluster);
+      hgen(eps, m1, a1, m2, a2, vthre, spintype,zams_mix, remn_mix, tdel_mix, kick_mix, Comp, Spinning, Nbhs, Nrecy, nmerg, ID, mhalf, m_core, r_core, fb, trelax0, t12capt, time, tcc, pcluster);
         
       m2 = Comp[0];
       a2 = Comp[1];
