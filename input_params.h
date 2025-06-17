@@ -10,9 +10,9 @@
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
 #define PREDIR "../"
 #define zPATH   "gallazzi05ZDATA.ttt"
-#define SINGPTH  "A5/" //"A5/" //"../SEVN_Catalog/rapid_M20_a1/" //"A5/"
-#define PATH     "A5/" //"A5/" //"../SEVN_Catalog/rapid_M20_a1/" //"A5/"
-#define SEVN "no"
+#define SINGPTH  "rapid_M20/" //"A5/" //"../SEVN_Catalog/rapid_M20_a1/" //"A5/"
+#define PATH     "rapid_M20/" //"A5/" //"../SEVN_Catalog/rapid_M20_a1/" //"A5/"
+#define SEVN "yes"
 
 // GLOBAL
 #define N        1000000
@@ -28,7 +28,7 @@
 #define pNC      0.3
 
 #define uppergap "yes"
-#define bhseed   "bifrost"
+#define bhseed   "false"
 #define bifZ     0.001
 #define bhpisn   270.
 #define fupgp    0.15
