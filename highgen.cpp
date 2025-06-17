@@ -89,7 +89,7 @@ double GWeff(string pcluster, double met){
 void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, string stype, // star variables
           vector<double>& zams_mix, vector<double>& remn_mix, vector<double>& tdel_mix, vector<double>& kick_mix,// catalog variables
           double *c, double *s, double nbhs, double nrecy, double nmerg, int id, // storage vectors
-          double mhalf, double mcore, double rcore, double n_bin, // core properties
+          double mhalf, double mcore, double rcore, double n_bin, vector<double>& gwK, vector<double>& gwK_cdf, // core properties
           double trelax, double t12capt, double tbbhform, double tcc, string pcluster){ //timescales
   //What about the probability for a higher gen merger to occur? interaction rate?
   //What about the delay time for high-gen merger to develop?
@@ -99,6 +99,8 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
   double tau, interaction_rate;
   double mstar_avg;
   int cnt=0;
+  interaction_rate = 0.0; //in this way I can check if the while loop is verified at least once
+
   
   string success="no";
 
@@ -109,9 +111,22 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
   
   // Let's define the quantities intervining in the interaction rate
   mstar_avg = 17.4 - 4.0 * log10(tbbhform/trelax);
-  cout << "time for the BBH formation: " << tbbhform << " trelax: " << trelax << endl;
+  //cout << "time for the BBH formation: " << tbbhform << " trelax: " << trelax << endl;
   double m_bin = m1 + m2;
- 
+  
+  //Let's infer the retention fraction of hierarchical from this cluster
+  double ret_fract;
+  int i=0;
+
+  do{
+    //cout << "i: " << i << " gwK[i]: " << gwK[i] << " vesc: " << vesc << endl;
+    ret_fract = gwK_cdf[i];
+    i++;
+    //cout << "ret_fract: " << ret_fract << endl;
+
+    }while(gwK[i]<vesc);
+  
+  //cout << "ID: " << id << " ret_fract: " << ret_fract << endl;
 
   if(nmerg < 1){
     double P = func.rnd();
@@ -149,7 +164,7 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
       //Let's compute POTENTIAL the merger remnant and its natal kick
       func.SREM2(8.0, a2, a2b, m2, m2b, "dynamical", s);
 
-      cout << "ID: " << id << " m1: " << m1 << " m2: " <<  m2 << " m2b: " << m2b << endl;
+      //cout << "ID: " << id << " m1: " << m1 << " m2: " <<  m2 << " m2b: " << m2b << endl;
 
       // Let's compute the interaction rate
       // Old implementation:
@@ -168,67 +183,128 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
 
       // Thus, we define:
       // rho_hier = m_hier/(R_hier)^3 from Di Cinto et al. 2023
+      // with m_hier = max( 2 * mstar_avg, s[2] )
+      // in this way we account for the average mass of the 1-g BHs in the cluster for low gens and for the higher gen mergers
+      
+      //double m_hier = max(2*mstar_avg, s[2]);
+      double m_hier = 2*mstar_avg;
 
-      double alpha = s[2]/mcore; 
-      double mu = s[2]/mstar_avg;
+      double alpha =  m_hier/mcore; 
+      double mu = m_hier/mstar_avg;
 
       double r_inf = rcore * alpha;
       double r_wand = rcore * pow(mu, -0.5);
 
       double r_hier = max(r_inf, r_wand);
 
-      double rho_star = (mcore - m1) / (mstar_avg * pow(rcore, 3));
+      double rho_star = mcore / (mstar_avg * pow(rcore, 3));
 
       // for the 1-g BH, we assume to generate n_hier = n_bin * nBHs
       // Thus, rho_hier = n_hier * m_hier / V_hier 
       // as a first approx we can assume m_hier = s[2], so that we have extracted a "typical" hierarchical merger
       // todo: we need to fix this number with the fraction of retained 1-g BHs, as GW recoils will eject part of them
+      // but in the interaction rate formula we have rho/m
+      // Thus, we can write:
+      double n_ret = ret_fract * pow((n_bin /2 ) * nbhs, cnt+1);
+      double n_hier = max(1.0, n_ret);
+      //the number of 1-g BHs present is half of the number of the binaries that form
+      //Cristiano 16/06/2025
+      // We are also considering the retention fraction by multiplying for the retention fraction
+      
+      double rho_hier = n_hier / pow(r_hier, 3);
+      // We should also account fot the fact that the 1-g BHs are not all retained in the cluster
+      
+      interaction_rate = (rho_hier / rho_star) * pow(s[2] / mstar_avg, 3. / 2.) * (m_bin + s[2]) / (m_bin + mstar_avg);
+      
+      if (interaction_rate < 0){
+       // Print out the components for debugging the interaction rate calculation:
+        cout << "Interaction rate <0 details:" << endl;
+        cout << "mcore: " << mcore << endl;
+        cout << "r_core: " << rcore << endl;
+        cout << "r_inf: " << r_inf << endl;
+        cout << "r_wand: " << r_wand << endl;
+        cout << "rho_hier: " << rho_hier << endl;
+        cout << "rho_star: " << rho_star << endl;
+        cout << "m2: " << m2 << endl;
+        cout << "s[2]: " << s[2] << endl;
+        cout << "mstar_avg: " << mstar_avg << endl;
+        cout << "m_hier: " << m_hier << endl;
+        cout << "m_bin: " << m_bin << endl;
+        cout << "n_bhs: " << nbhs << endl;
+        cout << "retention fraction: " << ret_fract << endl;
+        cout << "n_hiers: " << n_hier << endl;
+        cout << "interaction_rate: " << interaction_rate << endl;
+      }
 
-      double rho_hier = n_bin * nbhs * 2 * mstar_avg  / pow(r_hier, 3);
-
-      // Print out the components for debugging the interaction rate calculation:
-      cout << "mcore: " << mcore << endl;
-      cout << "r_core: " << rcore << endl;
-      cout << "r_inf: " << r_inf << endl;
-      cout << "r_wand: " << r_wand << endl;
-      cout << "rho_hier: " << rho_hier << endl;
-      cout << "rho_star: " << rho_star << endl;
-      cout << "s[2]: " << s[2] << endl;
-      cout << "mstar_avg: " << mstar_avg << endl;
-      cout << "m_bin: " << m_bin << endl;
-
-      interaction_rate = (rho_hier / rho_star) *
-             pow(s[2] / mstar_avg, 3. / 2.) *
-             (m_bin + s[2]) / (m_bin + mstar_avg);
       // Now I trow a dice, if the interaction rate is high enough, I can have a merger
       double dice = func.rnd();
-      cout << "interaction_rate: " << interaction_rate <<  " dice:" << dice << endl;
-      //cout << "density ratio: " << rho_hier/rho_star << endl;
+
       double vrec = s[3];
-      
-      //let's test the interaction routine
-      //interaction_rate = 1;
 
-      //If the 1g BH is not expelled from the cluster
-      if(vrec > vesc){
-        cout << " ejected => 0-th gen secondary - vrec: " << vrec << " vesc: " << vesc << endl;
-        break;
-      }
-      //cout <<  "ID: " << id << " interaction rate: " << interaction_rate << " dice: " << dice << endl;
+      //If the interaction rate is high enough, we find a companion BH coming from a hierarchical merger
 
-      //And, only then, if the interaction rate is enough to find the hierarchical merger
       if(dice > interaction_rate){
         // If the interaction rate is low, I keep the stellar secondary
         //cout << "#####################################" << endl;
-        cout << "interaction rate too low => 0-th gen secondary" << endl;
-        cout <<  "Interaction rate: " << interaction_rate << " dice: " << dice << endl;
+        //cout << "interaction rate too low => 0-th gen secondary" << endl;
+        //cout <<  "Interaction rate: " << interaction_rate << " dice: " << dice << endl;
         // cout << "#####################################" << endl;
         break;
       }
-      cout << "#####################################" << endl;
-      cout << "interacted" << endl;
-      cout <<  "Interaction rate: " << interaction_rate << " dice: " << dice << endl;
-      cout << "#####################################" << endl;
+      
+      //If the 1g BH is not expelled from the cluster it pairs with the primary BH
+      if(vrec > vesc){
+        //cout << " ejected => 0-th gen secondary - vrec: " << vrec << " vesc: " << vesc << endl;
+        break;
+      }
+      //cout <<  "ID: " << id << " interaction rate: " << interaction_rate << " dice: " << dice << endl;
+      
+      // if (interaction_rate > 1){
+      //  // Print out the components for debugging the interaction rate calculation:
+      //   cout << "Interaction rate >1 details:" << endl;
+      //   cout << "mcore: " << mcore << endl;
+      //   cout << "r_core: " << rcore << endl;
+      //   cout << "r_inf: " << r_inf << endl;
+      //   cout << "r_wand: " << r_wand << endl;
+      //   cout << "rho_hier: " << rho_hier << endl;
+      //   cout << "rho_star: " << rho_star << endl;
+      //   cout << "m2: " << m2 << endl;
+      //   cout << "s[2]: " << s[2] << endl;
+      //   cout << "mstar_avg: " << mstar_avg << endl;
+      //   cout << "m_hier: " << m_hier << endl;
+      //   cout << "m_bin: " << m_bin << endl;
+      //   cout << "n_bhs: " << nbhs << endl;
+      //   cout << "retention fraction: " << ret_fract << endl;
+      //   cout << "n_hiers: " << n_hier << endl;
+      //   cout << "interaction_rate: " << interaction_rate << endl;
+      //   cout << "dice: " << dice << endl;
+      // }
+
+
+      // cout << "#####################################" << endl;
+      // cout << "ID: " << id << " interacted" << endl;
+      // cout <<  "Interaction rate: " << interaction_rate << " dice: " << dice << endl;
+      // cout << "#####################################" << endl;
+
+      //  // Print out the components for debugging the interaction rate calculation:
+      //   cout << "Interaction rate >1 details:" << endl;
+        // cout << "mcore: " << mcore << endl;
+        // cout << "r_core: " << rcore << endl;
+        // // cout << "r_inf: " << r_inf << endl;
+        // // cout << "r_wand: " << r_wand << endl;
+        // cout << "rho_hier: " << rho_hier << endl;
+        // cout << "rho_star: " << rho_star << endl;
+        // cout << "m2: " << m2 << endl;
+        // cout << "s[2]: " << s[2] << endl;
+        // cout << "mstar_avg: " << mstar_avg << endl;
+        // cout << "m_hier: " << m_hier << endl;
+        // cout << "m_bin: " << m_bin << endl;
+        // cout << "n_bhs: " << nbhs << endl;
+        // cout << "retention fraction: " << ret_fract << endl;
+        // cout << "n_hiers: " << n_hier << endl;
+        // cout << "interaction_rate: " << interaction_rate << endl;
+        // cout << "dice: " << dice << endl;
+
       // I can have a merger and the new secondary is the result of the merger of 
       // the 0-g stellar BH and the secondary stellar BH giving birth to a 1-g secondary BH
       m2 = s[2];
@@ -243,19 +319,26 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
       //cout << "new tau: " << tau << " t_bbh:" << max(tbbhform/tcc, t12capt/tcc) << endl;
       // cout << "cnt: " << cnt << endl;
 
+      // cout << "hgen output for the " << cnt << "-th generation" << endl;
+      //cout << "ID: " << id << " m2: " << m2 << " a2: " << a2 << " cnt: " << cnt << " interaction_rate: " << interaction_rate << endl;
+  
+      break; // I can have only one hierarchical merger per generation
+
     }
     
   }
   // If I have no hierarchical merger, I can still have a 0-g merger
-  cout << "Able to enter the hierarchical phase: " << success << endl;
+  //cout << "Able to enter the hierarchical phase: " << success << endl;
 
   c[0] = m2;
   c[1] = a2;
   c[2] = cnt;
   c[3] = interaction_rate;
 
-  // cout << "hgen output for the " << cnt << "-th generation" << endl;
-  // cout << "m2: " << c[0] << " a2: " << c[1] << " cnt: " << c[2] << " interaction_rate: " << c[3] << endl;
+  //if(interaction_rate<0) cout << "Interaction rate <0... WTF?" << endl;
+
+  //cout << "hgen output for the " << cnt << "-th generation" << endl;
+  //cout << "ID: " << id << " m2: " << c[0] << " a2: " << c[1] << " cnt: " << c[2] << " interaction_rate: " << c[3] << endl;
   
   return ;
   
@@ -306,7 +389,9 @@ int main(){
   // Let's input the catalogs
   vector<double> zams_mix, remn_mix;
   vector<double> tdel_mix, kick_mix;
-  
+  vector<double> gw_recoil, gw_recoil_cdf;
+  vector<double> gw_recoil_hg, gw_recoil_hg_cdf;
+
   string cat_name = "spectrum0003.txt";
   ifstream in;
   in.open(cat_name.c_str());
@@ -328,38 +413,77 @@ int main(){
 
     in.close();
 
+  // Let's read the GW kick cdf
+  string gw_cat_name = "kick_velocity_cdf.csv";
+  in.open(gw_cat_name.c_str());
+  //cout << "reading kicks" << endl;
+
+  int gw_kick_col=2;
+
+  do{
+    double bpar[spar];
+
+    for(int jj=0; jj<gw_kick_col; jj++) in>>par[jj];
+      gw_recoil.push_back(par[0]);
+      gw_recoil_cdf.push_back(par[1]);
+    
+    }while (!in.eof());
+
+  in.close();
+
+  // Let's read the GW kick cdf for generation above the first
+  string gw_hg_cat_name = "kick_velocity_hg_cdf.csv";
+  in.open(gw_cat_name.c_str());
+  //cout << "reading kicks" << endl;
+
+  do{
+    double bpar[spar];
+
+    for(int jj=0; jj<gw_kick_col; jj++) in>>par[jj];
+      gw_recoil_hg.push_back(par[0]);
+      gw_recoil_hg_cdf.push_back(par[1]);
+    
+    }while (!in.eof());
+
+  in.close();
+  
+  //cout << "read kicks" << endl;
+  
   ofstream outfile("output_hg.txt");
   //outfile << "i mhalf rhalf mcore m1 m2 a1 a2 interaction_rate number" << endl;
   outfile << "ID time mhalf rhalf mcore m1 m2 a1 a2 interaction_rate nhier N" << endl;
   
-  for(int ID=0; ID<1000; ID++){
-    // cout << "i: " << i << endl;
+  for(int ID=0; ID<100000; ID++){
     
-    //Let's add some randomness to the mass of the cluster (lines from BPOP)
-    double mean = log(pow(10.,5.0));  //NC
-    //double mean = log(pow(10.,3.7));  //GC
-    //double mean = log(pow(10.,3.3));   //YC
-
-
+    // Cluster scale radius (from Dehnen) & initial properties //
+	  double g_cl, mint, mean;
+	  if(pcluster == "young"){
+	    g_cl = 1.0;
+      mint= 3.0 + 2.0*func.rnd();
+      mean = log(pow(10.,3.3));
+    }
+	  else if(pcluster == "globular"){
+	    g_cl = 1.5;
+      mint = 4.0 + 3.0*func.rnd();
+      mean = log(pow(10.,3.7));
+  }
+	  else if(pcluster == "nuclear"){
+	    g_cl = 1.9;
+      mint = 6.0+4.0*func.rnd(); 
+      mean = log(pow(10.,5.0));
+  }
+  
     double sigma = log(pow(10.,0.4));
     double rhoint = func.LogGaussian(mean, sigma);
     rhoint = log10(rhoint);
     
-    double mint = 6.0+4.0*func.rnd(); //NC
-    //double mint = 4.0 + 3.0*func.rnd(); //GC
-    //double mint= 3.0 + 2.0*func.rnd(); //YC
-
-
     double rint = (mint - rhoint)/3.0;
     
     double Nrecy = 0.0;
-    double Nbhs = 100.0;
+    double Nbhs;
     double zita = 1.0;
     
-    rhalf = pow(10.,rint);
-    mhalf = pow(10.,mint);
-
-    //cout << "Cicle: "<< i << endl;
+    //cout << "Cicle: "<< ID << endl;
     //cout << "Cicle: "<< i << " mhalf: " << mhalf <<  " rhalf: " << rhalf << endl;
     
     double eps = GWeff(pcluster,Z);
@@ -459,10 +583,36 @@ int main(){
     Comp = new double [elem];
     for(int i=0;i<elem;i++) Comp[i] = 0.0;
     
+    // Let's compute the number of BHs in the cluster
+    double a_cl = rhalf*(pow(2.,1./(3.-g_cl))-1);
 
-    // Let's initialize the secondary 0-gen (i.e. not hierarchically formed)
-    //m2 = extM();
-    //a2 = func.spin(m2, spintype);
+	  // DOUBLE CHECK THE FOLLOWING //
+
+    // Max radius from which BHs can spiral-in over a Hubble time via DF //	  
+    double Hubble = 13.99E9;
+	  double radius = rhalf * pow( Hubble / (0.42E9 * (10.*mstar/(m1+m2)) * (trelax0 / 4.2E9)) , 1./1.74);
+	  
+    // Fraction of mass enclosed within the infall radius above //
+	  double fencl = (radius / (radius + a_cl),3.-g_cl) * (1. + 0.2*(1.-2.*func.rnd()));
+
+	  // retention fraction freten //
+	  double freten = 0.5 * (1. + 0.3*(1.-2.*func.rnd()));
+
+	  // Fraction number of BHs in a power-law IMF between 0.08 and 150 Msun//
+	  double fraBH = 0.0008 * (1. + 0.1*(1.-2.*func.rnd()));
+	  
+	  // This depends on the number fraction of BHs in the cluster, we're also assuming mint == N_* 
+	  //Nbhs = fraBH * pow(10.,mint) * freten * fencl;
+
+
+    //Nbhs = 10*4 * func.rndgen(0.0, 1.0);
+
+
+    rhalf = pow(10.,rint);
+    mhalf = pow(10.,mint);
+    
+    Nbhs = 0.01*pow(10.,mint)/30.;
+    //cout << "ID: " << ID << " nBHs: " << Nbhs << " mhalf: " << mhalf << endl;
 
     tbbhform = 0.0; // Let's initialize the time for the BBH formation
     double t_star = max(tpri, tsec); //minimum time for BHs
@@ -499,7 +649,7 @@ int main(){
       tbbhform *= func.rndgen(1.0, 0.1); //resampling gaussiano intorno al valore medio
       
       time += tbbhform;
-      hgen(eps, m1, a1, m2, a2, vthre, spintype,zams_mix, remn_mix, tdel_mix, kick_mix, Comp, Spinning, Nbhs, Nrecy, nmerg, ID, mhalf, m_core, r_core, fb, trelax0, t12capt, time, tcc, pcluster);
+      hgen(eps, m1, a1, m2, a2, vthre, spintype,zams_mix, remn_mix, tdel_mix, kick_mix, Comp, Spinning, Nbhs, Nrecy, nmerg, ID, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster);
         
       m2 = Comp[0];
       a2 = Comp[1];
@@ -538,7 +688,7 @@ int main(){
       a1 = Spinning[0];
 
       if(Spinning[3] > vthre) {
-        cout << "Primary ejected => end of growth - kick: " << Spinning[3] << " vesc: " << vthre << endl;
+        //cout << "Primary ejected => end of growth - kick: " << Spinning[3] << " vesc: " << vthre << endl;
         break; // If the primary is ejected, we stop the evolution
       }
       else {
