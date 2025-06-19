@@ -271,7 +271,6 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
 }
 
 
-
 int main(){
   srand(time(0));
   
@@ -342,7 +341,6 @@ int main(){
   // Let's read the GW kick cdf
   string gw_cat_name = "kick_velocity_cdf.csv";
   in.open(gw_cat_name.c_str());
-  //cout << "reading kicks" << endl;
 
   int gw_kick_col=2;
 
@@ -360,8 +358,7 @@ int main(){
   // Let's read the GW kick cdf for generation above the first
   string gw_hg_cat_name = "kick_velocity_hg_cdf.csv";
   in.open(gw_cat_name.c_str());
-  //cout << "reading kicks" << endl;
-
+ 
   do{
     double bpar[spar];
 
@@ -373,10 +370,9 @@ int main(){
 
   in.close();
   
-  //cout << "read kicks" << endl;
   
   ofstream outfile("output_hg.txt");
-  //outfile << "i mhalf rhalf mcore m1 m2 a1 a2 interaction_rate number" << endl;
+ 
   outfile << "ID time mhalf rhalf mcore m1 m2 a1 a2 interaction_rate nhier N" << endl;
   
   for(int ID=0; ID<100000; ID++){
@@ -409,20 +405,10 @@ int main(){
     double Nbhs;
     double zita = 1.0;
     
-    //cout << "Cicle: "<< ID << endl;
-    //cout << "Cicle: "<< i << " mhalf: " << mhalf <<  " rhalf: " << rhalf << endl;
-    
     double eps = GWeff(pcluster,Z);
 
     double nmerg = min(Nbhs-Nrecy, eps*mhalf);
-    // cout << "nrecy: " << Nrecy << "; "
-    //     << "nbhs: " << Nbhs << "; "
-    //     << "eps: " << eps << "; "
-    //     << "Mc: " << mhalf << "; "
-    //     << "eps*Mc: " << eps*mhalf << "; "
-    //     << "nmerg: " << nmerg << "\n"
-    //     << endl;
-
+ 
     // Let's define the velocity dispersion and the semimajor axis for an hard binary
     // scaling relation in paper 2021 BHNS mergers (Arca Sedda 2020)
     // relazione tra massa, raggio e sigma di nuclear clusters  --> empirica
@@ -450,11 +436,6 @@ int main(){
     sig_clu_in = sig_clu;
     rho_clu_in = rho_clu;
     rho_cubicpc_in = rho_cubicpc;
-
-    // Let's initialize the primary 0-gen (i.e. not hierarchically formed) 
-    // string spintype = "maxwellian02";
-    // m1 = extM();
-    // a1 = func.spin(m1, spintype);
 
     // Catalog implementation
     double *primary_bh;
@@ -512,34 +493,27 @@ int main(){
     // Let's compute the number of BHs in the cluster
     double a_cl = rhalf*(pow(2.,1./(3.-g_cl))-1);
 
-	  // DOUBLE CHECK THE FOLLOWING //
-
-    // Max radius from which BHs can spiral-in over a Hubble time via DF //	  
-    double Hubble = 13.99E9;
-	  double radius = rhalf * pow( Hubble / (0.42E9 * (10.*mstar/(m1+m2)) * (trelax0 / 4.2E9)) , 1./1.74);
+    // // Max radius from which BHs can spiral-in over a Hubble time via DF //	  
+    // double Hubble = 13.99E9;
+	  // double radius = rhalf * pow( Hubble / (0.42E9 * (10.*mstar/(m1+m2)) * (trelax0 / 4.2E9)) , 1./1.74);
 	  
-    // Fraction of mass enclosed within the infall radius above //
-	  double fencl = (radius / (radius + a_cl),3.-g_cl) * (1. + 0.2*(1.-2.*func.rnd()));
+    // // Fraction of mass enclosed within the infall radius above //
+	  // double fencl = (radius / (radius + a_cl),3.-g_cl) * (1. + 0.2*(1.-2.*func.rnd()));
 
-	  // retention fraction freten //
-	  double freten = 0.5 * (1. + 0.3*(1.-2.*func.rnd()));
+	  // // retention fraction freten //
+	  // double freten = 0.5 * (1. + 0.3*(1.-2.*func.rnd()));
 
-	  // Fraction number of BHs in a power-law IMF between 0.08 and 150 Msun//
-	  double fraBH = 0.0008 * (1. + 0.1*(1.-2.*func.rnd()));
+	  // // Fraction number of BHs in a power-law IMF between 0.08 and 150 Msun//
+	  // double fraBH = 0.0008 * (1. + 0.1*(1.-2.*func.rnd()));
 	  
-	  // This depends on the number fraction of BHs in the cluster, we're also assuming mint == N_* 
-	  //Nbhs = fraBH * pow(10.,mint) * freten * fencl;
-
-
-    //Nbhs = 10*4 * func.rndgen(0.0, 1.0);
-
+	  // // This depends on the number fraction of BHs in the cluster, we're also assuming mint == N_* 
+	  // //Nbhs = fraBH * pow(10.,mint) * freten * fencl;
 
     rhalf = pow(10.,rint);
     mhalf = pow(10.,mint);
     
-    Nbhs = 0.01*pow(10.,mint)/30.;
-    //cout << "ID: " << ID << " nBHs: " << Nbhs << " mhalf: " << mhalf << endl;
-
+    Nbhs = 0.01*pow(10.,mint)/30.; // straight out of old bpop, slightly understimate them but still fine
+    
     tbbhform = 0.0; // Let's initialize the time for the BBH formation
     double t_star = max(tpri, tsec); //minimum time for BHs
     double time = max(t_star, tcc); // Let's initialize the time of the cluster evolution
@@ -562,10 +536,8 @@ int main(){
       m_core = mclcorr*mhalf;
       r_core = rclcorr*rhalf;
 
-      //cout<< "ID:" << ID << " time: " << time << " m_core: " << m_core << endl;
       
       // Let's compute the binary formation timescales
-
       double semihard = 1./pow(sig_clu/30., 2.); // Antonini&Rasio 2016
 
       t12capt = 3.E9 * (0.01 / fb) * (1.E6 / rho_cubicpc) * (sig_clu / 30.) * 10./(m1 + m2 + mper) * 1./semihard;
@@ -583,19 +555,7 @@ int main(){
       double interaction_rate = Comp[3];
       
       nmerg -= ng; // Let's adjust the number of mergers
-      //cout << "BH reservoir: " << nmerg << endl;
-
-      // cout << "routine output for the " << i << "-th iteration" << endl;
-      // cout << "m2: " << Comp[0] << " a2: " << Comp[1] << " cnt: " << Comp[2] << " interaction_rate: " << Comp[3] << endl;
-
-
-      //outfile << ID << " " << time << " " << mhalf << " " << rhalf << " " << m_core << " "<< m1 << " " << m2 << " " << a1 << " " << a2 << " " << interaction_rate << " " << ng << " "<< Nrecy << endl;
-      
-
-      //cout<<"m1"<<" "<<"m2"<<" "<<"a1"<<" "<<"a2"<<" "<<"number"<<" "<<endl;
-      //cout<<m1<<" "<<m2<<" "<<a1<<" "<<a2<<" "<<ng<<" "<<endl;
-
-      
+            
       for(int i=0; i<ssize; i++) Spinning[i] = 0.0;
       Spinning[3] = -1.E30;
 
@@ -605,7 +565,6 @@ int main(){
       tmer = 5. * (m1+m2)/mper * tbbh;						 	  
 
       time += tmer;
-      //cout <<"ID: "<< ID << " time: " << time << " tbbh: " << tbbh << " tmer: " << tmer << endl;
       
       func.SREM2(8.0, a1, a2, m1, m2, "dynamical", Spinning);
       Nrecy ++;
@@ -614,7 +573,6 @@ int main(){
       a1 = Spinning[0];
 
       if(Spinning[3] > vthre) {
-        //cout << "Primary ejected => end of growth - kick: " << Spinning[3] << " vesc: " << vthre << endl;
         break; // If the primary is ejected, we stop the evolution
       }
       else {
