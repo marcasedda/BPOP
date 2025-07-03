@@ -4,15 +4,15 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-//#define THREAD 4
+#define CHUNKS "no"
 #define Hubble 13.99E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
-#define PREDIR "../"
-#define zPATH   "gallazzi05ZDATA.ttt"
-#define SINGPTH  "A5/" //"A5/" //"../SEVN_Catalog/rapid_M20_a1/" //"A5/"
-#define PATH     "A5/" //"A5/" //"../SEVN_Catalog/rapid_M20_a1/" //"A5/"
-#define SEVN "no"
+#define PREDIR "/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/"
+#define SINGPTH  "../SEVN_Catalog/rapid_M20" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
+#define PATH     "../SEVN_Catalog/rapid_M20" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
+#define SEVN "yes"
+#define MERGER_EFF_CORR "no"
 
 // GLOBAL
 #define N        1000000
@@ -23,9 +23,9 @@
 
 //DYNAMICAL FRACTIONS
 #define DynOvTot 0.95
-#define pYC      0.3
-#define pGC      0.4
-#define pNC      0.3
+#define pYC      0.8
+#define pGC      0.1
+#define pNC      0.1
 
 #define uppergap "yes"
 #define bhseed   "bifrost"
@@ -34,11 +34,11 @@
 #define fupgp    0.15
 #define mass_gap  60.0
 #define upgtp   "dicarlo"
-#define SFRTYPE_ISO "MF17" //"MF17" //"continuous" //"bigbang" //
-#define SFRTYPE_CLU "KR13" //"EB18_MF17" //"KR13" //"EB18_MF17" //"continuous" //"bigbang" //
+#define SFRTYPE_ISO "continuous" //"MF17" //"continuous" //"bigbang" //
+#define SFRTYPE_CLU "continuous" //"EB18_MF17" //"KR13" //"EB18_MF17" //"continuous" //"bigbang" //
 
 
-#define mixing  1.0
+#define mixing  0.5
 #define fbin    0.5
 
 //YC mass-size relation

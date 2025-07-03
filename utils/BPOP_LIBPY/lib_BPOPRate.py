@@ -1,0 +1,688 @@
+import matplotlib
+import matplotlib.colors as colors
+import matplotlib.pyplot as plt
+from astropy.cosmology import Planck18 as cosmo
+import astropy.units as u
+from astropy.cosmology import z_at_value
+import time
+
+import numpy as np
+import seaborn as sns
+import pandas as pd
+from sklearn.neighbors import KernelDensity
+import scipy
+from scipy.interpolate import splev, splrep, BSpline, interp1d
+from scipy import signal
+from scipy.interpolate import make_smoothing_spline, interp1d,Rbf, InterpolatedUnivariateSpline
+from random import random
+import os, shutil, glob
+from os import path
+
+#BPOP_RATE Functions
+
+def init_dir(fdyn, fgc, fyc, fnc, spinI, spinD, clurad, bhseed, umg, highg, mix, vms):
+    f = "/SIM_Fdyn"+str(fdyn)+"_Ngc"+str(fgc)+"_Nyc"+str(fyc)+"_Nnc"+str(fnc)+"isolS_"+spinI+"dynaS_"+spinD+"_MetalDivi_0_8_logflat_logflat_Correction_no_SFR___sfronly_no"+vms+"CluRh_"+clurad+"_0.3BHseed"+bhseed+"_UMG"+umg+"_HighG"+highg+"_mix_"+mix+"/"
+    return f
+
+
+def initplot():
+    # Define the locations for the axes
+    left,   right  = 0.14, 0.82
+    bottom, height = 0.12, 0.80
+    
+    # Set up the geometry of the three plot
+    rect = [left, bottom, right, height]   # dimensions of temp plot
+    fig = plt.figure(1, figsize=(15,15))
+    ax      = plt.axes(rect)
+    ax.tick_params(axis="both",which="both",top='on', bottom='on', left='on', right='on',direction="in", pad=10)
+    return ax,fig
+
+def interp(x,Nx,Ny):
+
+    id1 = 0
+    id2 = len(Nx)-1
+    if(Nx[0] < Nx[1]):
+        for i in range(len(Nx)-1):
+            if(x>Nx[i]):
+                id1 = i
+            elif(x<=Nx[i]):
+                id2 = i
+                break
+    else:
+        for i in range(len(Nx)-1):
+            if(x<Nx[i]):
+                id1 = i
+            elif(x>=Nx[i]):
+                id2 = i
+                break
+
+
+    if(id1 >= len(Nx)-1):
+        #print "Warning, we arrived at the end ", x, Nx[id1], Nx[id2], id1, id2
+        id2 = id1
+        id1 = id2-1
+        
+    if(id2 == 0):
+        #print "Warning, we never leave the homerun", x, Nx[id1], Nx[id2], id1, id2
+        id1 = id2
+        id2 = id1+1
+
+    y = (Ny[id2]-Ny[id1])/(Nx[id2] - Nx[id1])*(x-Nx[id2]) + Ny[id2]
+    return y
+
+
+def psi(typ, z, CFE, B, Zn, Sn):
+
+    if(typ == "mf17"):
+        sfr = CFE * 1.0E-2 * pow(1.+z,2.6) / (1. + pow((1.+z)/3.2,6.2))        
+    elif(typ == "kr13"):
+        if(2 <= z <= 8):
+            sfr = CFE * 0.003            
+        else:
+            sfr = 0.0
+    else:
+        sfr =  psiNC(z, B, Zn, Sn)
+
+    return sfr
+
+def psiNC(z, B, Zn, Sn):
+    p = B * np.exp(-pow(z-Zn,2.) / (2.*Sn*Sn))
+    return p
+
+def msca(CLU, SFR):
+    fsca = [1.0,1.0,1.0,1.0]
+    
+    if((CLU == "nuclear" or CLU == "globular") and (SFR != "kr13")):
+        if(SFR == "mf17"):
+            if(CLU == "nuclear"):
+                fsca[0] = 3.E7/6.E10
+            elif(CLU == "globular"):
+                fsca[0] = 6.E-5 * 1.E12 / 6.E10                
+        elif(SFR == "eb19"):
+            if(CLU == "nuclear"):
+                fsca[1] = 1.E-5
+                fsca[2] = 3.2
+                fsca[3] = 1.5
+            elif(CLU == "globular"):
+                fsca[1] = 1.E-4
+                fsca[2] = 3.2
+                fsca[3] = 1.5
+
+    if(SFR == "kr13"):
+        if(CLU=="globular"):
+            fsca[0] = 0.1
+        if(CLU=="nuclear"):
+            fsca[0] = 0.1 * 3.E7 / (200. * 3.E5) 
+            
+    return fsca
+
+def GSS_cdf_f(x, xmean, xdisp):
+  return 0.5*(1.+math.erf((x - xmean)/(np.sqrt(2.)*xdisp)))
+
+def tgw(m1,m2,a,e):
+
+    cl = 3.E8
+    G  = 6.67E-11
+    Ms = 1.99E30
+    Rs = 1.5E11
+    
+    tgw = 256./5. * pow(cl,5.) * pow(a * Rs,4.) * pow(G*Ms,-3.) /(m1*m2*(m1+m2)) * pow(1.-e*e,3.5)
+    tgw = tgw /(365.*24.*3600.)
+   
+    return tgw
+
+
+def DtDz(zz, H0now, Omatt, Olamb):
+    dtdz_now = (1.+zz) * H0now * ( 1.E3 / 3.08E22 * 365.*24.*3600. ) * np.sqrt(pow(1.+zz,3.)*Omatt + Olamb)
+    return 1./dtdz_now
+
+
+
+def test(gpc_to_mpc3, H0, Om, Ol):
+    #TESTS#
+    z = np.linspace(0,10,100)
+    z = np.array(z)
+    I = [None] * len(z)
+    dtdz = DtDz(z, H0, Om, Ol)
+    I = dtdz
+    Thubb = scipy.integrate.simpson(I, z)
+    print("Age of the Universe=",Thubb*1.E-9," Gyr")
+    
+    I = [None] * len(z)
+    #### Local Volume mass density ####
+    typ = ["mf17", "kr13", "eb19"]
+    mty = [3.E5, 3.E5, 3.E5]
+    cty = [3.e5 * 200./6.e10, 1.0, 1.0]
+    for i in range(len(typ)):
+        
+        dtdz = DtDz(z, H0, Om, Ol)
+        I = [psi(typ[i], z[j], cty[i], 2.E-4, 3.2, 1.5)*dtdz[j] for j in range(len(z))]
+        
+        R = scipy.integrate.simpson(I, z)
+
+    print("GCSF-{0:s}".format(typ[i]), "Number density :", "{0:1.2f}".format(R/mty[i]), " Mpc^{-3}")
+
+    return 
+
+
+
+def comdis(z, H0, OmegaM, OmegaL, c):
+    A = c/H0 * 1. / np.sqrt(pow(1.+z,3.)*OmegaM + OmegaL) 
+    return A
+
+
+def volume(Da, z, H0, OmegaM, OmegaL, c):  
+    dVdz = (4.*np.pi) * (c/H0)  * (Da*Da) / (np.sqrt(pow(1.+z,3.)*OmegaM + OmegaL))
+    return dVdz
+
+def GlobRate(simname, maxZ, clt, lab, Hub0, OmegaM, OmegaL, massive):
+    H0 = Hub0 * 1000.
+    c  = 3.E8
+    
+    ##### Calculate the cosmological volume ######
+    nbin = 200
+    zmin = 0.0
+    zmax = 15.0
+    dz = (zmax - zmin)/nbin
+    Rat=[0.0] * len(clt)
+    
+    for kt in range(len(clt)):
+        if not(os.path.isfile(simname[kt])):
+            continue
+        X = np.loadtxt(simname[kt], usecols=[0,1], unpack=True)
+        Xz = X[0]
+        Xr = X[1]
+        if(len(Xz) == 0):
+            continue
+
+        rex = [0.0]*nbin
+        Ivo = [0.0]*nbin
+
+        for i in range(nbin):
+            
+            z = zmin + i*dz
+            
+            Rate = interp(z, Xz, Xr)
+            
+            if(z == 0):
+                rex[i] = 0.0
+                Ivo[i] = 0.0
+                continue
+    
+
+        
+            Ivol = [0.0]*nbin
+            z_int= [0.0]*nbin
+        
+            #Calculating the comoving distance within a given z//
+            for ii in range(nbin):
+                z_int[ii] = z*ii*1./nbin
+                Ivol[ii] = comdis(z_int[ii], H0, OmegaM, OmegaL, c)
+            
+            IV = scipy.integrate.simpson(Ivol, z_int)
+            DL = (1.+z)*IV*1.E6;
+
+            #//Cosmological volume//
+            #//Checked, this works -- this is in Mpc^3!!
+            cosmovol = volume(IV, z, H0, OmegaM, OmegaL, c)
+            
+            Ivo[i] = Rate * (cosmovol/1.e9) / (1.+z)
+            rex[i] = z
+            
+    
+        Vol = scipy.integrate.simpson(Ivo, rex)
+        Rat[kt] = Vol
+        #print(clt[kt], Rat[kt])
+
+    Total = np.sum(Rat)
+    Dynamical = Rat[0]+Rat[1]+Rat[2]
+    print("Total rate [1/yr] = ", "{0:1.4e}".format(Total))
+    print("f_dyn = ", "{0:1.4f}".format(Dynamical*1.0/Total))
+
+   
+    
+    for kt in range(len(clt[kt])-1,-1,-1):
+        if(clt[kt] != "none"):
+            lst = "f_"+lab[kt]
+            print(lst, "= ", "{0:1.4f}".format(Rat[kt]/Dynamical))
+    
+    
+    #cFR. NED WRIGHTS - (z,V) = 0.5 - 30.848 Gpc^3)!!!! Works!
+    
+    return
+
+
+
+
+def IMBHdetrate(red, Ratex, Hub0, OmegaM, OmegaL):
+    red = np.array(red)
+    Ratex = np.array(Ratex)
+    
+    H0 = Hub0 * 1000.
+    c  = 3.E8
+    
+    ##### Calculate the cosmological volume ######
+    nbin = 1000
+    zmin = 0.0
+    zmax = 15.0
+
+    idx = np.where(Ratex > 0)
+    zmax_idx = red[idx]
+    zmax = min(max(zmax_idx), 15.)
+    
+    dz = (zmax - zmin)/nbin
+    Rat= [0.0]*nbin
+
+    rex = [0.0]*nbin
+    Ivo = [0.0]*nbin
+ 
+    for i in range(nbin):
+            
+        z = zmin + i*dz
+        
+        Rate = interp(z, red, Ratex)
+        
+        if(z <= 0):
+            rex[i] = 0.0
+            Ivo[i] = 0.0
+            continue
+    
+
+        
+        Ivol = [0.0]*nbin
+        z_int= [0.0]*nbin
+        
+        #Calculating the comoving distance within a given z//
+        for ii in range(nbin):
+            z_int[ii] = z*ii*1./nbin
+            Ivol[ii] = comdis(z_int[ii], H0, OmegaM, OmegaL, c)
+            
+        IV = scipy.integrate.simpson(Ivol, z_int)
+        DL = (1.+z)*IV*1.E6;
+
+        #//Cosmological volume//
+        #//Checked, this works -- this is in Mpc^3!!
+        cosmovol = volume(IV, z, H0, OmegaM, OmegaL, c)
+        
+        Ivo[i] = Rate * (cosmovol/1.e9) / (1.+z)
+        rex[i] = z
+            
+    
+    Vol = scipy.integrate.simpson(Ivo, rex)
+
+    print("Total rate [1/yr] = ", "{0:1.4e}".format(Vol))
+    
+    return
+
+
+# BPOP-SAMPLER Functions
+
+def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs):
+    
+    print("\n===================  BSmplr package  =====================")
+    start = time.time()
+
+    
+        
+
+    
+    Y = np.loadtxt(cat, dtype={'names':('Z', 'nrec', 'ctype',
+                                        'm1','m2','a1','a2','Mrem','arem','xeff','vgw',
+                                        'mcl', 'rcl',
+                                        'zgw', 'zfo',
+                                        'ecc','sma','status','id'),
+                               'formats':(float, int, 'U8',
+                                          float,float,float,float,float,float,float,float,
+                                          float,float,
+                                          float,float,
+                                          float,float,'U8',int)
+                               }, usecols=[1,2,3,
+                                           5,6,7,8,9,10,11,12,
+                                           15,16,
+                                           24,25,
+                                           29,30,18,0],
+                   )
+    
+    Ypd = pd.DataFrame(Y)
+    
+    zmer_cat = []
+    zfor_cat = []
+    Zmet_cat = []
+    
+    dZsx, dZdx = Zedge(Zstev)
+    test = False
+    correction = True
+    
+    if(correction):
+        
+        for k in range(len(Zstev)):
+            idx_Z = np.where((Ypd.Z >= Zstev[k]-dZsx[k]) & (Ypd.Z < Zstev[k]+dZdx[k]))
+            YpdicZ= idx_Z[0]
+            
+            #plt.hist(Ypd.Z[YpdicZ], bins=np.logspace(-4.2,-1.5,20), histtype="step", lw = 4)
+            
+            #newvalues=[Zstev[k]]*len(YpdicZ)
+            
+            adj = np.random.rand(len(YpdicZ))
+            newvalues = Zstev[k] + (-dZsx[k] + (dZdx[k] + dZsx[k]) * adj)
+            
+            
+            Ypd.loc[YpdicZ, "Z"] = newvalues
+            
+            if(test):
+                pltZtst(Ypd, YpdicZ)
+
+
+    max_mas = 1.E3
+    if(massive == "yes"):
+        max_mas = 1.E2
+
+    stri_glob = ""
+    stri_glob2= ""
+    
+    for i in range(len(clty)):
+
+        print("Creating catalogue for ", clty[i])
+        
+        
+        f = MRDfile[i]
+    
+        if(os.path.isfile(f) == False):
+            print("Error, file not found: ",f)
+            continue
+
+    
+        X = np.loadtxt(f, unpack=True, comments="#")
+
+        if(len(X)-2 != len(Zstev)):
+            print("WARNING: length of Z and of merger rate files don't match ", len(X)-2, len(Zstev))
+
+    
+    
+        red = X[0]
+        rate= X[1]
+        spl = make_smoothing_spline(red, rate)
+        red_interp = red
+        rate_interp= spl(red_interp)
+        if(test):
+            tplot(red, rate,red_interp, rate_interp,clty[i])
+    
+        rate_Z = [None]*len(Zstev)    
+        rate_Zf= [None]*len(Zstev)
+        for k in range(len(Zstev)):        
+            rate_Z[k] = X[k+2]
+            spl = make_smoothing_spline(red_interp, rate_Z[k])
+            rate_Zf[k]= spl(red_interp)
+            rate_Zf[k][rate_Zf[k] < 0] = 0        
+            if(test):
+                tplot(red, rate_Z[k], red, rate_Zf[k],clty[i])        
+
+
+        for j in range(len(red_interp)):
+            rZt = 0.0
+            rZc = rate_interp[j]
+            for k in range(len(Zstev)):
+                rZ = rate_Zf[k]
+                rZt += rZ[j]
+
+
+
+    
+        dN = Nsam(red_interp, rate_interp/gpc_to_mpc3, H0, Om, Ol, Tobs)
+        #print("Ngw [yr^-1] = ", np.sum(dN))
+    
+        
+        #The following loop create the catalogue for each value of metallicity and each type of cluster#
+        idx_cat = []
+
+        if(massive == "no"):
+            idx_I = np.where((Ypd.ctype == clty[i]) & (Ypd.m1 <= max_mas))
+        else:
+            idx_I = np.where((Ypd.ctype == clty[i]) & (Ypd.m1 > max_mas))
+        
+        #Original Metallicity and index
+        YpdZ  = Ypd.Z[idx_I[0]]
+        Ypdic = idx_I[0]
+
+        time_check = [0.0]*len(Zstev)
+        Ntot = 0
+        for k in range(len(Zstev)):
+        
+            idx_Z = np.where((Ypd.Z[idx_I[0]] >= Zstev[k]-dZsx[k]) & (Ypd.Z[idx_I[0]] < Zstev[k]+dZdx[k]))
+            YpdicZ= Ypdic[idx_Z[0]]
+
+            '''for ijh in range(len(Ypd.Z[YpdicZ])):
+                if(Ypd.ctype[YpdicZ[ijh]] != clty[i]):
+                    print("ERROR - 1")
+                    exit()
+                elif( Ypd.Z[YpdicZ[ijh]] < Zstev[k] - dZsx[k] or Ypd.Z[YpdicZ[ijh]] > Zstev[k]+dZdx[k] ):
+                    print("ERROR - 2")
+                    exit()
+                elif(Ypd.m1[YpdicZ[ijh]] > max_mas):
+                    print("ERROR - 3")
+                    exit()
+            '''
+            
+            if not( chkvec(Ypdic, YpdicZ) ):                            
+                print ("Wrong identification of indexes")
+                exit()
+        
+            z = red_interp
+            R = rate_Zf[k] / gpc_to_mpc3
+
+            ## Number of sources per Metallicity value as a function of merging redshift ##
+            Ns = Nsam(z, R, H0, Om, Ol, Tobs)
+            
+            cnt= [0.0]*(len(Ns)-1)
+            Nsc= Ns 
+            zsc= [0.5*(z[j]+z[j+1]) for j in range(len(Ns)-1)]
+
+
+            ## Number of sources per Metallicity value ##
+            tot_sourc = np.sum(Nsc)
+            Ntot += tot_sourc
+            if(tot_sourc == 0):
+                continue
+        
+            idx_final = np.array([])
+        
+            start_j = time.time()        
+            for j in range(len(z)-1):
+
+                if(Nsc[j] < 1):
+                    if(Nsc[j] == 0):
+                        continue
+                    else:
+                        r = np.random.random()
+                        if(r < Nsc[j]):
+                            Nsc[j] = 1
+                        else:
+                            continue
+
+            
+                # All objects merged in the redshift bin #
+                idx_f = np.where((Ypd.zgw[YpdicZ] >= z[j]) & (Ypd.zgw[YpdicZ] < z[j+1]))
+                Ypdicf = YpdicZ[idx_f[0]]
+            
+                if not( chkvec(YpdicZ, Ypdicf) ):                            
+                    print ("Wrong identification of indexes")
+                    exit()
+
+                if(len(idx_f[0]) <= 0):                
+                    continue
+
+                # Select Nsc[j] elements from objects merged in this bin # 
+                random_index = np.random.choice(Ypdicf, size=int(Nsc[j]), replace=True)
+                #print(len(random_index), int(Nsc[j]))
+
+                #print("Attention here: ",z[j], z[j+1], np.median(Ypd.m1[random_index]), min(Ypd.zgw[random_index]), max(Ypd.zgw[random_index]), len(Ypd.zgw[random_index]))
+
+                idx_final = np.concatenate([random_index, idx_final])
+
+                
+                
+            idx_cat = np.concatenate([idx_final, idx_cat])
+            #print("Lenghts = ", len(Zgw_new), Ntot)
+            
+            end_j = time.time()
+            time_check[k] = end_j-start_j
+            print("E.time (Z = {0:1.3e}), N = {1:1.0f}, t = {2:1.5f} s".format(Zstev[k], tot_sourc , time_check[k]))
+    
+
+        strix, header = print_cat(Ypd, idx_cat, clty[i])
+
+        for ijk in range(len(strix)):
+            stri_glob += strix[ijk]
+        
+        print(clty[i], Ntot)        
+        print("E.time ({0:1s}) = {1:1.5f} s".format(clty[i], np.sum(time_check)))
+        
+        end = time.time()
+
+        
+        
+        print("Elapsed time [s] = ", "{0:1.6f}".format(end-start))
+
+    f_cat = open("Catalogue_global.txt", "w")
+    f_cat.write(header)
+    f_cat.write(stri_glob)
+    f_cat.close()
+    
+        
+    ssdir_name = "SMPCAT_Massive_"+massive+"/"
+    
+    
+    if not(os.path.isdir(ssdir_name)):
+        create_dir(ssdir_name)
+   
+    files = glob.iglob(os.path.join("./", "*.txt"))
+    for file in files:
+        if os.path.isfile(file):        
+            shutil.move(file, ssdir_name)
+        
+    print("\n=========================  Sampling done  ===========================\n")
+
+def Nsam(z_rt, R_rt, H, omM, omL, Tobs):
+
+    #clight = 3.E5
+    #dc = cosmo.comoving_distance(z_rt)/u.Mpc
+    #Ez = H * np.sqrt(pow(1+z_rt,3.)*omM+omL)    
+    #dVdz = clight * dc*dc / Ez
+
+    dV = [(cosmo.comoving_volume(z_rt[i+1]) - cosmo.comoving_volume(z_rt[i]))/u.Mpc**3 for i in range(len(z_rt)-1)] 
+    z_c= [0.5*(z_rt[i]+z_rt[i+1]) for i in range(len(z_rt)-1)]
+    f_c= scipy.interpolate.interp1d(z_rt, R_rt)
+
+    
+    
+    R_c= np.array(f_c(z_c))
+    z_c= np.array(z_c)
+    dV = np.array(dV)
+    
+    dNdz = 1./(1.+z_c) * dV * R_c * Tobs
+    return dNdz
+
+
+def tplot(x1,y1,x2,y2,cl):
+    plt.plot(x1,y1,label=cl)
+    plt.plot(x2,y2)
+    plt.show()
+    return
+def pltZtst(Ypd, YpdicZ):
+    plt.hist(Ypd.Z[YpdicZ], bins=np.logspace(-4.2,-1.5,20), histtype="step", lw = 4)
+    
+    plt.xscale("log")
+    plt.yscale("log")
+    
+    plt.show()
+    return
+
+def chkvec(a, b):
+
+    # Create a hash set and insert all elements of arr1
+    hash_set = set(a)
+
+    # Check each element of arr2 in the hash set
+    for num in b:
+        if num not in hash_set:
+            return False
+
+    # If all elements of arr2 are found in the hash set
+    return True
+
+def Zedge(Z):
+    dZsx = [0.0]*len(Z)
+    dZdx = [0.0]*len(Z)
+    for k in range(len(Z)):
+        dcen = Z[k]
+        if(k < len(Z)-1):
+            dup = Z[k+1]
+        else:
+            dup = Z[k] * 1.1
+
+        if(k > 0):
+            dlow = Z[k-1]
+        else:
+            dlow = 0.9 * Z[k]
+
+        dZsx[k] = (dcen-dlow)/2.0
+        dZdx[k] = (dup-dcen)/2.0
+
+    return dZsx, dZdx
+
+def file_merger(IBonly, pre, cl, maxiv):
+    if(IBonly):
+        f = pre+"Merger_rates_a_"+cl+"_massive_"+maxiv+".txt"
+    else:
+        f = pre+"Merger_rates_SET2a_"+cl+"_massive_"+maxiv+".txt"
+    return f
+    
+def print_cat(Ypd, idx_cat, clstr):
+    
+    Z_cat = np.array(Ypd.Z[idx_cat])
+    zgw_cat=np.array(Ypd.zgw[idx_cat])
+    zfo_cat=np.array(Ypd.zfo[idx_cat])
+    m1_cat=np.array(Ypd.m1[idx_cat])
+    m2_cat=np.array(Ypd.m2[idx_cat])
+    a1_cat=np.array(Ypd.a1[idx_cat])
+    a2_cat=np.array(Ypd.a2[idx_cat])
+    
+    Mrem_cat=np.array(Ypd.Mrem[idx_cat])
+    arem_cat=np.array(Ypd.arem[idx_cat])
+    xeff_cat=np.array(Ypd.xeff[idx_cat])
+    vgw_cat=np.array(Ypd.vgw[idx_cat])
+    
+    nrec_cat=np.array(Ypd.nrec[idx_cat])
+    ctype_cat=np.array(Ypd.ctype[idx_cat])
+    
+    mcl_cat=np.array(Ypd.mcl[idx_cat])
+    rcl_cat=np.array(Ypd.rcl[idx_cat])
+    
+    ecc_cat=np.array(Ypd.ecc[idx_cat])
+    sma_cat=np.array(Ypd.sma[idx_cat])
+    status_cat=np.array(Ypd.status[idx_cat])
+    
+    id_cat=np.array(Ypd.id[idx_cat])
+    
+    f_out = open("Catalogue_"+clstr+".txt","w")
+    header = "#Metallicity zGW zfor m1 m2 a1 a2 mrem arem xeff vGW nrecy cluster mclu rclu ecce semiax status id \n"
+    f_out.write(header)
+    [f_out.write("{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:1.4e} {14:1.4f} {15:1.5f} {16:1.5e} {17:s} {18:1.0f} \n".format(Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij], Mrem_cat[ij],arem_cat[ij],xeff_cat[ij],vgw_cat[ij], nrec_cat[ij],ctype_cat[ij],mcl_cat[ij],rcl_cat[ij], ecc_cat[ij],sma_cat[ij],status_cat[ij],id_cat[ij] )) for ij in range(len(Z_cat))]
+    f_out.close()
+
+    strix = ["{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:1.4e} {14:1.4f} {15:1.5f} {16:1.5e} {17:s} {18:1.0f} \n".format(Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij], Mrem_cat[ij],arem_cat[ij],xeff_cat[ij],vgw_cat[ij], nrec_cat[ij],ctype_cat[ij],mcl_cat[ij],rcl_cat[ij], ecc_cat[ij],sma_cat[ij],status_cat[ij],id_cat[ij] ) for ij in range(len(Z_cat))]
+    
+    return strix, header
+
+
+def create_dir(nested_directory):
+    try:
+        os.makedirs(nested_directory)
+        print(f"Nested directories '{nested_directory}' created successfully.")
+    except FileExistsError:
+        print(f"One or more directories in '{nested_directory}' already exist.")
+    except PermissionError:
+        print(f"Permission denied: Unable to create '{nested_directory}'.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    return
