@@ -1,0 +1,829 @@
+from astropy.cosmology import Planck18 as Planck
+import astropy.units as u
+from astropy.cosmology import z_at_value
+import matplotlib
+import matplotlib.colors as colors
+import matplotlib.pyplot as plt
+
+import numpy as np
+import seaborn as sns
+import pandas as pd
+from sklearn.neighbors import KernelDensity
+import scipy
+from scipy.interpolate import splev, splrep, BSpline, interp1d
+from scipy import signal
+from scipy.interpolate import Rbf, InterpolatedUnivariateSpline
+import random
+import os, shutil, glob
+from os import path
+import time
+from math import erf
+import sys
+sys.path.insert(0, '/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/utils/BPOP_LIBPY/')
+from lib_BPOPRate import *
+
+start = time.time()
+Zsun = 0.019 #0.017
+
+gpc_to_mpc3 = 1.e9
+
+H0 = Planck.H0/u.km*u.Mpc*u.s
+Om = Planck.Om0
+Ol = 1.-Om
+tHubble = Planck.age(0)/u.Gyr*1e9
+
+test(gpc_to_mpc3, H0, Om, Ol)
+
+plt.rc('text', usetex=True)
+cmap = "viridis"
+fsize = 41
+lsize = 40
+family = 'Times New Roman'
+matplotlib.rcParams.update({'font.size': fsize})
+matplotlib.rcParams.update({'font.family': family})
+
+
+print("\n===================  BPOPRate package  =====================")
+## User-defined quantities: type of cluster, CSFH, binary fraction, typical mass, max redshift, and repository path and name ##
+#
+IDmod = 2
+a = "a"
+name_file = "../"
+
+IBfrac   = 0.4
+fysc_mw = 0.005
+f_NCoc = 1.0
+f_GCsc = 1.0
+Tobs = 1.0
+
+maxz = 15
+massive = "no"
+repetita = "no"
+evapora  = "no"
+adjust_red = "no"
+adjust_typ = "tmed" #tmed, zmed, rnd, lst, tave, zave, rate
+pre = "SEVN"
+aCE = ""
+IBonly=False
+
+#**************************************************************#
+
+
+
+if(pre=="MOBSE"):
+    IBcorr = 0.285
+elif(pre=="SEVN" or pre=="SEVN_all"):
+    IBcorr = 0.185
+else:
+    print("please select SEVN or MOBSE and retry")
+    exit()
+    
+
+choices = ["tmed", "zmed", "rnd", "lst", "tave", "zave", "rate"]
+if adjust_typ not in choices:
+    print("adjust_typ",adjust_typ," not recognised")
+    exit()
+
+if(massive == "no"):
+    max_mas = 1.E3
+else:
+    max_mas = 1.E2
+
+fmix = -1
+if(IDmod < 5):
+    fmix = (1.0 * IDmod)/4.
+elif(IDmod == 5):
+    fmix = (1.0 * IDmod)/10.
+elif(IDmod < 0):
+    fmix = 0
+else:
+    print("Uknown type of model, check fmix")
+    exit()
+ 
+fdyn  = [0.9,0.9,0.9,0.9,0.9,0.9]
+fgc   = [0.1,0.1,0.1,0.1,0.1,0.1]
+fyc   = [0.8,0.8,0.8,0.8,0.8,0.8]
+fnc   = [0.1,0.1,0.1,0.1,0.1,0.1]
+spinI = ["maxwellian02","maxwellian02","maxwellian02","maxwellian02","maxwellian02","maxwellian02"]
+spinD = ["maxwellian02","maxwellian02","maxwellian02","maxwellian02","maxwellian02","maxwellian02"]
+clurad= ["AS20","AS20","AS20","AS20","AS20","AS20"]
+bhseed= ["bifrost","bifrost","bifrost","bifrost","bifrost","bifrost"]
+umg   = ["dicarlo","dicarlo","dicarlo","dicarlo","dicarlo","dicarlo"]
+highg = ["no","no","no","no","no","no"]
+mix   = ["0G","0.25G","0.5G","0.75G","1G","0.5G"]
+vms   = ["","","","","",""]
+
+#-------------------------------------------------------------
+
+mstar   = 1.0
+fbh     = 0.0026
+fbin_is = 1.0
+fbin_yc = 1.0
+fbin_gc = 1.0
+fbin_nc = 1.0
+
+
+
+clt  = ["nuclear", "globular", "young", "none"]
+lab  = ["nuc", "glo", "you", "iso"]
+
+
+if(a == "a"):
+    sfrt = ["mf17", "eb19", "mf17", "mf17"]
+elif (a == "b"):
+    sfrt = ["kr13", "kr13", "mf17", "mf17"]        
+else:
+    print("Picked wrong letter, retry")
+    exit()
+    
+if(clurad[IDmod] == "Mapelli20"):
+    mtyp = [pow(10.,6.18), pow(10.,5.6), pow(10., 4.3), 1.0]
+else:
+    mtyp = [pow(10.,6.36), pow(10.,5.01), pow(10., 3.53), 1.0]
+    
+fbin = [fbin_nc, fbin_gc, fbin_yc, fbin_is]
+
+#-------------------------------------------------------------
+
+home=""
+codename=[""]
+simname=""
+fl = name_file
+
+
+print("\n File analysed: ",codename[0], fl)
+print(simname+a, "\n")
+print("Model ID", IDmod)
+print("CLType: ", clt)
+print("CSFH:   ", sfrt)
+print("fbin:   ", fbin)
+print("m_typ:  ", np.log10(mtyp))
+print("z_max:  ", maxz)
+print("f_ysc:  ", fysc_mw)
+print("f_ib :  ", IBfrac)
+print("f_mix:  ", fmix)
+print("massive: ", massive, " - mmax = ", max_mas)
+print("------------------------------------------------------------\n")
+
+#### Calculations start here ####
+if(pre=="SEVN"):
+    Z = [
+        0.0002,
+        0.0003,
+        0.0004,
+        0.0007,
+        0.0010,
+        0.0014,
+        0.002,
+        0.004,
+        0.007,
+        0.010,
+        0.014,
+        0.02]    
+elif(pre=="SEVN_all"):
+     Z = [
+        0.0002,
+        0.0003,
+        0.0004,
+        0.0005,
+        0.0007,
+        0.0010,
+        0.0014,
+        0.002,
+        0.003,
+        0.004,
+        0.005,
+        0.007,
+        0.010,
+        0.014,
+        0.02]    
+else:        
+    Z = [0.0002,
+         0.0004,
+         0.0008,
+         0.0012,
+         0.0016,
+         0.002,
+         0.004,
+         0.006,
+         0.008,
+         0.012,
+         0.016,
+         0.02]
+    
+eta_eff  = [[1.0]*len(Z), [1.0]*len(Z), [1.0]*len(Z), [1.0]*len(Z)]
+
+
+#Merger efficiency obtained directly from the catalogues! 
+app=""
+if(pre=="SEVN" or pre=="SEVN_all"):
+    app = "_SEVN"
+
+X = np.loadtxt("./eta_isolated_binaries"+app+aCE,usecols=[3,2],unpack=True)
+zmer_mobse = X[0]
+pmer_mobse = X[1]
+
+if(zmer_mobse[0] != Z[0]):
+    print("Error eta_isolated_binaries")
+    exit()
+
+# Directory and files to be analysed #
+
+directory = [fl]
+             
+directory = [home + codename[i] + directory[i] for i in range(len(directory))]
+
+file_all = "Larger_than_tH.txt"
+file_mer = "Catalogue.txt"
+file_esc = "retention_Z"
+file_hie = "Catalogue_multiple_dyn.txt"
+
+
+z = np.linspace(0,maxz,100) #ogspace(-2, np.log10(maxz), 100) #0.01,maxz,100)
+z = np.array(z)
+
+# The following vector contains scaling for NC, GC, YC, IB, respectively
+Bf   = [[f_NCoc]*len(z), [f_GCsc]*len(z), [1.0]*len(z), [1.0]*len(z)]
+if(IBonly):
+    Bf =  [[0.0]*len(z), [0.0]*len(z), [1.0]*len(z), [1.0]*len(z)]
+
+    
+
+        
+
+## Preliminarly, we need to evaluate the scaling between the SFR among different channels ##
+
+
+sfr   = [None]*len(z)
+sfr_N = [None]*len(z)
+sfr_G = [None]*len(z)
+sfr_Y = [None]*len(z)
+sfr_I = [None]*len(z)
+
+for i in range(len(z)):
+
+    sfr_tot =  psi("mf17", z[i], 1.0, 1.0, 1.0, 1.0)
+    sfr[i] = sfr_tot
+    
+    ## Evaluate the scale factor w.r.t. the SFR ##
+    fsca   = msca(clt[0], sfrt[0])
+    sfr_nc = psi(sfrt[0], z[i], fsca[0], fsca[1], fsca[2], fsca[3])
+    sfr_N[i] = sfr_nc    
+    
+    fsca   = msca(clt[1], sfrt[1])
+    sfr_gc = psi(sfrt[1], z[i], fsca[0], fsca[1], fsca[2], fsca[3])
+    sfr_G[i] = sfr_gc
+    
+    B_yc = max(0, min(fysc_mw, 1.-(sfr_nc+sfr_gc)/sfr_tot))
+    sfr_yc = B_yc * psi(sfrt[2], z[i], 1.0, 1.0, 1.0, 1.0)
+    sfr_Y[i] = sfr_yc    
+        
+    B_is = max(0, min(IBfrac, 1.0 - (sfr_yc+sfr_gc+sfr_nc)/sfr_tot))            
+    sfr_is = B_is * psi(sfrt[3], z[i], 1.0, 1.0, 1.0, 1.0) 
+    sfr_I[i] = sfr_is
+    
+    Bf[2][i] = B_yc
+    Bf[3][i] = B_is
+
+
+#for i in range(len(z)):
+#    print("star formation rate = ",sfr[i], sfr_I[i]+sfr_Y[i]+sfr_G[i]+sfr_N[i])
+
+
+ax, fig = initplot()
+ax.plot(z, sfr, lw = 5, label="tot")
+ax.plot(z, sfr_I, lw = 5,label="IS")
+ax.plot(z, sfr_Y, lw = 5,label="YC")
+ax.plot(z, sfr_G, lw = 5,label="GC")
+ax.plot(z, sfr_N, lw = 5,label="NC")
+ax.set_xlabel("$z$")
+ax.set_ylabel("CSFR")
+ax.set_yscale("log")
+ax.set_ylim(1.E-7,0.5)
+ax.set_xlim(0.0,15.0)
+plt.legend(loc="upper right")
+plt.savefig("SFR_uni.jpeg")
+plt.close()
+#exit()
+
+print("--------------- Local denstity in Mpc^{-3} -----------------")
+
+for kt in range(len(clt)):
+    
+    cluster = clt[kt]
+    typ = sfrt[kt]
+    fsca   = msca(cluster, typ)
+
+    I = [None]*len(z)
+    dtdz = DtDz(z, H0, Om, Ol)
+    
+    for j in range(len(z)):
+        sfr = Bf[kt][j] * psi(typ, z[j], fsca[0], fsca[1], fsca[2], fsca[3])
+        I[j] = sfr * dtdz[j]
+        
+    Cv = scipy.integrate.simpson(I,z)
+
+    prtstr = "rho_"+lab[kt] + " (SFR " + sfrt[kt] + ") = "
+    prtstr += "{0:1.5f}".format(Cv / mtyp[kt])
+
+
+    print (prtstr)
+
+print("------------------------------------------------------------")
+
+## Now we are ready to calculate the merger rate, taking into account that the above loop calculate the star formation rate of different environments ##
+rt = np.loadtxt("/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/utils/BPOP_MERGER_RATE/redshift_time.txt", usecols=[0,1,2], unpack=True)
+redshift = rt[0]
+tage     = rt[1]
+lookback = rt[2]
+
+for i in range(len(redshift)):
+    tage[i] = Planck.age(redshift[i])/u.Gyr
+    lookback[i]=Planck.lookback_time(redshift[i])/u.Gyr
+
+
+
+## Reading the file ## 
+
+Fn = directory[0] + file_mer
+X = np.loadtxt(Fn, dtype={'names':('zmer', 'zfor', 'met', 'clus', 'mclu', 'vesc','mas', 'tmer', 'nrep', 'msec','rclu', 'stat','id'), 'formats':(float, float, float, 'U8',float,float,float,float,float,float,float,'U8',float)}, usecols=[24, 25, 1, 3, 15, 17, 5, 14, 2, 6,16,18,0], unpack=True)
+
+zmer_a = X[0]
+zfor_a = X[1]
+Zmet_a = X[2]
+ctyp_a = X[3]
+mclu_a = X[4]
+vesc_a = X[5]
+mpri_a = X[6]
+msec_a = X[9]
+tmer_a = X[7]
+nrep_a = X[8]
+rclu_a = X[10]
+stat_a = X[11]
+id_a   = X[12]
+
+Ln = directory[0] + file_all
+Y = np.loadtxt(Ln, dtype={'names':('met','clus','nrecy','tmer','tfor'), 'formats':(float,'U8',float,float,float)}, usecols=[13,14,22,23,24], unpack=True)                
+
+
+if(adjust_red == "yes"):
+
+    stri = ""
+    
+    Gn = directory[0] + file_hie
+    K = np.loadtxt(Gn, usecols = [0,1,2,3,15,15,30], unpack=True)
+
+    
+    m1rep = K[0]
+    m2rep = K[1]
+    a1rep = K[2]
+    a2rep = K[3]
+    trep = K[4]
+    zrep = np.array([interp(trep[i]/1.E9, tage, redshift) for i in range(len(trep))])
+    irep = K[6]+1
+    
+    idx_rep = np.where(nrep_a > 1)[0]
+    
+    tmedian = 0
+    zmedian = 0
+
+    
+    for i in range(len(idx_rep)):
+        idx_cat = np.where(irep == id_a[idx_rep[i]])[0]
+
+       
+        if(adjust_typ == "tmed"):
+            tmedian = np.median(trep[idx_cat])        
+            iclose = (np.abs(trep[idx_cat] - tmedian)).argmin()
+        elif(adjust_typ == "zmed"):
+            zmedian = np.median(zrep[idx_cat])
+            iclose = (np.abs(zrep[idx_cat] - zmedian)).argmin()
+        elif(adjust_typ == "tave"):
+            tmedian = np.mean(trep[idx_cat])        
+            iclose = (np.abs(trep[idx_cat] - tmedian)).argmin()
+        elif(adjust_typ == "zave"):
+            zmedian = np.mean(zrep[idx_cat])
+            iclose = (np.abs(zrep[idx_cat] - zmedian)).argmin()
+        elif(adjust_typ == "rnd"):
+            iclose = np.random.randint(0, len(idx_cat)-1)
+        elif(adjust_typ == "lst"):
+            iclose = len(idx_cat)-1
+        elif(adjust_typ == "rate"):
+            iclose = np.argmin(np.ediff1d(trep[idx_cat]))
+        else:
+            print("ERROR")
+            exit()
+
+        
+    
+        mpri_a[idx_rep[i]] = m1rep[idx_cat[iclose]]
+        msec_a[idx_rep[i]] = m2rep[idx_cat[iclose]]
+        zmer_a[idx_rep[i]]  = zrep[idx_cat[iclose]]
+        tmer_a[idx_rep[i]]  = trep[idx_cat[iclose]]
+
+        
+        stri += "{0:1.4e} {1:1.5f} {2:1.5e} {3:1.5e} {4:1.5f} {5:1.5e}".format(tmedian, zmedian, mpri_a[idx_rep[i]], msec_a[idx_rep[i]], zmer_a[idx_rep[i]], tmer_a[idx_rep[i]])
+
+    fadj_nm = adjust_red + adjust_typ + "_SET"+str(IDmod)+".txt"    
+    fadj=open(fadj_nm, "w")
+    fadj.write(stri)
+    fadj.close()
+    
+
+mthi_a = [max(mpri_a[i], msec_a[i]) for i in range(len(mpri_a))]
+mpri_a = np.array(mthi_a)
+
+if(evapora == "no"):
+    if(massive == "no"):
+        idx = np.where((zmer_a > 0.) & (mpri_a < max_mas)) 
+    elif(massive == "gwtc3"):
+        idx = np.where((zmer_a > 0.) & (mpri_a < 100.) & (mpri_a > 50.)) 
+    else:
+        idx = np.where((zmer_a > 0.) & (mpri_a > max_mas)) 
+else:
+    if(massive == "no"):
+        idx = np.where((zmer_a > 0.) & (mpri_a < max_mas) & (stat_a != "inevap"))
+    elif(massive == "gwtc3"):
+        idx = np.where((zmer_a > 0.) & (mpri_a < 100.) & (mpri_a > 50.) & (stat_a != "inevap")) 
+    else:
+        idx = np.where((zmer_a > 0.) & (mpri_a > max_mas) & (stat_a != "inevap"))
+
+tmer = tmer_a[idx]
+zmer = zmer_a[idx]
+zfor = zfor_a[idx]
+Zmet = Zmet_a[idx]
+ctype= ctyp_a[idx]
+nrep = nrep_a[idx]
+
+Mmer = mclu_a[idx]
+Rmer = rclu_a[idx]
+Vmer = [0.0]*len(Rmer)
+
+
+
+for i in range(len(Mmer)):
+    if(Mmer[i] == 0.0):
+        continue
+    
+    Vmer[i] = np.sqrt(Mmer[i] / Rmer[i] * 6.67E-11*1.99E30/3.08E16) * 0.001
+    
+Vmer = np.array(Vmer)
+
+Zloss_tot= Y[0]
+Closs_tot= Y[1]
+nloss_tot= Y[2]
+tgwloss_tot= Y[3]
+tloss_tot= Y[4]
+
+id_ck = np.where((tgwloss_tot - tloss_tot) > tHubble)
+pd_ck = np.where((tgwloss_tot - tloss_tot) <= tHubble)
+Zloss = Zloss_tot[id_ck]
+Znlos = Zloss_tot[pd_ck]
+Closs= Closs_tot[id_ck]
+Cnlos= Closs_tot[pd_ck]
+nloss= nloss_tot[id_ck] 
+nnlos= nloss_tot[pd_ck]
+
+
+
+
+f = open("efficiency_Z_SET"+str(IDmod)+a+"_massive_"+massive+".txt","w")
+fstr = ""
+for kt in range(len(clt)):         
+            
+    cluster = clt[kt]
+    typ = sfrt[kt]
+
+    ## Loss fraction -- to calculate the eta(Z) parameter ##
+
+    dZ = 0.0001
+
+    for i in range(len(Z)):
+        dcen = Z[i]
+
+        if(cluster == "none"):
+            eta = IBcorr * interp(dcen, zmer_mobse, pmer_mobse)
+
+        else:
+            dfile_esc = directory[0]+file_esc+str(Z[i])+".dat"
+            if(os.path.isfile(dfile_esc) == False):
+                eta_eff[kt][i] = 0.0
+                print(dfile_esc)
+                continue
+            
+            Xesc = np.loadtxt(dfile_esc, usecols=[0,1,2],unpack=True)
+        
+        
+            if(i < len(Z)-1):
+                dup = Z[i+1]
+            else:
+                dup = Z[i] * 1.1
+        
+            if(i > 0):
+                dlow = Z[i-1]
+            else:
+                dlow = 0.9 * Z[i]
+            
+            dZsx = (dcen-dlow)/2.0
+            dZdx = (dup-dcen)/2.0
+        
+            ## How many mergers per metallicity bin ? ##
+            ## This is the denominator in the calculation of eta(Z) ##
+
+            idx_Z = np.where((Zmet >= dcen - dZsx) & (Zmet < dcen + dZdx) & (ctype == cluster))
+            idx_N = np.where((Zloss >= dcen - dZsx) & (Zloss < dcen + dZdx) & (Closs == cluster) & (nloss==0))
+            idx_NZ= np.where((Znlos >= dcen - dZsx) & (Znlos < dcen + dZdx) & (Cnlos == cluster) & (nnlos==0))
+            Zmet_Z = Zmet_a[idx_Z]
+            Zmet_no= Zloss[idx_N]
+            Zmet_si= Znlos[idx_NZ]
+            
+            ## Multiple mergers should also be counted here? ##
+            nrep_Z = nrep[idx_Z]
+            nrep_sum = np.sum(nrep_Z)
+
+            Mmer_mer = Mmer[idx_Z]
+            Vmer_mer = Vmer[idx_Z]
+            fret_nat = np.ones(len(Vmer_mer))
+            fret_mix = np.ones(len(Vmer_mer))
+            for j in range(len(Vmer_mer)):
+                if(str(Vmer_mer[j]) == "nan" or str(Vmer_mer[j]) == "-nan"):
+                    print("Error")
+                    exit()
+                fret_nat[j] = interp(Vmer_mer[j],Xesc[0],Xesc[1]) 
+                fret_mix[j] = interp(Vmer_mer[j],Xesc[0],Xesc[2])            
+
+            fret = (1.-fmix) * fret_nat + fmix * fret_mix
+            Mweight = np.sum(fret * Mmer_mer)
+            Msummed = np.sum(Mmer_mer)
+            
+            NZgw = len(Zmet_Z) + len(Zmet_si)
+            NZno = len(Zmet_no)
+            eta = 0.0
+
+            #print(len(Zmet_si))
+            
+            
+            if(repetita == "no"):
+                nrep_sum = 0.0
+            
+            if(mstar != 0.0 and (NZgw+NZno != 0) and Msummed!=0):
+                eta = fbh / mstar * (NZgw + nrep_sum) / (NZgw + NZno) * fbin[kt] * Mweight/Msummed
+                
+            #if(clt[kt] == "young"):                
+            #    eta = 0.5 * eta                
+            #    if(Z[i] > 0.01):                    
+            #        eta = 0.2 * eta
+            
+
+        eta_eff[kt][i] = eta        
+
+        
+        
+        fstr += "{0:1.3e} {1:1.4e} {2:s}\n".format(dcen, eta_eff[kt][i], cluster)
+    fstr += "\n\n"
+
+f.write(fstr)
+f.close()
+
+
+def prob(Zcx, xmean, xsigma):
+    return 0.5*(1.+erf((Zcx - xmean)/(np.sqrt(2.)*xsigma)))
+
+fname = np.array(["Merger_rates_"+simname+a+"_"+clt[kt]+"_massive_"+massive+".txt" for kt in range(len(clt))])
+
+lenz   = len(z)-1
+zfin_f = [[None]*lenz,[None]*lenz,[None]*lenz,[None]*lenz]
+Rate_f = [[None]*lenz,[None]*lenz,[None]*lenz,[None]*lenz]
+Numb_f = [0,0,0,0]
+Int    = [0,0,0,0]
+
+for kt in range(len(clt)):
+
+    if(os.path.isfile(fname[kt])):
+        print("Warning: merger rate file for ", clt[kt], " already exist, skipping this")
+        continue
+    
+
+    
+    cluster = clt[kt]
+    typ = sfrt[kt]
+
+    ## mergers in given environment ##
+    idx_all = np.where(ctype == cluster)
+
+    print("Analysis of ", cluster)
+    
+    zmer_all= zmer[idx_all]    
+    zfor_all= zfor[idx_all]
+    Zmet_all= Zmet[idx_all]
+    tmer_all= tmer[idx_all]
+       
+    Numb_f[kt] = len(zmer_all)
+
+    zmob_Ztot=[None]*len(Z)
+    tmob_Ztot=[None]*len(Z)
+    zmgw_Ztot=[None]*len(Z)
+    Nztot = [0] * len(Z)
+    
+    for k in range(len(Z)):
+        dcen = Z[k]
+        if(k < len(Z)-1):
+            dup = Z[k+1]
+        else:
+            dup = Z[k] * 1.1
+            
+        if(k > 0):
+            dlow = Z[k-1]
+        else:
+            dlow = 0.9 * Z[k]
+                
+        dZsx = (dcen-dlow)/2.0
+        dZdx = (dup-dcen)/2.0
+        
+        ### All mergers with a given metallicity    
+        idx_Z = np.where((Zmet_all >= Z[k] - dZsx) & (Zmet_all < Z[k] + dZdx))    
+        zmob_Ztot[k] = zfor_all[idx_Z]
+        tmob_Ztot[k] = tmer_all[idx_Z]
+        zmgw_Ztot[k] = zmer_all[idx_Z]
+        Nztot[k] = len(tmob_Ztot[k])
+        ###
+   
+    fsca = msca(cluster, typ)
+    
+    N = 0
+    Rz = [None] * (len(z) - 1)
+    zcen = [None] * (len(z)-1)
+    tcen = [interp(z[i], redshift, lookback)*1.E9 for i in range(len(z))]       
+
+    if(len(zmer_all) == 0):
+        for i in range(len(z)-1):
+            zfin_f[kt][i] = 0.0
+            Rate_f[kt][i] = 0.0
+        continue
+
+    fout = open("Merger_rates_"+simname+a+"_"+clt[kt]+"_massive_"+massive+".txt", "w")
+
+    stri="#redshift Rate "
+    for k in range(len(Z)):
+        stri+="{0:1.5f} ".format(Z[k])
+    stri+="\n"
+    fout.write(stri)
+    stri=""
+    
+    for i in range(len(z)-1):
+        zcen[i] = 0.5*(z[i]+z[i+1])
+        
+        tlook = tcen[i+1] - tcen[i]
+        Int = 0.0
+        fsum = [0.0]*len(Z)
+        Iz = [0.0]*len(Z)        
+        
+        zp = np.linspace(z[i], maxz, 80)
+        zp_cen = [0.5*(zp[j]+zp[j+1]) for j in range(len(zp)-1)]
+        zp_cen = np.array(zp_cen)
+        dtdz = DtDz(zp_cen, H0, Om, Ol)
+        
+        Rp_int = [None]*len(zp_cen)
+        
+        for k in range(len(Z)):
+            dcen = Z[k]
+            if(k < len(Z)-1):
+                dup = Z[k+1]
+            else:
+                dup = Z[k] * 1.1
+                
+            if(k > 0):
+                dlow = Z[k-1]
+            else:
+                dlow = 0.9 * Z[k]
+                
+            dZsx = (dcen-dlow)/2.0
+            dZdx = (dup-dcen)/2.0
+
+            ### All mergers with a given metallicity                
+            zmob_Z = zmob_Ztot[k]
+            tmob_Z = tmob_Ztot[k]
+            zmgw_Z = zmgw_Ztot[k]            
+            ###
+
+            I = [0.0]*(len(zp)-1)
+            for j in range(len(zp)-1):
+
+                ### All mergers formed in the zp bin 
+                idx_p = np.where((zfor_all >= zp[j]) & (zfor_all < zp[j+1]))
+                tmer_p = tmer_all[idx_p]
+                Nz = float(len(tmer_p))
+                ###
+          
+                ### All mergers formed in the zp bin with metallicity Z 
+                idx = np.where((zmob_Z >= zp[j]) & (zmob_Z < zp[j+1]))        
+                zmer_z = zmgw_Z[idx]
+                ###
+                
+                ### All mergers merging in the z bin, formed at zp bin, with metallicity Z
+                id_H = np.where((zmer_z > z[i]) & (zmer_z < z[i+1]))
+                dN = float(len(zmer_z[id_H]))
+                ###       
+
+                frac = 0.0
+                if(Nz > 0):
+                    frac =  dN / Nz 
+                                   
+                fsum[k] = frac * eta_eff[kt][k]
+
+                
+                Bf_fd = interp(zp_cen[j], z, Bf[kt])
+                sfr = Bf_fd * psi(typ, zp_cen[j], fsca[0], fsca[1], fsca[2], fsca[3])
+            
+                I[j] = sfr * dtdz[j] * fsum[k] * gpc_to_mpc3 / tlook 
+
+
+            #This is the integral over every metallicity value
+            Iz[k] = scipy.integrate.simpson(I, zp_cen) 
+            
+
+            
+        Rz[i] = np.sum(Iz)
+
+        zfin_f[kt][i] = zcen[i]
+        Rate_f[kt][i] = Rz[i]
+
+        stri = "{0:1.3f} {1:1.4e} ".format(zfin_f[kt][i], Rate_f[kt][i])
+        for k in range(len(Z)):
+            stri += "{0:1.5e} ".format(Iz[k])
+        stri+="\n"
+        
+    
+        fout.write(stri)
+        fout.flush()
+
+        Iz = [0.0]*len(Z)
+
+    fout.close()      
+
+
+totN = sum(list(Numb_f))
+print("\ntotal number of sources = ",totN)
+
+
+print("\n-------  Merger rate at z = 0.2 in yr^{-1} Gpc^{-3} --------\n")
+print("LIGO estimate: (17.9 - 44.0)\n")
+LocRate = 0.0
+LocR = 0.0
+for kt in range(len(clt)):
+    if(np.count_nonzero(Rate_f[kt]) > 0):
+        LocR = interp(0.2, zfin_f[kt], Rate_f[kt])
+        
+    LocRate += LocR
+    print("BPOP "+clt[kt]+":", LocR)
+    
+Ratestr = "{0:1.3f}".format(LocRate)
+
+print("\nBPOP estimate:", Ratestr, "\n")
+print("------------------------------------------------------------")
+
+global_rate=False
+if(global_rate):
+    print("Fraction of mergers from different channels        \n ")    
+    GlobRate(fname, maxz, clt, lab, H0, Om, Ol, massive)
+
+
+end = time.time()
+
+print("MRD calculation - Elapsed time [s] = ", "{0:1.6f}".format(end-start))
+
+
+#Need to pass path to the catalogue
+#Need to pass path to the merger rate
+#bsmplr(gpc_to_mpc3, H0, Om, Ol, IDmod, a, clt, massive, pre, IBonly, fdyn, fgc, fyc, fnc, spinI, spinD, clurad, bhseed, umg, highg, mix, vms)
+
+start = time.time()
+
+cat    = Fn
+MRDfile= fname
+bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clt, Z, massive, Tobs)
+
+strig = "SET{0:1.0f}{1:s}_IB{2:1.2f}_YC{3:1.0e}_GC{4:1.1f}_NC{5:1.1f}_stev{6:s}_Tobs{7:1.1f}".format(IDmod, a, IBfrac, fysc_mw, f_GCsc, f_NCoc, pre+aCE, Tobs)
+if not(os.path.isdir(strig)):
+        create_dir(strig)
+
+
+print("\n====================== copying output directories ================\n")
+files = glob.iglob(os.path.join("./", "SMP*"))
+for file in files:
+    if os.path.isdir(file):
+        shutil.move(file, strig)
+                   
+
+end = time.time()
+print("Catalogue creation - Elapsed time [s] = ", "{0:1.6f}".format(end-start))
+print("\n====================== DONE ================\n")
+
+'''
+NOTES
+a) Add an options to skip the recreation of MRD files if they already exists, specify they already exist, would you overwrite them?
+b) Add an options to specify the path to the directories both in the main and in bsmplr
+c) Remove the creation of directories
+d) Add info about the selected stellar evolution
+e) Add additional input about alphaCE
+'''
