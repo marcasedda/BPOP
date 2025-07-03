@@ -27,6 +27,41 @@ To run the code, copy BPOP.x into the chosen directory and type
 The Output.txt file will contain all printouts of the code. 
 All files with *txt and *dat files produced by BPOP are ultimately stored in a new directory whose naming summarises some of the main parameters of the simulation.
 
+**3) Utilities and tools**
+
+3.1) Directory /utils/ contains two sub-directories
+3.1.1) BPOP_LIBPY
+Contains libraries
+3.1.2) BPOP_MERGER_RATE
+Contains a Python script (BPOPRate_v2025.py) to calculate the MRD and retrieve the corresponding source sample
+
+The directory must be copied to the directory where the simulation is performed. There are a few parameters that can be set:
+```
+IDmod = 2 
+a = "a"
+name_file = "../"
+
+IBfrac   = 0.4
+fysc_mw = 0.005
+f_NCoc = 1.0
+f_GCsc = 1.0
+Tobs = 1.0
+
+maxz = 15
+massive = "no"
+repetita = "no"
+evapora  = "no"
+adjust_red = "no"
+adjust_typ = "tmed" #tmed, zmed, rnd, lst, tave, zave, rate
+pre = "SEVN"
+aCE = ""
+IBonly=False
+
+```
+
+3.2) Directory tools/ contains two bash scripts:
+bpop_chunks.sh 
+
 
 
 **A) The structure of the input file**
