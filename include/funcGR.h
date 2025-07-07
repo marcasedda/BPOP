@@ -67,6 +67,8 @@ class Functions
   //void singBHt_new(vector<double> zams_sin, vector<double> remn_sin, vector<double> tdel_sin, vector<double> kick_sin, double obslope, double mslope, double *sing_out, double msmax, double msmin, double mbmax, double mbmin, double vescape);
   void singBHt_new(vector<double>& zams_sin, vector<double>& remn_sin, vector<double>& tdel_sin, vector<double>& kick_sin, double *sing_out, double vescape);
 
+  double GWeff(string pcluster, double met);
+
 
   double mratio(double mpri, double MRATIO_SLOPE, string stri_mrat);
 

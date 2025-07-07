@@ -54,7 +54,207 @@ void singBHt_mix(vector<double>& zams_mix,
   return ;
 }
 
+void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, string stype, // star variables
+          vector<double>& zams_cat, vector<double>& remn_cat, vector<double>& tdel_cat, vector<double>& kick_cat,// catalog variables
+          double *c, double *s, double nbhs, double nrecy, double nmerg, int id, // storage vectors
+          double mhalf, double mcore, double rcore, double n_bin, vector<double>& gwK, vector<double>& gwK_cdf, // core properties
+          double trelax, double t12capt, double tbbhform, double tcc, string pcluster, double mix){ //timescales
   
+  // This function accounts for the probability of a hierarchical merger in a cluster, and its properties.
+
+  Functions func;
+  double tau, interaction_rate;
+  double mstar_avg;
+  int cnt=0;
+  int gen2=0;
+  
+  string success="no";
+
+  // Let's define the timescale for a secondary merger
+  tau = -0.53 * log10(mhalf) + 5.6 + 1.5* func.rndgen(0.0, 1.0);
+  
+  // Let's define the quantities intervining in the interaction rate
+  mstar_avg = 17.4 - 4.0 * log10(tbbhform/trelax);
+  double m_bin = m1 + m2;
+  
+  //Let's infer the retention fraction of hierarchical for this cluster from the catalogs
+  double ret_fract;
+  int i=0;
+  do{
+    ret_fract = gwK_cdf[i];
+    i++;
+    }while(gwK[i]<vesc);
+  
+  //Cristiano 07/07/25
+  // I expect the check on the number of mergers to become obsolete in the future as:
+  // n_hier ~ 1 for gen2 = 3 (for nbhs =1M and f_bin = 0.01 and vesc=inf)
+
+  if(nmerg < 1){
+    double P = func.rnd();
+    if(P < nmerg) //We have more than one merger, we likely end mergers here
+      success = "yes";       
+  }
+  // If I have >1 merger in the cluster AND the timescale is enough to have the formation of a merging BBH
+  // I can have a hierarchical secondary BH
+  else if(nmerg >= 1){
+    success = "no";
+    // Cristiano 21/05/2025:
+    // Changed to a while loop:
+    // If the time condition is not satisfied (i.e., not enough time for a BBH merger)
+    // OR I exhausted the BH reservoir (i.e., I have no more BHs to merge)
+    // I cannot have a hierarchical merger
+
+    interaction_rate = 0.0; //in this way I can check if the while loop is verified at least once
+
+    // Let's check if the timescale is enough to have a merger
+    // if we have enough mergers 
+    // and make sure that the secondary is of the same generation or lower of the primary
+    while (gen2 < nmerg && max(tbbhform/tcc, t12capt/tcc) >= tau && nrecy > gen2 && nbhs > 0) {
+      success = "yes";
+      // Let's initialize the star merging with the secondary BH
+      double *single_bh;
+      single_bh = new double [4];
+      single_bh[0] = 0.0;
+      single_bh[1] = -1.0;
+      single_bh[2] = 0.0;
+      single_bh[3] = 0.0;
+
+      // Let's compute the 0-g BH properties
+      if(mix > mixing){
+      // If in the main we are having not having a mixing we chose from SSE catalogs
+        func.singBHt_new(zams_cat, remn_cat, tdel_cat, kick_cat, single_bh, vesc);
+        
+      } 
+
+      else{
+      // If in the main we are having a mixing we chose from the BSE catalogs
+        singBHt_mix(zams_cat, remn_cat, tdel_cat, kick_cat, single_bh, vesc);
+      }
+      double m2b = single_bh[0];	 
+      double a2b = func.spin(m2b, stype);
+
+      //Let's compute POTENTIAL the merger remnant and its natal kick
+      func.SREM2(8.0, a2, a2b, m2, m2b, "dynamical", s);
+
+      // Let's compute the interaction rate
+      // rho_star = M_core/R_core^3 ==> n_star = rho_star/mstar_avg
+      // R_hier = max(R_inf, R_wand) 
+      // with the wandering radius R_wand being the region of the core where we can find the BH
+      // and the influence radius being the region of the vore where the BHs dominates the interactions
+      //                   | alpha, with alpha = m_hier/m_core
+      // R_hier = R_core x |
+      //                   | mu exp[-0.5], with mu = m_hier/mstar_avg
+
+      // Thus, we define:
+      // rho_hier = n_hier * m_hier/(R_hier)^3 from Di Cinto et al. 2023
+      // with m_hier = max( 2 * mstar_avg, s[2] )
+      // in this way we account for the average mass of the 1-g BHs in the cluster for low gens and for the higher gen mergers
+      
+      //double m_hier = max(2*mstar_avg, s[2]);
+      double m_hier = 2*mstar_avg;
+
+      double alpha =  m_hier/mcore; 
+      double mu = m_hier/mstar_avg;
+
+      double r_inf = rcore * alpha;
+      double r_wand = rcore * pow(mu, -0.5);
+
+      double r_hier = max(r_inf, r_wand);
+
+      double rho_star = mcore / (mstar_avg * pow(rcore, 3));
+
+      // for the 1-g BH, we assume to generate n_hier = n_bin * nBHs/2
+      // Thus, rho_hier = n_hier * m_hier / V_hier 
+      // We need to fix this number with the fraction of retained 1-g BHs, as GW recoils will eject part of them
+      // but in the interaction rate formula we have rho/m
+      
+      // Thus, we can write:
+      double n_bbh = pow((n_bin /2 ) * nbhs, gen2+1);  // number of BBH mergers in the cluster
+      double n_ret = ret_fract * n_bbh; // number of retained BHs after the GW recoil
+      double n_hier = max(1.0, n_ret); // number of BHs in the hierarchical merger
+      
+      double rho_hier = n_hier / pow(r_hier, 3);
+      
+      // Now we can compute the interaction rate
+      interaction_rate = (rho_hier / rho_star) * pow(s[2] / mstar_avg, 3. / 2.) * (m_bin + s[2]) / (m_bin + mstar_avg);
+      
+      // if (interaction_rate < 0){
+      //  // Print out the components for debugging the interaction rate calculation:
+      //   cout << "Interaction rate <0 details:" << endl;
+      //   cout << "mcore: " << mcore << endl;
+      //   cout << "r_core: " << rcore << endl;
+      //   cout << "r_inf: " << r_inf << endl;
+      //   cout << "r_wand: " << r_wand << endl;
+      //   cout << "rho_hier: " << rho_hier << endl;
+      //   cout << "rho_star: " << rho_star << endl;
+      //   cout << "m2: " << m2 << endl;
+      //   cout << "s[2]: " << s[2] << endl;
+      //   cout << "mstar_avg: " << mstar_avg << endl;
+      //   cout << "m_hier: " << m_hier << endl;
+      //   cout << "m_bin: " << m_bin << endl;
+      //   cout << "n_bhs: " << nbhs << endl;
+      //   cout << "retention fraction: " << ret_fract << endl;
+      //   cout << "n_hiers: " << n_hier << endl;
+      //   cout << "interaction_rate: " << interaction_rate << endl;
+      // }
+
+      // Now I trow a dice, if the interaction rate is high enough, I can have a merger
+      double dice = func.rnd();
+      //If the interaction rate is high enough, we find a companion BH coming from a hierarchical merger
+
+      if(dice > interaction_rate){
+        // If the interaction rate is low, I keep the stellar secondary
+        //cout << "interaction rate too low => 0-th gen secondary" << endl;
+        break;
+      }
+      
+      //If the 1g BH is not expelled from the cluster it pairs with the primary BH
+      double vrec = s[3];
+
+      if(vrec > vesc){
+        //cout << " ejected => 0-th gen secondary - vrec: " << vrec << " vesc: " << vesc << endl;
+        break;
+      }
+      
+      // cout << "#####################################" << endl;
+      // cout << "ID: " << id << " interacted" << endl;
+      // cout <<  "Interaction rate: " << interaction_rate << " dice: " << dice << endl;
+      // cout << "#####################################" << endl;
+
+      // I can have a merger and the new secondary is the result of the merger of 
+      // the 0-g stellar BH and the secondary stellar BH giving birth to a 1-g secondary BH
+      m2 = s[2];
+      a2 = s[0];
+
+      // We have one BBH merger
+      gen2++;
+
+      // We have to account for the number of BHs burned throught the hierarchichal chain (particularly relevant for loght Envs)
+      nbhs -= max(1.0, (2 - ret_fract) * n_bbh); 
+
+      //We need to adjust the timescale for the next merger
+      tau += -0.53 * log10(mhalf) + 5.6 + 1.5* func.rndgen(0.0, 1.0); //See notion notes/plot
+
+      break; // I can have only one hierarchical merger per generation
+
+    }
+    
+  }
+  // If I have no hierarchical merger, I can still have a 0-g merger
+  
+  c[0] = m2;
+  c[1] = a2;
+  c[2] = gen2;
+  c[3] = interaction_rate;
+  c[4] = nbhs; // number of BHs left in the cluster after the hierarchical merger
+
+  //cout << "hgen output for the " << cnt << "-th generation" << endl;
+  //cout << "ID: " << id << " m2: " << c[0] << " a2: " << c[1] << " cnt: " << c[2] << " interaction_rate: " << c[3] << endl;
+  
+  return ;
+  
+}
+
 void singBHt_mix_old(double mssx[], double msdx[], double mbsx[], double mbdx[], double tbsx[], double tbdx[], double vbsx[], double vbdx[], double mbhmix[][nsize], double tbhmix[][tsize], double vbhmix[][vsize], double mslp, double *sing_out, double saximus_mix, double sinimus_mix, double maximus_mix, double minimus_mix, double vescape){
 
   Functions func;
@@ -70,6 +270,9 @@ void singBHt_mix_old(double mssx[], double msdx[], double mbsx[], double mbdx[],
       break;
     }
   }
+
+
+  
 
 
   
@@ -264,8 +467,7 @@ int main(){
     
   }
 
-
-
+  
   
   if(CLfill != "under" && CLfill != "over" && CLfill != "critical" && CLfill != "mix" && CLfill != "noevo" && CLfill != "GG23"){
     cout<<"Select CLfill = under/over/critical/mix/GG23/noevo "<<endl;
@@ -316,11 +518,7 @@ int main(){
   
   int redline = 100;
   double reds[redline],age[redline],lkbk[redline];
-<<<<<<< HEAD:Main_Bpop_dev.cpp
-  in.open(predir+"redshift_time.ttt");
-=======
   in.open(predir+"include/redshift_time.txt");
->>>>>>> main:src/Main_Bpop_dev.cpp
   if(!in.is_open()){
     cout<<"File "<<predir<<"include/redshift_time.txt not found"<<endl;
     exit(0);
@@ -1346,6 +1544,41 @@ int main(){
     }while(!in.eof());
     in.close();
     
+
+	// Reading the GW recoil velocity tables 
+	vector<double> gw_recoil, gw_recoil_cdf;
+	vector<double> gw_recoil_hg, gw_recoil_hg_cdf;
+	string gw_cat_name = "kick_velocity_cdf.csv";
+	in.open(gw_cat_name.c_str());
+
+	int gw_kick_col=2;
+
+	do{
+		double bpar[spar];
+
+		for(int jj=0; jj<gw_kick_col; jj++) in>>par[jj];
+		gw_recoil.push_back(par[0]);
+		gw_recoil_cdf.push_back(par[1]);
+		
+		}while (!in.eof());
+
+	in.close();
+
+	// Let's read the GW kick cdf for generation above the first
+	string gw_hg_cat_name = "kick_velocity_hg_cdf.csv";
+	in.open(gw_cat_name.c_str());
+	
+	do{
+		double bpar[spar];
+
+		for(int jj=0; jj<gw_kick_col; jj++) in>>par[jj];
+		gw_recoil_hg.push_back(par[0]);
+		gw_recoil_hg_cdf.push_back(par[1]);
+		
+		}while (!in.eof());
+
+	in.close();
+
     /*double msdx[bin_st],mssx[bin_st];
     double mbdx[nsize],mbsx[nsize];
     double tbdx[nsize],tbsx[nsize];
@@ -2633,23 +2866,40 @@ int main(){
 	    nsafe = 0;
 	    if(mixer > mixing){
 	      do{
-		
-		//func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
-		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh,vthre);	  
-		msec = single_bh[0];	 
-		tsec = single_bh[1];
-		ksec = single_bh[2];	    
-		
-		nsafe ++;
-		if(single_bh[3] == 1)
-		  break;
-		else if(nsafe > 500){
-		  cout<<npar_runtime<<" "<<i<<" "<<Z[i]<<" "<<msec<<" "<<tsec<<" "<<ksec<<endl;
-		}
-		if(nsafe > 1000){
-		  cout<<"Something wrong " <<msec<<" "<<tsec<<" "<<ksec<<" "<<minimus<<" "<<vthre<<endl;
-		  exit(0);
-		}
+          // We choose frome the SSE catalog
+          func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, vthre);	  
+          msec = single_bh[0];	 
+          tsec = single_bh[1];
+          ksec = single_bh[2];	
+          // Let's check if the secondary BHs comes from a hierarchical merger
+          double eps =  func.GWeff(pcluster,Z[i]);
+          double nmerg = eps * mint;
+          // Support vector for the high-gen code
+          int elem = 5;
+          double *Comp;
+          Comp = new double [elem];
+          for(int i=0;i<elem;i++) Comp[i] = 0.0;
+          double m_core = mhalf*mclcorr;
+          double r_core = rhalf*rclcorr;
+          
+          hgen(eps, mpri, apri, msec, asec, vthre, dynaS, zams_sin, remn_sin, tdel_sin, kick_sin, Comp, Spinning, nbhs, nrecy, nmerg, i, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer);
+          
+          msec = Comp[0];
+          asec = Comp[1];
+          nhigen = int(Comp[2]);
+          double interaction_rate = Comp[3];
+          nbhs = int(Comp[4]);
+          
+          nsafe ++;
+          if(single_bh[3] == 1)
+            break;
+          else if(nsafe > 500){
+            cout<<npar_runtime<<" "<<i<<" "<<Z[i]<<" "<<msec<<" "<<tsec<<" "<<ksec<<endl;
+          }
+          if(nsafe > 1000){
+            cout<<"Something wrong " <<msec<<" "<<tsec<<" "<<ksec<<" "<<minimus<<" "<<vthre<<endl;
+            exit(0);
+          }
 		
 	      }while(msec <= 0.0 || ksec > vthre);
 	      
@@ -2663,14 +2913,33 @@ int main(){
 	      msec = -1;
 	      ksec = 1.E30;	      
 	      do{
-		//singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-		singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
-		msec = single_bh[0];	  	  
-		tsec = single_bh[1];
-		ksec = single_bh[2];
-		nsafe ++;
-		if(nsafe > 1000)
-		  break;
+          // We choose frome the BSE catalog
+          singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
+          msec = single_bh[0];	  	  
+          tsec = single_bh[1];
+          ksec = single_bh[2];
+          // Let's check if the secondary BHs comes from a hierarchical merger
+          double eps =  func.GWeff(pcluster,Z[i]);
+          double nmerg = eps * mint;
+          // Support vector for the high-gen code
+          int elem = 5;
+          double *Comp;
+          Comp = new double [elem];
+          for(int i=0;i<elem;i++) Comp[i] = 0.0;
+          double m_core = mhalf*mclcorr;
+          double r_core = rhalf*rclcorr;
+          
+          hgen(eps, mpri, apri, msec, asec, vthre, dynaS, zams_sin, remn_sin, tdel_sin, kick_sin, Comp, Spinning, nbhs, nrecy, nmerg, i, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer);
+          
+          msec = Comp[0];
+          asec = Comp[1];
+          nhigen = int(Comp[2]);
+          double interaction_rate = Comp[3];
+          nbhs = int(Comp[4]);
+
+          nsafe ++;
+          if(nsafe > 1000)
+            break;
 	      }while(msec <= 0.0 || ksec > vthre);
 	      
 	    }
@@ -2901,7 +3170,7 @@ int main(){
 	    sig_clu = sqrt(sig_clu0*sig_clu0 + mpri / (0.1*pow(10.,rint)));
 	  
 	  nrecy += 1;
-	  nrecy += nhigen;
+	  //nrecy += nhigen;
 
 	  //This will include all repeated mergers into the main catalogue ... 
 	  if(time < Hubble){

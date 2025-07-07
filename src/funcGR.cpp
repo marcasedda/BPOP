@@ -1868,3 +1868,27 @@ string Functions::print(double mass, double mmax, double mmin,double wgh){
   succ = "success";
   return succ;
 }
+
+
+double Functions::GWeff(string pcluster, double met){
+  Functions func;
+
+  double eps;
+  double a,c;
+  if(pcluster == "young"){
+    a = 0.000134696 + 1.543E-5*(1.-2.*func.rnd());
+    c = -4.25476 + 1.221 *(1.-2.*func.rnd());
+  }
+  else if(pcluster == "globular"){
+    a = 0.00053 + 2.46E-5*(1.-2.*func.rnd());
+    c = -3.1727 + 0.3818*(1.-2.*func.rnd());
+  }
+  else if(pcluster == "nuclear"){
+    a = 0.0011 + 2.2E-5 * (1.-2.*func.rnd());
+    c = -1.84 + 0.11 * (1.-2.*func.rnd());  
+  }
+
+  eps = a * pow(1.+met/0.02,c);
+   
+  return eps;
+}

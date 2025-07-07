@@ -298,7 +298,7 @@ int main(){
 
   // Let's define the parameters for the cluster
   double Z = 0.0003;
-  string pcluster = "nuclear";
+  string pcluster = "globular"; // "young", "globular", "nuclear"
 
   //Here we need to set a specific binary fraction per cluster type (and perhaps time evolution?)
   double fb; 	
@@ -375,7 +375,7 @@ int main(){
  
   outfile << "ID time mhalf rhalf mcore m1 m2 a1 a2 interaction_rate nhier N" << endl;
   
-  for(int ID=0; ID<100000; ID++){
+  for(int ID=0; ID<10; ID++){
     
     // Cluster scale radius (from Dehnen) & initial properties //
 	  double g_cl, mint, mean;
@@ -402,12 +402,15 @@ int main(){
     double rint = (mint - rhoint)/3.0;
     
     double Nrecy = 0.0;
-    double Nbhs;
+    double Nbhs = 0.01*pow(10.,mint)/30.; // straight out of old bpop, slightly understimate them but still fine
     double zita = 1.0;
     
+    mhalf = pow(10.,mint);
+
     double eps = GWeff(pcluster,Z);
 
     double nmerg = min(Nbhs-Nrecy, eps*mhalf);
+    cout << "nmerg: " << eps*mhalf << " nbhs: " << Nbhs << endl;
  
     // Let's define the velocity dispersion and the semimajor axis for an hard binary
     // scaling relation in paper 2021 BHNS mergers (Arca Sedda 2020)
