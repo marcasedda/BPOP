@@ -62,9 +62,9 @@ repetita = "no"
 evapora  = "no"
 adjust_red = "no"
 adjust_typ = "tmed" #tmed, zmed, rnd, lst, tave, zave, rate
-pre = "SEVN"
+pre = "IORIO"
 aCE = ""
-IBonly=False
+IBonly=True
 
 #**************************************************************#
 
@@ -74,6 +74,8 @@ if(pre=="MOBSE"):
     IBcorr = 0.285
 elif(pre=="SEVN" or pre=="SEVN_all"):
     IBcorr = 0.185
+elif(pre=="IORIO"):
+    IBcorr = 0.255
 else:
     print("please select SEVN or MOBSE and retry")
     exit()
@@ -179,7 +181,24 @@ if(pre=="SEVN"):
         0.007,
         0.010,
         0.014,
-        0.02]    
+        0.02]
+elif(pre=="IORIO"):
+     Z = [
+        0.0001,
+        0.0002,
+        0.0004,
+        0.0006,
+        0.0008,
+        0.0010,
+        0.002,
+        0.004,
+        0.006,
+        0.008,
+        0.010,
+        0.014,
+        0.017,
+        0.02,
+        0.03]    
 elif(pre=="SEVN_all"):
      Z = [
         0.0002,
@@ -218,7 +237,9 @@ eta_eff  = [[1.0]*len(Z), [1.0]*len(Z), [1.0]*len(Z), [1.0]*len(Z)]
 app=""
 if(pre=="SEVN" or pre=="SEVN_all"):
     app = "_SEVN"
-
+elif(pre=="IORIO"):
+    app = "_IORIO"
+    
 X = np.loadtxt("./eta_isolated_binaries"+app+aCE,usecols=[3,2],unpack=True)
 zmer_mobse = X[0]
 pmer_mobse = X[1]
@@ -239,17 +260,13 @@ file_esc = "retention_Z"
 file_hie = "Catalogue_multiple_dyn.txt"
 
 
-z = np.linspace(0,maxz,100) #ogspace(-2, np.log10(maxz), 100) #0.01,maxz,100)
+z = np.linspace(0,maxz,500) #ogspace(-2, np.log10(maxz), 100) #0.01,maxz,100)
 z = np.array(z)
 
 # The following vector contains scaling for NC, GC, YC, IB, respectively
 Bf   = [[f_NCoc]*len(z), [f_GCsc]*len(z), [1.0]*len(z), [1.0]*len(z)]
 if(IBonly):
     Bf =  [[0.0]*len(z), [0.0]*len(z), [1.0]*len(z), [1.0]*len(z)]
-
-    
-
-        
 
 ## Preliminarly, we need to evaluate the scaling between the SFR among different channels ##
 
@@ -472,8 +489,11 @@ Vmer = np.array(Vmer)
 Zloss_tot= Y[0]
 Closs_tot= Y[1]
 nloss_tot= Y[2]
-tgwloss_tot= Y[3]
-tloss_tot= Y[4]
+tloss_tot= Y[3]
+tgwloss_tot= Y[4]
+zloss_tot= [interp(tloss_tot[i]/1.E9, tage, redshift) for i in range(len(tloss_tot))]
+zloss_tot= np.array(zloss_tot)
+
 
 id_ck = np.where((tgwloss_tot - tloss_tot) > tHubble)
 pd_ck = np.where((tgwloss_tot - tloss_tot) <= tHubble)
@@ -483,9 +503,6 @@ Closs= Closs_tot[id_ck]
 Cnlos= Closs_tot[pd_ck]
 nloss= nloss_tot[id_ck] 
 nnlos= nloss_tot[pd_ck]
-
-
-
 
 f = open("efficiency_Z_SET"+str(IDmod)+a+"_massive_"+massive+".txt","w")
 fstr = ""
@@ -617,13 +634,21 @@ for kt in range(len(clt)):
     zfor_all= zfor[idx_all]
     Zmet_all= Zmet[idx_all]
     tmer_all= tmer[idx_all]
-       
     Numb_f[kt] = len(zmer_all)
 
+
+    ## binaries that don't merge for a given environment ##
+    ## we need to know how many don't merge at a formation redshift ##
+    idx_non = np.where(Closs_tot == cluster)
+    zlos_non= zloss_tot[idx_non]
+    Zlos_non= Zloss_tot[idx_non]
+    
     zmob_Ztot=[None]*len(Z)
     tmob_Ztot=[None]*len(Z)
     zmgw_Ztot=[None]*len(Z)
     Nztot = [0] * len(Z)
+
+    znon_Ztot=[None]*len(Z)
     
     for k in range(len(Z)):
         dcen = Z[k]
@@ -647,13 +672,18 @@ for kt in range(len(clt)):
         zmgw_Ztot[k] = zmer_all[idx_Z]
         Nztot[k] = len(tmob_Ztot[k])
         ###
-   
+
+        ### All non-mergers with a given metallicity 
+        idn_Z = np.where((Zlos_non >= Z[k] - dZsx) & (Zlos_non < Z[k] + dZdx))
+        znon_Ztot[k] = zlos_non[idn_Z]
+
+        
     fsca = msca(cluster, typ)
     
     N = 0
     Rz = [None] * (len(z) - 1)
     zcen = [None] * (len(z)-1)
-    tcen = [interp(z[i], redshift, lookback)*1.E9 for i in range(len(z))]       
+    tcen = [interp(z[i], redshift, tage)*1.E9 for i in range(len(z))]       
 
     if(len(zmer_all) == 0):
         for i in range(len(z)-1):
@@ -673,12 +703,14 @@ for kt in range(len(clt)):
     for i in range(len(z)-1):
         zcen[i] = 0.5*(z[i]+z[i+1])
         
-        tlook = tcen[i+1] - tcen[i]
+        tlook = tcen[i] - tcen[i+1]
         Int = 0.0
         fsum = [0.0]*len(Z)
         Iz = [0.0]*len(Z)        
         
-        zp = np.linspace(z[i], maxz, 80)
+        zp = np.linspace(zcen[i], maxz, 1000)
+        
+        
         zp_cen = [0.5*(zp[j]+zp[j+1]) for j in range(len(zp)-1)]
         zp_cen = np.array(zp_cen)
         dtdz = DtDz(zp_cen, H0, Om, Ol)
@@ -686,6 +718,7 @@ for kt in range(len(clt)):
         Rp_int = [None]*len(zp_cen)
         
         for k in range(len(Z)):
+            
             dcen = Z[k]
             if(k < len(Z)-1):
                 dup = Z[k+1]
@@ -703,42 +736,75 @@ for kt in range(len(clt)):
             ### All mergers with a given metallicity                
             zmob_Z = zmob_Ztot[k]
             tmob_Z = tmob_Ztot[k]
-            zmgw_Z = zmgw_Ztot[k]            
+            zmgw_Z = zmgw_Ztot[k]
+
+            
+            ###
+            ### All non-mergers with a given metallicity
+            znon_Z = znon_Ztot[k]
             ###
 
             I = [0.0]*(len(zp)-1)
             for j in range(len(zp)-1):
 
                 ### All mergers formed in the zp bin 
-                idx_p = np.where((zfor_all >= zp[j]) & (zfor_all < zp[j+1]))
-                tmer_p = tmer_all[idx_p]
-                Nz = float(len(tmer_p))
+                #idx_p = np.where((zfor_all >= zp[j]) & (zfor_all < zp[j+1]))
+                #tmer_p = tmer_all[idx_p]
+                #Nz = float(len(tmer_p))
+                ### All non-mergers formed in the zp bin
+                #idx_r = np.where((znon_Z >= zp[j]) & (znon_Z < zp[j+1]))
+                #Nz += float(len(znon_Z[idx_r]))                
                 ###
           
                 ### All mergers formed in the zp bin with metallicity Z 
                 idx = np.where((zmob_Z >= zp[j]) & (zmob_Z < zp[j+1]))        
                 zmer_z = zmgw_Z[idx]
+                tmob_z = tmob_Z[idx]
+                Nz = len(zmer_z)
+
+                idsx = np.where((znon_Z >= zp[j]) & (znon_Z < zp[j+1]))
+                Nz+=len(znon_Z[idsx])
                 ###
                 
                 ### All mergers merging in the z bin, formed at zp bin, with metallicity Z
-                id_H = np.where((zmer_z > z[i]) & (zmer_z < z[i+1]))
-                dN = float(len(zmer_z[id_H]))
+                id_H = np.where((tmob_z >= tcen[i+1]) & (tmob_z < tcen[i])) #np.where((zmer_z > z[i]) & (zmer_z < z[i+1]))
+                dN = float(len(zmer_z[id_H]))                
                 ###       
 
+                
+                sZ = 0.2
+                lZ = 0.153 - 0.074 * pow(zp_cen[j],1.34) - (np.log(10.0) * sZ*sZ/2.0)            
+                pzZsx = 0.5 * (1. + erf((np.log10((Z[k]-dZsx)/Zsun)-lZ)/(sZ*np.sqrt(2.)))) 
+                pzZdx = 0.5 * (1. + erf((np.log10((Z[k]+dZdx)/Zsun)-lZ)/(sZ*np.sqrt(2.)))) 
+
+                pdf = 1./(np.sqrt(2.*np.pi)*sZ) * np.exp(-pow(np.log10(Z[k]/Zsun)-lZ,2.)/(2.*sZ*sZ))
+
+                pzZ = pzZdx - pzZsx
+
                 frac = 0.0
+                
                 if(Nz > 0):
-                    frac =  dN / Nz 
-                                   
-                fsum[k] = frac * eta_eff[kt][k]
+                    fcl = pzZ
+                    frac =  (dN / Nz) * fcl
+                    
+                    #mergers in z, born in zp, with Z, divided by
+                    #total number of sources born in zp, multiplied by
+                    #Delta_CDF from log-normal distri, divided by
+                    #number of sources formed in zp with Z over number of sources formed in zp
+                    #This corresponds to dN / Nz * pzZ
+                    
+
+                fsum[k] = frac 
 
                 
                 Bf_fd = interp(zp_cen[j], z, Bf[kt])
                 sfr = Bf_fd * psi(typ, zp_cen[j], fsca[0], fsca[1], fsca[2], fsca[3])
-            
-                I[j] = sfr * dtdz[j] * fsum[k] * gpc_to_mpc3 / tlook 
 
+                
 
-            #This is the integral over every metallicity value
+                            
+                I[j] = sfr * eta_eff[kt][k] * fsum[k] * gpc_to_mpc3 / tlook  * dtdz[j]               
+                
             Iz[k] = scipy.integrate.simpson(I, zp_cen) 
             
 

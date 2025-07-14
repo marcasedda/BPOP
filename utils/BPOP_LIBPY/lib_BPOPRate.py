@@ -330,21 +330,24 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs):
                                         'm1','m2','a1','a2','Mrem','arem','xeff','vgw',
                                         'mcl', 'rcl',
                                         'zgw', 'zfo',
-                                        'ecc','sma','status','id'),
+                                        'ecc','sma','status','id',
+                                        'cosS1S2', 'cosL1', 'cosL2'),
                                'formats':(float, int, 'U8',
                                           float,float,float,float,float,float,float,float,
                                           float,float,
                                           float,float,
-                                          float,float,'U8',int)
+                                          float,float,'U8',int,
+                                          float,float,float)
                                }, usecols=[1,2,3,
                                            5,6,7,8,9,10,11,12,
                                            15,16,
                                            24,25,
-                                           29,30,18,0],
+                                           29,30,18,0,
+                                           33,34,35],
                    )
     
     Ypd = pd.DataFrame(Y)
-    
+
     zmer_cat = []
     zfor_cat = []
     Zmet_cat = []
@@ -661,16 +664,22 @@ def print_cat(Ypd, idx_cat, clstr):
     ecc_cat=np.array(Ypd.ecc[idx_cat])
     sma_cat=np.array(Ypd.sma[idx_cat])
     status_cat=np.array(Ypd.status[idx_cat])
+
+    cosL1 = np.array(Ypd.cosL1[idx_cat])
+    cosL2 = np.array(Ypd.cosL2[idx_cat])
+
+    cosS1S2=np.array(Ypd.cosS1S2[idx_cat])
     
     id_cat=np.array(Ypd.id[idx_cat])
+
     
     f_out = open("Catalogue_"+clstr+".txt","w")
-    header = "#Metallicity zGW zfor m1 m2 a1 a2 mrem arem xeff vGW nrecy cluster mclu rclu ecce semiax status id \n"
+    header = "#Metallicity zGW zfor m1 m2 a1 a2 mrem arem xeff vGW nrecy cluster mclu rclu ecce semiax status id cos1 cos2 cos12\n"
     f_out.write(header)
-    [f_out.write("{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:1.4e} {14:1.4f} {15:1.5f} {16:1.5e} {17:s} {18:1.0f} \n".format(Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij], Mrem_cat[ij],arem_cat[ij],xeff_cat[ij],vgw_cat[ij], nrec_cat[ij],ctype_cat[ij],mcl_cat[ij],rcl_cat[ij], ecc_cat[ij],sma_cat[ij],status_cat[ij],id_cat[ij] )) for ij in range(len(Z_cat))]
+    [f_out.write("{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:1.4e} {14:1.4f} {15:1.5f} {16:1.5e} {17:s} {18:1.4f} {19:1.4f} {20:1.4f} {21:1.0f} \n".format(Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij], Mrem_cat[ij],arem_cat[ij],xeff_cat[ij],vgw_cat[ij], nrec_cat[ij],ctype_cat[ij],mcl_cat[ij],rcl_cat[ij], ecc_cat[ij],sma_cat[ij],status_cat[ij], cosL1[ij], cosL2[ij], cosS1S2[ij], id_cat[ij])) for ij in range(len(Z_cat))]
     f_out.close()
 
-    strix = ["{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:1.4e} {14:1.4f} {15:1.5f} {16:1.5e} {17:s} {18:1.0f} \n".format(Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij], Mrem_cat[ij],arem_cat[ij],xeff_cat[ij],vgw_cat[ij], nrec_cat[ij],ctype_cat[ij],mcl_cat[ij],rcl_cat[ij], ecc_cat[ij],sma_cat[ij],status_cat[ij],id_cat[ij] ) for ij in range(len(Z_cat))]
+    strix = ["{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:1.4e} {14:1.4f} {15:1.5f} {16:1.5e} {17:s} {18:1.4f} {19:1.4f} {20:1.4f} {21:1.0f} \n".format(Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij], Mrem_cat[ij],arem_cat[ij],xeff_cat[ij],vgw_cat[ij], nrec_cat[ij],ctype_cat[ij],mcl_cat[ij],rcl_cat[ij], ecc_cat[ij], sma_cat[ij], status_cat[ij], cosL1[ij], cosL2[ij], cosS1S2[ij],id_cat[ij] ) for ij in range(len(Z_cat))]
     
     return strix, header
 
@@ -686,3 +695,39 @@ def create_dir(nested_directory):
     except Exception as e:
         print(f"An error occurred: {e}")
     return
+
+
+def metcor(red_del, sigmaZ):
+    logz_me = 0.153 - 0.074 * pow(red_del,1.34) - (np.log(10.0) * sigmaZ*sigmaZ/2.0)
+
+    return logz_me
+
+def test_metdis(fl, Z):
+
+    
+    Zsun = 0.019
+    X = np.loadtxt(fl, usecols=[1,25], unpack=True)
+
+    met = X[0]
+    red = X[1]
+
+    z = np.linspace(0,15,100)
+    for i in range(len(z)-1):
+        idx = np.where( (red >= z[i]) & (red < z[i+1]) )
+
+        red_z = red[idx]
+        met_z = met[idx]
+
+        sZ = 0.2
+        zmean = metcor(0.5*(z[i]+z[i+1]), sZ)
+
+        for j in range(len(Z)):
+            idx = np.where(met_z == Z[j])
+
+            pZ = float(len(met_z[idx])) / float(len(met_z))
+
+            lZ = np.log10(Z[j] / Zsun)
+
+            pzZ = 1./(np.sqrt(2.*np.pi)*sZ) * np.exp(-pow(lZ - zmean,2.)/(2.*sZ*sZ))
+
+            print(0.5*(z[i]+z[i+1]), Z[j], pZ, pzZ, lZ, zmean)
