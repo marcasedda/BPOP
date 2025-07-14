@@ -314,7 +314,7 @@ int main(){
   }
 
   
-  int redline = 100;
+  int redline = 10000;
   double reds[redline],age[redline],lkbk[redline];
   in.open(predir+"include/redshift_time.txt");
   if(!in.is_open()){
@@ -330,6 +330,10 @@ int main(){
     //cout<<reds[i]<<" "<<age[i]<<" "<<lkbk[i]<<endl;
   }
   in.close();
+
+
+  double Hubble = age[0] * 1.E9;
+  
   
   string isospin = spinlb;  
   string dynaS   = spinlb;
@@ -383,14 +387,17 @@ int main(){
   string pathse = "";
   string pathsp = "";
 
-  //METALLICITY AVAILABLES 0.0002 - 0.0004 - 0.0008 - 0.0012 - 0.0016 - 0.002 - 0.004 - 0.006 - 0.008 - 0.012 - 0.016 - 0.02 
+  //METALLICITY AVAILABLES 
   double *met;
   int nmetal;
   if(SEVN == "all")
     nmetal = 16;
+  else if(SEVN=="iorio")
+    nmetal = 15;
   else
     nmetal = 13;
 
+  int numZ = nmetal;
   met = new double [nmetal];
   
   if(SEVN == "no"){
@@ -407,6 +414,23 @@ int main(){
     met[10] = 0.016;
     met[11] = 0.02;
     met[12] = 0.03;
+  }
+  else if(SEVN == "iorio"){
+    met[0]  = 0.0001;
+    met[1]  = 0.0002;
+    met[2]  = 0.0004;
+    met[3]  = 0.0006;
+    met[4]  = 0.0008;
+    met[5]  = 0.0010;
+    met[6]  = 0.002;
+    met[7]  = 0.004;
+    met[8]  = 0.006;
+    met[9]  = 0.008;
+    met[10]  = 0.010;
+    met[11]  = 0.014;
+    met[12]  = 0.017;
+    met[13] = 0.02;
+    met[14] = 0.03;
   }
   else if(SEVN == "yes"){
     met[0]  = 0.0002;
@@ -465,6 +489,23 @@ int main(){
     metdyn[10] = 0.016;
     metdyn[11] = 0.02;
     metdyn[12] = 0.03;
+  }
+  else if(SEVN == "iorio"){
+    met[0]  = 0.0001;
+    met[1]  = 0.0002;
+    met[2]  = 0.0004;
+    met[3]  = 0.0006;
+    met[4]  = 0.0008;
+    met[5]  = 0.0010;
+    met[6]  = 0.002;
+    met[7]  = 0.004;
+    met[8]  = 0.006;
+    met[9]  = 0.008;
+    met[10]  = 0.010;
+    met[11]  = 0.014;
+    met[12]  = 0.017;
+    met[13] = 0.02;
+    met[14] = 0.03;
   }
   else if(SEVN == "yes"){
     metdyn[0]  = 0.0002;
@@ -768,19 +809,23 @@ int main(){
     double logz, logz1, logz2;
     
     if(sfr_iso == "bigbang")
-      logz1 = log10(met[0]) + (log10(met[11])-log10(met[0]))*func.rnd();
+      logz1 = log10(met[0]) + (log10(met[nmetal-1])-log10(met[0]))*func.rnd();
     else if(sfr_iso == "single")
       logz1 = log10(mono_Z);
+    else if(sfr_iso == "grid"){
+      int ntxt = nmetal*func.rnd();
+      logz1 = log10(met[ntxt]);
+    }
     else{
       double logz_me;    
       logz_me = func.metcor(metal_dis, sigmaZ, red_del);
      
       // New Gaussian sampling corrected with merger efficiency //
       if(MERGER_EFF_CORR == "yes")
-	logz1 = func.Gss_weight(Zeta, Eeta, Zsun, logz_me, sigmaZ, met[0], met[11]);      
+	logz1 = func.Gss_weight(Zeta, Eeta, Zsun, logz_me, sigmaZ, met[0], met[nmetal-1]);      
       //
       else
-	logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
+	logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[nmetal-1]/Zsun), logz_me, sigmaZ) + log10(Zsun);
       
     }
     
@@ -789,8 +834,8 @@ int main(){
     z = pow(10.,logz);  
     if(z < 0.9*met[0])
       z = met[0];
-    if(z > 1.2*met[11])
-      z = met[11];
+    if(z > 1.2*met[nmetal-1])
+      z = met[nmetal-1];
 
     Z[i] = z;
     if(Z[i]>Z1) Z1 = Z[i];
@@ -810,33 +855,42 @@ int main(){
 
     double logz, logz1;
     if(sfr_clu == "bigbang")
-      logz1 = log10(met[0]/Zsun) + (log10(met[11]/Zsun)-log10(met[0]/Zsun))*func.rnd();
-    else if(sfr_iso == "single")
+      logz1 = log10(met[0]) + (log10(met[nmetal-1])-log10(met[0]))*func.rnd();
+    else if(sfr_clu == "single")
       logz1 = log10(mono_Z);
+    else if(sfr_clu == "grid"){
+      int ntxt = nmetal*func.rnd();
+      logz1 = log10(met[ntxt]);
+    }
     else{
       double logz_me;    
       logz_me = func.metcor(metal_dis, sigmaZ, red_del);
-      logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[11]/Zsun), logz_me, sigmaZ) + log10(Zsun);
+      logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[nmetal-1]/Zsun), logz_me, sigmaZ) + log10(Zsun);
     //double logz2 = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
     }
     
     logz = logz1;
     
+    
+
     z = pow(10.,logz);  
+
+
     if(z < 0.9*met[0])
       z = met[0];
-    if(z > 1.2*met[11])
-      z = met[11];
-
+    if(z > 1.2*met[nmetal-1])
+      z = met[nmetal-1];
+   
     Z[i] = z;
     if(Z[i]>Z1) Z1 = Z[i];
     if(Z[i]<Z0) Z0 = Z[i];
-      
+
+    
   }
   //----------------------------------------------------------
   
   
-  if(MonoZ == "yes")
+  if(MonoZ == "yes" || (sfr_iso=="single" && sfr_clu=="single"))
     for(int i=0;i<Nsrc;i++){
       Z[i] = mono_Z;
       Z0 = Z[i];
@@ -1094,6 +1148,7 @@ int main(){
 
       double tform = tfor[arr[k][i]];
       
+      
       tdel += tform;
       smaiso = sma_iso[ext];
 	
@@ -1119,7 +1174,7 @@ int main(){
 
       else{
 	
-	hout<<itot<<" 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 "<<tdel<<" 0.0 "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" 0.0 "<<smaiso<<" "<<smaiso<<" 0 "<<time<<" "<<tfor[i]<<endl;
+	hout<<itot<<" 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 "<<tdel<<" 0.0 "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" 0.0 "<<smaiso<<" "<<smaiso<<" 0 "<<tdel-tform<<" "<<tform<<endl;
 	
       }
       
@@ -1179,16 +1234,17 @@ int main(){
   
   for(int k=0;k<numZ;k++)Npar[k] = 0;
   for(int i=Niso;i<Nsrc;i++){
+    
     for(int k=0;k<numZ;k++){
+      
       Z0 = Zmin + k*dZ;
-      Z1 = Zmin + (k+1)*dZ;
+      Z1 = Zmin + (k+1)*dZ;      
       if(Z[i]<pow(10.,Z1) && Z[i]>=pow(10.,Z0))
 	Npar[k] += 1;
     }
-   
   }
 
-  if(MonoZ=="yes"){
+  if(MonoZ=="yes" || (sfr_iso=="single" || sfr_clu=="single")){
     int idN = -1;
     for(int k=0;k<numZ;k++)
       if(Npar[k] != 0){
@@ -1201,8 +1257,11 @@ int main(){
 	Npar[idN] = 0;
 	break;
       }         
+
+   
   }
-	
+
+  
   double total_sources = 0;
   /*
   for(int k=0;k<numbin_Z;k++){
@@ -1475,7 +1534,7 @@ int main(){
 
       //cout<<pow(10.,Z0)<<" "<<pow(10.,Z1)<<" "<<Z[i]<<" "<<Z[i] - pow(10.,Z0) << endl;
 
-      if( (Z[i] < pow(10.,Z1) && Z[i] >= pow(10.,Z0)) || (MonoZ == "yes" && Z[i] == met[k])) {
+      if( (Z[i] < pow(10.,Z1) && Z[i] >= pow(10.,Z0)) || ((MonoZ == "yes" || (sfr_clu == "single" && sfr_iso=="single")) && Z[i] == met[k])) {
 
 	//cout<<"ENTRATO"<<endl;
 	
@@ -3123,7 +3182,7 @@ int main(){
 
   if(highgen == "yes")
     cmdstr_zero += "_HGN";
-  if(MonoZ == "yes")
+  if(MonoZ == "yes" || sfr_clu == "single" || sfr_iso == "single")
     cmdstr_zero += "_MonoZ";
   if(cluster_test == "yes")
     if(cluster_test_env=="NC")
