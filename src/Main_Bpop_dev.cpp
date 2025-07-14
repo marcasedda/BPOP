@@ -98,8 +98,6 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
   // I can have a hierarchical secondary BH
   else if(nmerg >= 1){
     success = "no";
-    // Cristiano 21/05/2025:
-    // Changed to a while loop:
     // If the time condition is not satisfied (i.e., not enough time for a BBH merger)
     // OR I exhausted the BH reservoir (i.e., I have no more BHs to merge)
     // I cannot have a hierarchical merger
@@ -2194,27 +2192,27 @@ int main(){
 	      break;
 	    }
 	    
-	    if(highgen == "yes"){
-	      //This section needs to be improved, especially for what concern the probability of repeated mergers
-	      double p_BPOP;
-	      if(cluster == "globular")
-		p_BPOP = 295. / 1.E4; //this is valid for GCs with Z = 0.0002 (would it change with different metallicity?)
-	      else if(cluster == "nuclear")
-		p_BPOP = 2740./ 1.E4;
-	      else if(cluster == "young")
-		p_BPOP = 0.0;
+	  //   if(highgen == "yes"){
+	  //     //This section needs to be improved, especially for what concern the probability of repeated mergers
+	  //     double p_BPOP;
+	  //     if(cluster == "globular")
+		// p_BPOP = 295. / 1.E4; //this is valid for GCs with Z = 0.0002 (would it change with different metallicity?)
+	  //     else if(cluster == "nuclear")
+		// p_BPOP = 2740./ 1.E4;
+	  //     else if(cluster == "young")
+		// p_BPOP = 0.0;
 	    
-	      double p_hgen = func.rnd();
-	      double mav = 30.;
-	      if(p_hgen < p_BPOP){
-		double coef = 0.2 + 0.8*func.rnd();
-		msec = mav * (1. + msec/mav * (1.+mav/6.0));	       
-	      }
-	      nhigen += int(msec / mav);
+	  //     double p_hgen = func.rnd();
+	  //     double mav = 30.;
+	  //     if(p_hgen < p_BPOP){
+		// double coef = 0.2 + 0.8*func.rnd();
+		// msec = mav * (1. + msec/mav * (1.+mav/6.0));	       
+	  //     }
+	  //     nhigen += int(msec / mav);
 
-	      asec = 0.7; // Need adjustments
+	  //     asec = 0.7; // Need adjustments
 	      
-	    }
+	  //   }
 
 
 	    if(msec > mpri){
@@ -2733,7 +2731,7 @@ int main(){
 	rinfinite *= rclcorr;
 
 	
-	int nrecy = nhigen;
+	// int nrecy = nhigen;
 	double trecy = 0.0;
 	double tsmbh = 0.0;
 
@@ -2821,8 +2819,8 @@ int main(){
 	  
 	  if(vthre < Krem[i] ||  (cj < 0.0 && abs(cj) > 1.E-10))
 	    rinfinite = 1.E10;
-
-	  out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
+    //  m_p m_s spin_p spin_s semi-major semi-major_newton semi-major_gw formation time Stellar_evo_time time_12capture time3b_capture time_dyn_friction time_bbh(?) time_GW_merger time N_gen_primary N_gen_secondary mass cluster(t) radius_cluster(t) M_clu_ini R_clu_ini t_core_collapse id_BH label cluster_type M_rem S_rem X_rem K_rem escape_velocity itot                                                                                                                                                                                                                                                                                                                                                                         
+	  out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy <<" "<<nhigen<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
 	  
 	  if(mpri > msmbhmax && tsmbh == 0.0){
 	    tsmbh = time;
