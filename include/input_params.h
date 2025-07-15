@@ -4,18 +4,18 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#define CHUNKS "yes"
+#define CHUNKS "no"
 //#define Hubble 13.99E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
-#define PREDIR "/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/"
-#define SINGPTH  "../SEVN_Catalog/rapid_M20_a1/" //"../SEVN_Catalog/IORIO_zenodo_cat" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
-#define PATH     "../SEVN_Catalog/rapid_M20_a1/" //"../SEVN_Catalog/IORIO_zenodo_cat" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
+#define PREDIR "../"
+#define SINGPTH  "../../../SEVN_Catalogs/rapid_M20_a1/" //"../SEVN_Catalog/IORIO_zenodo_cat" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
+#define PATH     "../../../SEVN_Catalogs/rapid_M20_a1/" //"../SEVN_Catalog/IORIO_zenodo_cat" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
 #define SEVN "yes"
 #define MERGER_EFF_CORR "no"
 
 // GLOBAL
-#define N        1000000
+#define N        100
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
@@ -24,10 +24,10 @@
 //DYNAMICAL FRACTIONS
 #define DynOvTot 1.0
 #define pYC      0.0
-#define pGC      1.0
-#define pNC      0.0
+#define pGC      0.0
+#define pNC      1.0
 
-#define uppergap "yes"
+#define uppergap "no"
 #define bhseed   "no"
 #define bifZ     0.001
 #define bhpisn   270.
@@ -52,10 +52,10 @@
 //CLUSTER EVOLUTION
 #define CLfill       "GG23"
 #define MonoZ        "no"
-#define mono_Z       0.0002
+#define mono_Z       0.002
 #define cluster_test "no"
-#define cluster_test_env "NC"
-#define msmbhmax 5.E7
+#define cluster_test_env "GC" // "GC", "NC", "YC"
+#define msmbhmax 1.E3
 
 //BH SEED
 #define f_seed    0.2
