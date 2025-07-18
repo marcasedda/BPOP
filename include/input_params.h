@@ -15,7 +15,7 @@
 #define MERGER_EFF_CORR "no"
 
 // GLOBAL
-#define N        100
+#define N        1000000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
@@ -23,9 +23,9 @@
 
 //DYNAMICAL FRACTIONS
 #define DynOvTot 1.0
-#define pYC      0.0
-#define pGC      0.0
-#define pNC      1.0
+#define pYC      0.33
+#define pGC      0.33
+#define pNC      0.34
 
 #define uppergap "no"
 #define bhseed   "no"
@@ -52,9 +52,9 @@
 //CLUSTER EVOLUTION
 #define CLfill       "GG23"
 #define MonoZ        "no"
-#define mono_Z       0.002
+#define mono_Z       0.0002
 #define cluster_test "no"
-#define cluster_test_env "GC" // "GC", "NC", "YC"
+#define cluster_test_env "NC"
 #define msmbhmax 1.E3
 
 //BH SEED

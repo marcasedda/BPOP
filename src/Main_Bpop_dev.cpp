@@ -54,27 +54,30 @@ void singBHt_mix(vector<double>& zams_mix,
   return ;
 }
 
-void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, string stype, // star variables
-          vector<double>& zams_cat, vector<double>& remn_cat, vector<double>& tdel_cat, vector<double>& kick_cat,// catalog variables
-          double *c, double *s, double nbhs, double nrecy, double nmerg, int id, // storage vectors
-          double mhalf, double mcore, double rcore, double n_bin, vector<double>& gwK, vector<double>& gwK_cdf, // core properties
-          double trelax, double t12capt, double tbbhform, double tcc, string pcluster, double mix){ //timescales
-  
-  // This function accounts for the probability of a hierarchical merger in a cluster, and its properties.
+double inter_rate(double m1, double m2, double vesc, double m_hg, int gen2,
+          double nbhs,double mhalf, double mcore, double rcore, double n_bin,
+          vector<double>& gwK, vector<double>& gwK_cdf,
+          double trelax, double t12capt, double tbbhform, double tcc,
+          string pcluster, double &out_nbbhs){
 
-  Functions func;
-  double tau, interaction_rate;
-  double mstar_avg;
-  int cnt=0;
-  int gen2=0;
-  
-  string success="no";
+  // Let's compute the interaction rate
+  // rho_star = M_core/R_core^3 ==> n_star = rho_star/mstar_avg
+  // R_hier = max(R_inf, R_wand) 
+  // with the wandering radius R_wand being the region of the core where we can find the BH
+  // and the influence radius being the region of the vore where the BHs dominates the interactions
+  //                   | alpha, with alpha = m_hier/m_core
+  // R_hier = R_core x |
+  //                   | mu exp[-0.5], with mu = m_hier/mstar_avg
 
-  // Let's define the timescale for a secondary merger
-  tau = -0.53 * log10(mhalf) + 5.6 + 1.5* func.rndgen(0.0, 1.0);
+  // Thus, we define:
+  // rho_hier = n_hier * m_hier/(R_hier)^3 from Di Cinto et al. 2023
+  // with m_hier = max( 2 * mstar_avg, s[2] )
+  // in this way we account for the average mass of the 1-g BHs in the cluster for low gens and for the higher gen mergers    Functions func;
+  
+  double IR;
   
   // Let's define the quantities intervining in the interaction rate
-  mstar_avg = 17.4 - 4.0 * log10(tbbhform/trelax);
+  double mstar_avg = 17.4 - 4.0 * log10(tbbhform/trelax);
   double m_bin = m1 + m2;
   
   //Let's infer the retention fraction of hierarchical for this cluster from the catalogs
@@ -84,31 +87,104 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
     ret_fract = gwK_cdf[i];
     i++;
     }while(gwK[i]<vesc);
+
+  double m_hier = 2*mstar_avg;
+
+  double alpha =  m_hier/mcore; 
+  double mu = m_hier/mstar_avg;
+
+  double r_inf = rcore * alpha;
+  double r_wand = rcore * pow(mu, -0.5);
+
+  double r_hier = max(r_inf, r_wand);
+
+  double rho_star = mcore / (mstar_avg * pow(rcore, 3));
+
+  // for the 1-g BH, we assume to generate n_hier = n_bin * nBHs/2
+  // Thus, rho_hier = n_hier * m_hier / V_hier 
+
+  // We need to fix this number with the fraction of retained 1-g BHs, as GW recoils will eject part of them
+  // but in the interaction rate formula we have rho/m
   
-  //Cristiano 07/07/25
-  // I expect the check on the number of mergers to become obsolete in the future as:
-  // n_hier ~ 1 for gen2 = 3 (for nbhs =1M and f_bin = 0.01 and vesc=inf)
+  // Thus, we can write:
+  //aggiornare nbin come nbin/nsing+nbin per tenere conto della consumption di bhs
+  
+  // n_bbh = (2* nbin/(2^n  (n_sing + nbin/2^))) * nbhs;  // number of BBH mergers in the cluster
+
+  //double n_bbh = pow((n_bin /2.0 ), gen2) * nbhs;  // number of BBH mergers in the cluster
+  double n_bbh = pow(0.5, gen2) * nbhs * n_bin;  // number of BBH mergers in the cluster
+  double n_ret = ret_fract * n_bbh; // number of retained BHs after the GW recoil
+  //double n_hier = max(1.0, n_ret); // number of BHs in the hierarchical merger
+  double n_hier = n_ret; // number of BHs in the hierarchical merger
+  
+  double rho_hier = n_hier / pow(r_hier, 3);
+  
+  // Now we can compute the interaction rate
+  IR = (rho_hier / rho_star) * pow(m_hg / mstar_avg, 3. / 2.) * (m_bin + m_hg) / (m_bin + mstar_avg);
+  out_nbbhs = n_bbh; // output the number of BBHs in the cluster
+
+  // if (IR>1.0) {
+  //   cout << "Warning: interaction rate: "<< IR << " > 1.0, setting to 1.0" << endl;
+  //   cout << "m1: " << m1 << ", m2: " << m2 << ", vesc: " << vesc 
+  //        << ", m_hg: " << m_hg << ", gen2: " << gen2 << " ret_fract: " << ret_fract
+  //        << ", nbhs: " << nbhs << ", n_hier: " << n_hier
+  //        << ", mhalf: " << mhalf 
+  //        << ", mcore: " << mcore << ", rcore: " << rcore 
+  //        << ", n_bin: " << n_bin 
+  //        << ", rho_star: " << rho_star
+  //        << ", rho_hier: " << rho_hier
+  //        << ", mstar_avg: " << mstar_avg
+  //        << ", pcluster: " << pcluster 
+  //        << endl;
+  //   IR = 1.0; // Cap the interaction rate to 1.0
+  //}
+  
+  
+  return IR;
+
+  }
+
+void hgen(double m1, double a1, double m2, double a2, double k2, double vesc, string stype, // star variables
+          vector<double>& zams_cat, vector<double>& remn_cat, vector<double>& tdel_cat, vector<double>& kick_cat,// catalog variables
+          double *c, double *s, double nbhs, int nrecy, double nmerg, int id, // storage vectors
+          double mhalf, double mcore, double rcore, double n_bin, vector<double>& gwK, vector<double>& gwK_cdf, // core properties
+          double trelax, double t12capt, double tbbhform, double tcc, string pcluster, double mix){ //timescales
+  
+  // This function accounts for the probability of a hierarchical merger in a cluster, and its properties.
+  Functions func;
+  double tau, interaction_rate, n_bbh, ret_fract;
+  double m2b, a2b, k2b;
+  double m_hg, a_hg, vrec;
+  double mstar_avg;
+  double dice;
+  int cnt=0;
+  int gen2=0; //i use it in the loop
+  int hgen=0; // hierarchical generation of the secondary BH -> in output
+
+  string paired = "no"; // if the secondary BH is paired with a hierarchical companion
+  string ejected = "no"; // if the secondary BH is ejected from the cluster
+  string success="no";
+
+  // Let's define the timescale for a secondary merger
+  tau = -0.53 * log10(mhalf) + 5.6 + 1.5* func.rndgen(0.0, 1.0);
+  
+  //I have to use a support variable, so that the chain in the while loop increases the mass of the hierarchical BH
+  m_hg = m2;
+  a_hg = a2;
+  vrec = k2;
   
   interaction_rate = 0.0; //in this way I can check if the while loop is verified at least once
-
-  cout << "nmerg: " << nmerg << " nrecy: " << nrecy << " nbhs: " << nbhs << " tau: " << tau << endl;
-
+       
   if(nmerg < 1){
     double P = func.rnd();
     if(P < nmerg) //We have more than one merger, we likely end mergers here
       success = "yes";       
+    cout << "ID: " << id << " nmerg: " << nmerg << "=> Insufficient number of BHs" << endl;
   }
-  // If I have >1 merger in the cluster AND the timescale is enough to have the formation of a merging BBH
-  // I can have a hierarchical secondary BH
+
+  // If I have >1 merger in the cluster I can have a hierarchical secondary BH
   else if(nmerg >= 1){
-    success = "no";
-    // If the time condition is not satisfied (i.e., not enough time for a BBH merger)
-    // OR I exhausted the BH reservoir (i.e., I have no more BHs to merge)
-    // I cannot have a hierarchical merger
-
-    interaction_rate = 0.0; //in this way I can check if the while loop is verified at least once
-
-
+    
     // Let's initialize the star merging with the secondary BH
     double *single_bh;
     single_bh = new double [4];
@@ -117,146 +193,92 @@ void hgen(double eps, double m1, double a1, double m2, double a2, double vesc, s
     single_bh[2] = 0.0;
     single_bh[3] = 0.0;
 
-    // Let's compute the 0-g BH properties
-    if(mix > mixing){
-    // If in the main we are having not having a mixing we chose from SSE catalogs
-      func.singBHt_new(zams_cat, remn_cat, tdel_cat, kick_cat, single_bh, vesc);
-      
-    } 
-
-    else{
-    // If in the main we are having a mixing we chose from the BSE catalogs
-      singBHt_mix(zams_cat, remn_cat, tdel_cat, kick_cat, single_bh, vesc);
-    }
-    double m2b = single_bh[0];	 
-    double a2b = func.spin(m2b, stype);
-
-    //Let's compute POTENTIAL the merger remnant and its natal kick
-    func.SREM2(8.0, a2, a2b, m2, m2b, "dynamical", s);
-
-    // Let's check if the timescale is enough to have a merger
-    // if we have enough mergers 
+    // Let's check if the timescale is enough to have a merger, if we have enough mergers 
     // and make sure that the secondary is of the same generation or lower of the primary
-    cout << "Checking the timescale for a secondary merger with tbbhform = " << tbbhform << " and trelax = " << trelax << endl;
-    cout << "Checking the number of mergers nmerg = " << nmerg << " and the generation gen2 = " << gen2 << endl;
-    cout << "Checking the number of recycles nrecy = " << nrecy << endl;
+
+    //In this loop I grow the hierarchical companion BH
     while (gen2 < nmerg && max(tbbhform/tcc, t12capt/tcc) >= tau && nrecy > gen2 && nbhs > 0) {
-      success = "yes";
-      // Let's compute the interaction rate
-      // rho_star = M_core/R_core^3 ==> n_star = rho_star/mstar_avg
-      // R_hier = max(R_inf, R_wand) 
-      // with the wandering radius R_wand being the region of the core where we can find the BH
-      // and the influence radius being the region of the vore where the BHs dominates the interactions
-      //                   | alpha, with alpha = m_hier/m_core
-      // R_hier = R_core x |
-      //                   | mu exp[-0.5], with mu = m_hier/mstar_avg
+      // Let's compute the 0-g BH properties of a retained BH
+      int nsafe = 0;
+      int max_try = 1000; // Maximum number of attempts to find a valid secondary BH
 
-      // Thus, we define:
-      // rho_hier = n_hier * m_hier/(R_hier)^3 from Di Cinto et al. 2023
-      // with m_hier = max( 2 * mstar_avg, s[2] )
-      // in this way we account for the average mass of the 1-g BHs in the cluster for low gens and for the higher gen mergers
+      do{
+        if(mix > mixing){
+        // If in the main we are having not having a mixing we chose from SSE catalogs
+          func.singBHt_new(zams_cat, remn_cat, tdel_cat, kick_cat, single_bh, vesc); 
+        } 
+      else{
+        // If in the main we are having a mixing we chose from the BSE catalogs
+          singBHt_mix(zams_cat, remn_cat, tdel_cat, kick_cat, single_bh, vesc);
+        }
+        nsafe++;
+      }while(single_bh[3]>vesc && nsafe < max_try);
+
+      double m2b = single_bh[0];	 
+      double a2b = func.spin(m2b, stype);
+
+      //Let's compute POTENTIAL the merger remnant and its natal kick
+      func.SREM2(8.0, a_hg, a2b, m_hg, m2b, "dynamical", s);
       
-      //double m_hier = max(2*mstar_avg, s[2]);
-      double m_hier = 2*mstar_avg;
+      m_hg = s[2];
+      a_hg = s[0];
+      vrec = s[3];
 
-      double alpha =  m_hier/mcore; 
-      double mu = m_hier/mstar_avg;
+      // I do the merger of the hierarchical companion with the 0-g BH
+      gen2++; //=> the secondary BHs is of gen2-th generation
 
-      double r_inf = rcore * alpha;
-      double r_wand = rcore * pow(mu, -0.5);
-
-      double r_hier = max(r_inf, r_wand);
-
-      double rho_star = mcore / (mstar_avg * pow(rcore, 3));
-
-      // for the 1-g BH, we assume to generate n_hier = n_bin * nBHs/2
-      // Thus, rho_hier = n_hier * m_hier / V_hier 
-      // We need to fix this number with the fraction of retained 1-g BHs, as GW recoils will eject part of them
-      // but in the interaction rate formula we have rho/m
+      //Now that we have the n-g BH, we can compute the interaction rate
+      interaction_rate = inter_rate(m1, m2b, vesc, m_hg, gen2,
+          nbhs, mhalf, mcore, rcore, n_bin,
+          gwK, gwK_cdf, trelax, t12capt, tbbhform, tcc,
+          pcluster, n_bbh);
       
-      // Thus, we can write:
-      double n_bbh = pow((n_bin /2 ) * nbhs, gen2+1);  // number of BBH mergers in the cluster
-      double n_ret = ret_fract * n_bbh; // number of retained BHs after the GW recoil
-      double n_hier = max(1.0, n_ret); // number of BHs in the hierarchical merger
-      
-      double rho_hier = n_hier / pow(r_hier, 3);
-      
-      // Now we can compute the interaction rate
-      interaction_rate = (rho_hier / rho_star) * pow(s[2] / mstar_avg, 3. / 2.) * (m_bin + s[2]) / (m_bin + mstar_avg);
-      
-      // if (interaction_rate < 0){
-      //  // Print out the components for debugging the interaction rate calculation:
-      //   cout << "Interaction rate <0 details:" << endl;
-      //   cout << "mcore: " << mcore << endl;
-      //   cout << "r_core: " << rcore << endl;
-      //   cout << "r_inf: " << r_inf << endl;
-      //   cout << "r_wand: " << r_wand << endl;
-      //   cout << "rho_hier: " << rho_hier << endl;
-      //   cout << "rho_star: " << rho_star << endl;
-      //   cout << "m2: " << m2 << endl;
-      //   cout << "s[2]: " << s[2] << endl;
-      //   cout << "mstar_avg: " << mstar_avg << endl;
-      //   cout << "m_hier: " << m_hier << endl;
-      //   cout << "m_bin: " << m_bin << endl;
-      //   cout << "n_bhs: " << nbhs << endl;
-      //   cout << "retention fraction: " << ret_fract << endl;
-      //   cout << "n_hiers: " << n_hier << endl;
-      //   cout << "interaction_rate: " << interaction_rate << endl;
-      // }
-
-      // Now I trow a dice, if the interaction rate is high enough, I can have a merger
-      double dice = func.rnd();
-      //If the interaction rate is high enough, we find a companion BH coming from a hierarchical merger
-
-      if(dice > interaction_rate){
-        // If the interaction rate is low, I keep the stellar secondary
-        //cout << "interaction rate too low => 0-th gen secondary" << endl;
-        break;
-      }
-      
-      //If the 1g BH is not expelled from the cluster it pairs with the primary BH
-      double vrec = s[3];
-
-      if(vrec > vesc){
-        //cout << " ejected => 0-th gen secondary - vrec: " << vrec << " vesc: " << vesc << endl;
-        break;
-      }
-      
-      // cout << "#####################################" << endl;
-      // cout << "ID: " << id << " interacted" << endl;
-      // cout <<  "Interaction rate: " << interaction_rate << " dice: " << dice << endl;
-      // cout << "#####################################" << endl;
-
-      // I can have a merger and the new secondary is the result of the merger of 
-      // the 0-g stellar BH and the secondary stellar BH giving birth to a 1-g secondary BH
-      m2 = s[2];
-      a2 = s[0];
-
-      // We have one BBH merger
-      gen2++;
-
       // We have to account for the number of BHs burned throught the hierarchichal chain (particularly relevant for loght Envs)
-      nbhs -= max(1.0, (2 - ret_fract) * n_bbh); 
+      nbhs -= max(1.0, (2 - ret_fract) * n_bbh);
+
+      dice = func.rnd();
+
+      // If the hierarchical is ejected, we stop its growth and the primary BHs take a stellar companion
+      if(vrec>vesc){
+        ejected = "yes";
+        // cout << "ID: " << id << " vrec: " << vrec << " vesc: " << vesc << " gen2: " << gen2
+        //      << " ejected => 0-th gen secondary" << endl;
+        break;
+      }
+      //If the BH encounters the hierarchical companion, we stop its growth because they merge
+      if(dice < interaction_rate){
+        paired = "yes";
+        // cout << "ID: " << id << " interaction rate high enough => " << paired << " gen2: " << gen2 << " m2: " << m_hg
+        //      << " interaction_rate: " << interaction_rate << " dice: " << dice << " ejected: " << ejected << endl;
+        break;
+      }
 
       //We need to adjust the timescale for the next merger
       tau += -0.53 * log10(mhalf) + 5.6 + 1.5* func.rndgen(0.0, 1.0); //See notion notes/plot
-
-      break; // I can have only one hierarchical merger per generation
-
     }
     
+    //If the interaction rate is high enough, we find a companion BH coming from a hierarchical merger
+    if(paired == "yes") {
+      // If the interaction rate is high enough and the hgen byproduct does not recoil, we have a hierarchical companion BH
+      cout << "ID: " << id << " paired: " << paired << " ejected: " << ejected 
+           << " gen2: " << gen2 << " m2: " << m_hg << " cluster: " << pcluster
+           << " vrec: " << vrec << " vesc: " << vesc << endl;
+      // I can have a merger and the new secondary is the result of the merger of 
+      // the 0-g stellar BH and the secondary stellar BH giving birth to a 1-g secondary BH
+      m2 = m_hg;
+      a2 = a_hg;
+      k2 = vrec;
+      hgen = gen2;
+    }     
   }
+
   // If I have no hierarchical merger, I can still have a 0-g merger
-  
   c[0] = m2;
   c[1] = a2;
-  c[2] = gen2;
-  c[3] = interaction_rate;
-  c[4] = nbhs; // number of BHs left in the cluster after the hierarchical merger
-
-  //cout << "hgen output for the " << cnt << "-th generation" << endl;
-  //cout << "ID: " << id << " m2: " << c[0] << " a2: " << c[1] << " cnt: " << c[2] << " interaction_rate: " << c[3] << endl;
-  
+  c[2] = k2;
+  c[3] = hgen;
+  c[4] = interaction_rate;
+  c[5] = nbhs; // number of BHs left in the cluster after the hierarchical merger
   return ;
   
 }
@@ -278,10 +300,6 @@ void singBHt_mix_old(double mssx[], double msdx[], double mbsx[], double mbdx[],
   }
 
 
-  
-
-
-  
   double maxprob;
   double maxtest;
   double maxpoint;
@@ -540,9 +558,7 @@ int main(){
   in.close();
 
 
-  double Hubble = age[0] * 1.E9;
-  cout<<"Hubble time: "<<Hubble<<" yrs"<<endl;
-  
+  double Hubble = age[0] * 1.E9; 
   
   string isospin = spinlb;  
   string dynaS   = spinlb;
@@ -1031,11 +1047,10 @@ int main(){
      
       // New Gaussian sampling corrected with merger efficiency //
       if(MERGER_EFF_CORR == "yes")
-	logz1 = func.Gss_weight(Zeta, Eeta, Zsun, logz_me, sigmaZ, met[0], met[nmetal-1]);      
+	      logz1 = func.Gss_weight(Zeta, Eeta, Zsun, logz_me, sigmaZ, met[0], met[nmetal-1]);      
       //
       else
-	logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[nmetal-1]/Zsun), logz_me, sigmaZ) + log10(Zsun);
-      
+	      logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[nmetal-1]/Zsun), logz_me, sigmaZ) + log10(Zsun);   
     }
     
     logz = logz1;
@@ -1362,17 +1377,13 @@ int main(){
       smaiso = sma_iso[ext];
 	
       if(tdel < Hubble){
-	zmer = func.inter(tdel / 1.E9, age, reds, redline);
-	zfor = func.inter(tform / 1.E9, age, reds, redline);
+        zmer = func.inter(tdel / 1.E9, age, reds, redline);
+        zfor = func.inter(tform / 1.E9, age, reds, redline);
       }
       else{
-	zmer = func.zred(tdel/1.E9);
-	zfor = func.zred(tform/1.E9);
+        zmer = func.zred(tdel/1.E9);
+        zfor = func.zred(tform/1.E9);
       }
-      
-      
-
-
       
       //Dec 23: a space was missing between 0.0 and zmer, resulting in error for isolated binaries ...
       if(tdel < Hubble){
@@ -1388,7 +1399,7 @@ int main(){
       }
       
       if(mpri!=0.0)	
-	out2<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tform<<" "<<tdel<<"-1 -1"<<endl;
+	      out2<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tform<<" "<<tdel<<"-1 -1"<<endl;
 	  
       mpri = -10000.0;
 
@@ -1433,6 +1444,7 @@ int main(){
   int miso = 0;
   int nrecy= 0;
   double cpri ;
+  double interaction_rate=0.0;
 
   double *single_bh;
   single_bh = new double [4];
@@ -1449,9 +1461,9 @@ int main(){
       Z0 = Zmin + k*dZ;
       Z1 = Zmin + (k+1)*dZ;      
       if(Z[i]<pow(10.,Z1) && Z[i]>=pow(10.,Z0))
-	Npar[k] += 1;
+	      Npar[k] += 1;
+      }
     }
-  }
 
   if(MonoZ=="yes" || (sfr_iso=="single" || sfr_clu=="single")){
     int idN = -1;
@@ -1554,24 +1566,22 @@ int main(){
     do{
       double par[spar];
       for(int jj=0;jj<spar;jj++)
-	in>>par[jj];
+	      in>>par[jj];
 		       
-      zams_mix.push_back(par[0]);
-      remn_mix.push_back(par[1]);
-      tdel_mix.push_back(1.E6 * par[3]);
-      kick_mix.push_back(par[4]);
-      
-      if(par[1] > maximus_mix && par[1] < 200.0)
-	maximus_mix = par[1];
-      if(par[1] < minimus_mix)
-	minimus_mix = par[1];
+        zams_mix.push_back(par[0]);
+        remn_mix.push_back(par[1]);
+        tdel_mix.push_back(1.E6 * par[3]);
+        kick_mix.push_back(par[4]);
+        
+        if(par[1] > maximus_mix && par[1] < 200.0)
+          maximus_mix = par[1];
+        if(par[1] < minimus_mix)
+          minimus_mix = par[1];
 
-      if(par[0] > saximus_mix)
-	saximus_mix = par[0];
-      if(par[0] < sinimus_mix)
-	sinimus_mix = par[0];
-
-      
+        if(par[0] > saximus_mix)
+          saximus_mix = par[0];
+        if(par[0] < sinimus_mix)
+          sinimus_mix = par[0];        
     }while(!in.eof());
     in.close();
 
@@ -1588,62 +1598,62 @@ int main(){
     do{
       double par[spar];
       for(int jj=0;jj<spar;jj++)
-	in>>par[jj];
+	      in>>par[jj];
 
-      /*for(int jj=0;jj<spar;jj++)
-	cout<<par[jj]<<" ";
-	cout<<endl;*/     
+        /*for(int jj=0;jj<spar;jj++)
+        cout<<par[jj]<<" ";
+        cout<<endl;*/     
 
-      zams_sin.push_back(par[0]);
-      remn_sin.push_back(par[1]);
-      tdel_sin.push_back(1.E6 * par[3]);
-      kick_sin.push_back(par[4]);
-      if(par[1] > maximus)
-	maximus = par[1];
-      if(par[1] < minimus)
-	minimus = par[1];
-      if(par[0] > saximus)
-	saximus = par[0];
-      if(par[0] < sinimus)
-	sinimus = par[0];
-      
+        zams_sin.push_back(par[0]);
+        remn_sin.push_back(par[1]);
+        tdel_sin.push_back(1.E6 * par[3]);
+        kick_sin.push_back(par[4]);
+        if(par[1] > maximus)
+          maximus = par[1];
+        if(par[1] < minimus)
+          minimus = par[1];
+        if(par[0] > saximus)
+          saximus = par[0];
+        if(par[0] < sinimus)
+          sinimus = par[0];
+        
     }while(!in.eof());
     in.close();
     
 
-	// Reading the GW recoil velocity tables 
-	vector<double> gw_recoil, gw_recoil_cdf;
-	vector<double> gw_recoil_hg, gw_recoil_hg_cdf;
-	string gw_cat_name = "kick_velocity_cdf.csv";
-	in.open(gw_cat_name.c_str());
+    // Reading the GW recoil velocity tables 
+    vector<double> gw_recoil, gw_recoil_cdf;
+    vector<double> gw_recoil_hg, gw_recoil_hg_cdf;
+    string gw_cat_name = predir+"include/kick_velocity_cdf.csv";
+    in.open(gw_cat_name.c_str());
 
-	int gw_kick_col=2;
+    int gw_kick_col=2;
 
-	do{
-		double bpar[spar];
+    do{
+      double bpar[spar];
 
-		for(int jj=0; jj<gw_kick_col; jj++) in>>par[jj];
-		gw_recoil.push_back(par[0]);
-		gw_recoil_cdf.push_back(par[1]);
-		
-		}while (!in.eof());
+      for(int jj=0; jj<gw_kick_col; jj++) in>>par[jj];
+      gw_recoil.push_back(par[0]);
+      gw_recoil_cdf.push_back(par[1]);
+      
+      }while (!in.eof());
 
-	in.close();
+    in.close();
 
-	// Let's read the GW kick cdf for generation above the first
-	string gw_hg_cat_name = "kick_velocity_hg_cdf.csv";
-	in.open(gw_cat_name.c_str());
-	
-	do{
-		double bpar[spar];
+    // Let's read the GW kick cdf for generation above the first
+    string gw_hg_cat_name = predir+"include/kick_velocity_hg_cdf.csv";
+    in.open(gw_cat_name.c_str());
+    
+    do{
+      double bpar[spar];
 
-		for(int jj=0; jj<gw_kick_col; jj++) in>>par[jj];
-		gw_recoil_hg.push_back(par[0]);
-		gw_recoil_hg_cdf.push_back(par[1]);
-		
-		}while (!in.eof());
+      for(int jj=0; jj<gw_kick_col; jj++) in>>par[jj];
+      gw_recoil_hg.push_back(par[0]);
+      gw_recoil_hg_cdf.push_back(par[1]);
+      
+      }while (!in.eof());
 
-	in.close();
+      in.close();
 
     /*double msdx[bin_st],mssx[bin_st];
     double mbdx[nsize],mbsx[nsize];
@@ -1680,43 +1690,40 @@ int main(){
     //cout<<"Initialize matrix"<<endl;
     for(int jj = 0; jj < bin_st ; jj ++){
       for(int ii=0;ii<nsize;ii++)
-	mbhmix[jj][ii] = 0.0;
+	      mbhmix[jj][ii] = 0.0;
       for(int ii=0;ii<tsize;ii++)
-	tbhmix[jj][ii] = 0.0;
+	      tbhmix[jj][ii] = 0.0;
       for(int ii=0;ii<vsize;ii++)
-	vbhmix[jj][ii] = 0.0;      
+	      vbhmix[jj][ii] = 0.0;      
     }
 
 
     for(int ii=0;ii<zams_mix.size();ii++){      
       for(int jj=0;jj<bin_st;jj++){
-	if(zams_mix[ii] > mssx[jj] && zams_mix[ii] <= msdx[jj]){	  
-	  for(int kk=0;kk<nsize;kk++){
-	    if(remn_mix[ii] > mbsx[kk] && remn_mix[ii] <= mbdx[kk]){
-	      mbhmix[jj][kk] += 1;	     
-	    }
-	  }
-	  break;
-	}
+	      if(zams_mix[ii] > mssx[jj] && zams_mix[ii] <= msdx[jj]){	  
+	        for(int kk=0;kk<nsize;kk++){
+	          if(remn_mix[ii] > mbsx[kk] && remn_mix[ii] <= mbdx[kk]){
+	            mbhmix[jj][kk] += 1;	     
+	          }
+	        }
+	        break;
+	      }
       }
       for(int jj=0;jj<nsize;jj++){
-	if(remn_mix[ii] > mbsx[jj] && remn_mix[ii] <= mbdx[jj]){	  
-	  for(int kk=0;kk<tsize;kk++){
-	    if(tdel_mix[ii] > tbsx[kk] && tdel_mix[ii] <= tbdx[kk]){
-	      tbhmix[jj][kk] += 1;	      
-	    }	      
-	  }
-	  
-	  for(int kk=0;kk<vsize;kk++){
-	    if(kick_mix[ii] > vbsx[kk] && kick_mix[ii] <= vbdx[kk]){
-	      vbhmix[jj][kk] += 1;	 
-	    }	      
-	  }
-	  
-	  break;
-	}
-      }
-          
+	      if(remn_mix[ii] > mbsx[jj] && remn_mix[ii] <= mbdx[jj]){	  
+	        for(int kk=0;kk<tsize;kk++){
+	          if(tdel_mix[ii] > tbsx[kk] && tdel_mix[ii] <= tbdx[kk]){
+	            tbhmix[jj][kk] += 1;	      
+	          }	      
+	        }
+          for(int kk=0;kk<vsize;kk++){
+            if(kick_mix[ii] > vbsx[kk] && kick_mix[ii] <= vbdx[kk]){
+              vbhmix[jj][kk] += 1;	 
+            }	      
+          } 
+          break;
+        }
+      }         
     }
     */
 
@@ -1730,16 +1737,16 @@ int main(){
       func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, 1.E30);
       kikki = single_bh[2];
       for(int im=0;im<50;im++){
-	if(kikki < vnat_dx[im]){
-	  nnat_dx[im] += 1.0;	  
-	}	
+        if(kikki < vnat_dx[im]){
+          nnat_dx[im] += 1.0;	  
+        }	
       }
       singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, 1.e30);
       kikki = single_bh[2];
       for(int im=0;im<50;im++){
-	if(kikki < vnat_dx[im]){
-	  nmix_dx[im] += 1.0;	  
-	}	
+        if(kikki < vnat_dx[im]){
+          nmix_dx[im] += 1.0;	  
+        }	
       }
       
       
@@ -1769,7 +1776,11 @@ int main(){
     for(int i=Niso; i<Nsrc; i++){
       
       string cluster_stat="none";
-	
+      
+      int gen_primary = 0;
+      //int nhigen = 0;
+
+
       
       Zi[i] = Z[i];
       
@@ -1780,305 +1791,302 @@ int main(){
 
       if( (Z[i] < pow(10.,Z1) && Z[i] >= pow(10.,Z0)) || ((MonoZ == "yes" || (sfr_clu == "single" && sfr_iso=="single")) && Z[i] == met[k])) {
 
-	//cout<<"ENTRATO"<<endl;
-	
-	npar_runtime ++;
-	if(i>=Niso     && i<Niso+Nyc)     cluster = "young";
-	if(i>=Niso+Nyc && i<Niso+Nyc+Ngc) cluster = "globular";
-	if(i>=Niso+Nyc+Ngc)               cluster = "nuclear";
-
-	
-	//NB: the primary shouldn't have zero mass!!!	
-	// CLUSTER'S PROPERTIES //
-
-	double vthre = 0.0;
-	double nbhs  = 0.0;
-	
-	vector<double> mx,my;
-	vector<double> rx,ry;
-	
-	int ipre,ipos;
-	string pcluster = cluster;
-	string label = "retained";
-	
-	if(cluster == "young"){
-	  //vthre = 3.0;
-	  mx = YCmx;
-	  my = YCmy;
-	  rx = YCrx;
-	  ry = YCry;
-	}
-	if(cluster == "globular"){
-	  //vthre = 15.0;
-	  mx = GCmx;
-	  my = GCmy;
-	  rx = GCrx;
-	  ry = GCry;
-	}
-	if(cluster == "nuclear"){
-	  //vthre = vmaxNC;
-	  mx = NCmx;
-	  my = NCmy;
-	  rx = NCrx;
-	  ry = NCry;
-	}
-
-	int kmeta;
-	double esc,mint,rint,lsig,sig_clu,rho_clu,mstar,rho_cubicpc;
-	double vthre_in, sig_clu_in,rho_clu_in,rho_cubicpc_in;
-	double metal, zita, logL, rhalf, mhalf, fb;
-	double tSNe, mper, trelax, trelax0, tcc, tdf, semihard, kappa, semi, ecc, t12, acrit, tbbh, tmer, mu_red, sma;
-	double t3bb, t12capt, tbbhform;
-	double time,nsafe_glob,nsafe,mass_ratio, mixer, nhigen;
-	string stri_mrat;
-
-	double mclcorr = 1.0;
-	double rclcorr = 1.0;
-
-	zita = 1.0;
-	logL = 15.;
-
-	//Here we need to set a specific binary fraction per cluster type (and perhaps time evolution?)
-	//fb   = 0.01; 	
-	if(cluster == "young")
-	  fb = 0.4;
-	else if(cluster == "globular")
-	  fb = 0.1;
-	else if(cluster == "nuclear")
-	  fb = 0.01;
-	//
-	
-
-	mper = 15.0;
-	
-	mixer = func.rnd();
-
-	double vlimiting = 2.;
-
-
-	if(mixer > mixing){
-	  if(met[k] == 0.02)
-	    vlimiting = 10.;
-	}
-	
-	
-
-	int nsafe_cal = 0;
-	//do{ removed this to take into account also ICs that do not produce merging BHs
-
-  nsafe_cal ++;
-  //SELECTCLUSTER PROPERTIES
-  mint = 0;
-  do{	    
+       //cout<<"ENTRATO"<<endl;
     
-    esc = func.rnd();
-    ipre=mx.size();
-    ipos=0;
-    for(int escid=0;escid<mx.size();escid++){
-      if(esc>my[escid])
-        ipre = escid;
-      if(esc<my[escid]){
-        ipos = escid;
-        break;
-      }	  	    
-    }
+        npar_runtime ++;
+        if(i>=Niso     && i<Niso+Nyc)     cluster = "young";
+        if(i>=Niso+Nyc && i<Niso+Nyc+Ngc) cluster = "globular";
+        if(i>=Niso+Nyc+Ngc)               cluster = "nuclear";
+
     
-    if(ipos==0){
-      ipre = 0;
-      ipos = 1;
-    }
-    if(ipre==mx.size()-1){
-      ipre = mx.size()-2;
-      ipos = mx.size()-1;
-    }
-	    
-	    
-    mint = (mx[ipre] - mx[ipos])/(my[ipre] - my[ipos])*(esc - my[ipre])+mx[ipre];
-    if(cluster_test == "yes"){
-      
-      mint = 4.0 + 3.0*func.rnd();
+        //NB: the primary shouldn't have zero mass!!!	
+        // CLUSTER'S PROPERTIES //
 
-    if(cluster_test_env == "NC")
-        mint = 6.0+4.0*func.rnd();
-
-    if(cluster_test_env == "YC")
-        mint = 3.0 + 2.0*func.rnd();      
-    }
-	   
-
-	      
-	    do{
-	      esc = func.rnd();
-	      ipre=rx.size();
-	      ipos=rx[0];
-	      for(int escid=0;escid<rx.size();escid++){
-          if(esc>ry[escid])
-            ipre = escid;
-          if(esc<ry[escid]){
-            ipos = escid;
-            break;
-          }	  	    
+        double vthre = 0.0;
+        double nbhs  = 0.0;
+        
+        vector<double> mx,my;
+        vector<double> rx,ry;
+        
+        int ipre,ipos;
+        string pcluster = cluster;
+        string label = "retained";
+        
+        if(cluster == "young"){
+          //vthre = 3.0;
+          mx = YCmx;
+          my = YCmy;
+          rx = YCrx;
+          ry = YCry;
         }
-	      
-	      
-	      rint = (rx[ipre] - rx[ipos])/(ry[ipre] - ry[ipos])*(esc - ry[ipre])+rx[ipre];
+        if(cluster == "globular"){
+          //vthre = 15.0;
+          mx = GCmx;
+          my = GCmy;
+          rx = GCrx;
+          ry = GCry;
+        }
+        if(cluster == "nuclear"){
+        //vthre = vmaxNC;
+        mx = NCmx;
+        my = NCmy;
+        rx = NCrx;
+        ry = NCry;
+      }
 
-	      double mclu_int = pow(10., mint);
-	      if(TagR == "Marks12" && cluster == "young"){
+        int kmeta;
+        double esc,mint,rint,lsig,sig_clu,rho_clu,mstar,rho_cubicpc;
+        double vthre_in, sig_clu_in,rho_clu_in,rho_cubicpc_in;
+        double metal, zita, logL, rhalf, mhalf, fb;
+        double tSNe, mper, trelax, trelax0, tcc, tdf, semihard, kappa, semi, ecc, t12, acrit, tbbh, tmer, mu_red, sma;
+        double t3bb, t12capt, tbbhform;
+        double time,nsafe_glob,nsafe,mass_ratio, mixer;
+        int nhigen = 0;
+        string stri_mrat;
 
-		/*
-		double mu_mrk12 = func.rnd();
-		double smrk12 = 2.0;
-		mint = log10(pow(mu_mrk12 * pow(1.E6,1.-smrk12) + (1.-mu_mrk12)*pow(3.E2,1.-smrk12),1./(1.-smrk12)));
+        double mclcorr = 1.0;
+        double rclcorr = 1.0;
 
-		mclu_int = pow(10.,mint);
-		*/
-		
-		double alphaMK12 = 0.1 * (1. + (-0.04+0.11*func.rnd()));		
-		double betaMK12 = 0.13 * (1. + 0.04*(1.-2.*func.rnd()));
-		rint = log10(alphaMK12 * pow(mclu_int,betaMK12));
+        zita = 1.0;
+        logL = 15.;
 
-	      }	     
-	      else if(TagR == "Rantala24" && cluster == "young"){
+        //Here we need to set a specific binary fraction per cluster type (and perhaps time evolution?)
+        //fb   = 0.01; 	
+        if(cluster == "young")
+          fb = 0.4;
+        else if(cluster == "globular")
+          fb = 0.1;
+        else if(cluster == "nuclear")
+          fb = 0.01;
+        //
+    
 
-		double alphaBG = 2.365 * (1. + 0.106*(1.-2.*func.rnd()));
-		double betaBG = 0.180 * (1. + 0.028 * (1.-2.*func.rnd()));
-		rint = log10(0.125/1.3 * alphaBG * pow(mclu_int/1.E4,betaBG));
+        mper = 15.0;
+        
+        mixer = func.rnd();
 
-	      }
-	      else if(TagR == "Mapelli20"){
-
-		double mean, sigma;
-		sigma = log(pow(10.,0.4));
-		if(cluster=="young")
-		  mean = log(pow(10.,4.3));
-		else if(cluster == "globular")
-		  mean = log(pow(10.,5.6));
-		else if(cluster == "nuclear")
-		  mean = log(pow(10.,6.18));
-
-		//mint = func.LOGSMP(mean, sigma);
-		mint = func.LogGaussian(mean, sigma);		
-		
-		mint = log10(mint);
-		double rhoint = -1;
-		
-		if(cluster=="young")
-		  mean = log(pow(10.,3.3));
-		else if(cluster == "globular")
-		  mean = log(pow(10.,3.7));
-		else if(cluster == "nuclear")
-		  mean = log(pow(10.,5.0));
+        double vlimiting = 2.;
 
 
-		//rhoint = func.LOGSMP(mean, sigma);
-		rhoint = func.LogGaussian(mean, sigma);
-		rhoint = log10(rhoint);
-		
-		rint = (mint - rhoint)/3.0;
+        if(mixer > mixing){
+          if(met[k] == 0.02)
+            vlimiting = 10.;
+        }
 
-	      }
-	      else if(TagR == "lupi"){
-		mint = log10(1.E6);
-		rint = log10(1.0);
-	      }
-	      else if(TagR == "AS20" && cluster == "nuclear"){
-		//Select if it's late type (50%) or early type (50%)
-		//calculate rint from mint using a 3sigma dispersion
-		//assign rint
+        int nsafe_cal = 0;
+        //do{ removed this to take into account also ICs that do not produce merging BHs
 
-		double Plate = func.rnd();
-		double c1_nc, c2_nc, a_nc, b_nc, e_nc;
-		if(Plate > 0.5){
-		  c1_nc = 3.31;
-		  c2_nc = 3.6E6;
-		  a_nc  = 0.321;
-		  b_nc  = -0.011;
-		  e_nc =  5.*0.133;
-		}		  
-		else{
-		  c1_nc = 6.27;
-		  c2_nc = 1.95E6;
-		  a_nc  = 0.347;
-		  b_nc  = -0.024;
-		  e_nc  = 5.*0.131;
-		}
+        nsafe_cal ++;
+        //SELECTCLUSTER PROPERTIES
+        mint = 0;
+        do{
+          //cout<<"nrecy: "<<nrecy<<endl;	    
+          
+          esc = func.rnd();
+          ipre=mx.size();
+          ipos=0;
+          for(int escid=0;escid<mx.size();escid++){
+            if(esc>my[escid])
+              ipre = escid;
+            if(esc<my[escid]){
+              ipos = escid;
+              break;
+            }	  	    
+          }
+        
+          if(ipos==0){
+            ipre = 0;
+            ipos = 1;
+          }
+          if(ipre==mx.size()-1){
+            ipre = mx.size()-2;
+            ipos = mx.size()-1;
+          }
+          
+          
+          mint = (mx[ipre] - mx[ipos])/(my[ipre] - my[ipos])*(esc - my[ipre])+mx[ipre];
+          if(cluster_test == "yes"){
+            
+            mint = 4.0 + 3.0*func.rnd();
 
-		rint = func.geo16Rnc(mint, c1_nc, c2_nc, a_nc, b_nc, e_nc);
+          if(cluster_test_env == "NC")
+              mint = 6.0+4.0*func.rnd();
 
-	      }	      
-	      else{
-		if(TagR != "AS20" && cluster=="young"){
-		  cout<<"Please choose a recipe for initial cluster radii"<<endl;
-		  exit(0);
-		}
-	      }
-	      
-	      
-	      
-	      if(TagR != "AS20" && (cluster=="nuclear" || cluster_test == "yes")){
-		double lnrhalf;
-		
-		double A_r = 0.222887 ; // +/- 0.03415      (15.32%)
-		double B_r = -0.909231; // +/- 0.2196       (24.15%)
-		
-		if(cluster_test == "yes" && cluster_test_env != "NC")
-		  lnrhalf = -1.5 + 2.5*func.rnd();
-		else if(cluster == "nuclear" || cluster_test_env == "NC"){
-		  lnrhalf = A_r * (1.+ 3.*0.03415*(1.-2.*func.rnd())) * mint + B_r * (1. + 5.*0.2196 * (1.-2.*func.rnd()));
+          if(cluster_test_env == "YC")
+              mint = 3.0 + 2.0*func.rnd();      
+          }
+        
 
-		}
-		
-		rint = lnrhalf ;
-		
-	      }
-	    }while( pow(10.,rint) < 0.0 ); //10.*0.8*pow(pow(10.,mint)/1000.,0.2));
-	    
-	    
-	    
-	    vthre = func.vescape(pow(10.,rint),pow(10.,mint),pcluster);
-	  }while(vthre < vlimiting);// || mint < 3.0 || pow(10.,mint)/pow(pow(10.,rint),3.) < 100.);
-	  	  
-	  //the limiting values above lead to 20-50% loss of sources and ensure that the time remain t < 13.5 Gyr//
-	  //particularly the M/R^3 < 100 Msun/pc^3 region has no sources with t < 13.5 Gyr with single BHs  !!//
-	  
-	  lsig = 0.5 * (-1.14 + log10(6.67E-11*1.99E30/3.08E16 * pow(10.,mint)/pow(10.,rint) ));			 
-	  sig_clu = 0.001*pow(10.,lsig);
-	  
-	  rho_clu = 3. *pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));//(3.-2.*func.rnd())*pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));
-	  
-	  mstar = 1.0;
-	  rho_cubicpc = rho_clu / mstar;
+            
+          do{
+            esc = func.rnd();
+            ipre=rx.size();
+            ipos=rx[0];
+            for(int escid=0;escid<rx.size();escid++){
+              if(esc>ry[escid])
+                ipre = escid;
+              if(esc<ry[escid]){
+                ipos = escid;
+                break;
+              }	  	    
+            }
+            
+            
+            rint = (rx[ipre] - rx[ipos])/(ry[ipre] - ry[ipos])*(esc - ry[ipre])+rx[ipre];
 
-	  //nbhs = 0.01*pow(10.,mint)/30.;
-	  double alpha_AS = 0.903;
-	  double beta_AS  = -0.79; 
-	  double alpha1_AS= 1.14;
-	  double beta1_AS = -0.62;
-	  double Mcluster = pow(10.,mint);
+            double mclu_int = pow(10., mint);
+            if(TagR == "Marks12" && cluster == "young"){
 
-	  
-	  double fblack   = 0.083; 
-	  
-	  
-	  rhalf = pow(10.,rint);
-	  mhalf = pow(10.,mint);	  	  
+              /*
+              double mu_mrk12 = func.rnd();
+              double smrk12 = 2.0;
+              mint = log10(pow(mu_mrk12 * pow(1.E6,1.-smrk12) + (1.-mu_mrk12)*pow(3.E2,1.-smrk12),1./(1.-smrk12)));
 
-	  
-	  trelax =  0.78E9 /log(0.11 * mhalf) * pow(mhalf/1.E5, 0.5) * pow(rhalf, 1.5); //4.2E9 * (15./logL) * pow(rhalf/4.0,1.5) * sqrt(mhalf/1.E7) ;
-	  trelax0 = trelax;
-	  //cout << "	  -- Cluster relaxation time: " << trelax << " Gyr" << endl;
+              mclu_int = pow(10.,mint);
+              */
+              
+              double alphaMK12 = 0.1 * (1. + (-0.04+0.11*func.rnd()));		
+              double betaMK12 = 0.13 * (1. + 0.04*(1.-2.*func.rnd()));
+              rint = log10(alphaMK12 * pow(mclu_int,betaMK12));
 
-	  tcc = 0.138*mhalf/(150. * log(0.11*mhalf/150.))*sqrt(pow(rhalf*3.08E16,3.)/(6.67E-11*1.99E30*mhalf))/(365.*24.*3600.);
+            }	     
+            else if(TagR == "Rantala24" && cluster == "young"){
 
-	  if(tcc < 0. || tcc > trelax)
-	    tcc = 0.2 * trelax; //Portegies-Zwart & McMillan 2002/2004
-	   
-	  
-	  vthre_in = vthre;
-	  sig_clu_in = sig_clu;
-	  rho_clu_in = rho_clu;
-	  rho_cubicpc_in = rho_cubicpc;
+              double alphaBG = 2.365 * (1. + 0.106*(1.-2.*func.rnd()));
+              double betaBG = 0.180 * (1. + 0.028 * (1.-2.*func.rnd()));
+              rint = log10(0.125/1.3 * alphaBG * pow(mclu_int/1.E4,betaBG));
+
+            }
+            else if(TagR == "Mapelli20"){
+
+              double mean, sigma;
+              sigma = log(pow(10.,0.4));
+              if(cluster=="young")
+                mean = log(pow(10.,4.3));
+              else if(cluster == "globular")
+                mean = log(pow(10.,5.6));
+              else if(cluster == "nuclear")
+                mean = log(pow(10.,6.18));
+
+              //mint = func.LOGSMP(mean, sigma);
+              mint = func.LogGaussian(mean, sigma);		
+              
+              mint = log10(mint);
+              double rhoint = -1;
+              
+              if(cluster=="young")
+                mean = log(pow(10.,3.3));
+              else if(cluster == "globular")
+                mean = log(pow(10.,3.7));
+              else if(cluster == "nuclear")
+                mean = log(pow(10.,5.0));
+
+
+              //rhoint = func.LOGSMP(mean, sigma);
+              rhoint = func.LogGaussian(mean, sigma);
+              rhoint = log10(rhoint);
+              
+              rint = (mint - rhoint)/3.0;
+
+            }
+            else if(TagR == "lupi"){
+              mint = log10(1.E6);
+              rint = log10(1.0);
+            }
+            else if(TagR == "AS20" && cluster == "nuclear"){
+              //Select if it's late type (50%) or early type (50%)
+              //calculate rint from mint using a 3sigma dispersion
+              //assign rint
+
+              double Plate = func.rnd();
+              double c1_nc, c2_nc, a_nc, b_nc, e_nc;
+              if(Plate > 0.5){
+                c1_nc = 3.31;
+                c2_nc = 3.6E6;
+                a_nc  = 0.321;
+                b_nc  = -0.011;
+                e_nc =  5.*0.133;
+              }		  
+              else{
+                c1_nc = 6.27;
+                c2_nc = 1.95E6;
+                a_nc  = 0.347;
+                b_nc  = -0.024;
+                e_nc  = 5.*0.131;
+              }
+
+            rint = func.geo16Rnc(mint, c1_nc, c2_nc, a_nc, b_nc, e_nc);
+
+            }	      
+            else{
+              if(TagR != "AS20" && cluster=="young"){
+                cout<<"Please choose a recipe for initial cluster radii"<<endl;
+                exit(0);
+              }
+            }
+                    
+            if(TagR != "AS20" && (cluster=="nuclear" || cluster_test == "yes")){
+              double lnrhalf;
+              
+              double A_r = 0.222887 ; // +/- 0.03415      (15.32%)
+              double B_r = -0.909231; // +/- 0.2196       (24.15%)
+              
+              if(cluster_test == "yes" && cluster_test_env != "NC")
+                lnrhalf = -1.5 + 2.5*func.rnd();
+              else if(cluster == "nuclear" || cluster_test_env == "NC"){
+                lnrhalf = A_r * (1.+ 3.*0.03415*(1.-2.*func.rnd())) * mint + B_r * (1. + 5.*0.2196 * (1.-2.*func.rnd()));
+
+              }
+              
+              rint = lnrhalf ;
+        
+            }
+          }while( pow(10.,rint) < 0.0 ); //10.*0.8*pow(pow(10.,mint)/1000.,0.2));
+          
+          
+          
+          vthre = func.vescape(pow(10.,rint),pow(10.,mint),pcluster);
+        }while(vthre < vlimiting);// || mint < 3.0 || pow(10.,mint)/pow(pow(10.,rint),3.) < 100.);
+          
+        //the limiting values above lead to 20-50% loss of sources and ensure that the time remain t < 13.5 Gyr//
+        //particularly the M/R^3 < 100 Msun/pc^3 region has no sources with t < 13.5 Gyr with single BHs  !!//
+        
+        lsig = 0.5 * (-1.14 + log10(6.67E-11*1.99E30/3.08E16 * pow(10.,mint)/pow(10.,rint) ));			 
+        sig_clu = 0.001*pow(10.,lsig);
+        
+        rho_clu = 3. *pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));//(3.-2.*func.rnd())*pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));
+        
+        mstar = 1.0;
+        rho_cubicpc = rho_clu / mstar;
+
+        //nbhs = 0.01*pow(10.,mint)/30.;
+        double alpha_AS = 0.903;
+        double beta_AS  = -0.79; 
+        double alpha1_AS= 1.14;
+        double beta1_AS = -0.62;
+        double Mcluster = pow(10.,mint);
+
+        double fblack   = 0.083; 
+        
+        
+        rhalf = pow(10.,rint);
+        mhalf = pow(10.,mint);	  	  
+
+        
+        trelax =  0.78E9 /log(0.11 * mhalf) * pow(mhalf/1.E5, 0.5) * pow(rhalf, 1.5); //4.2E9 * (15./logL) * pow(rhalf/4.0,1.5) * sqrt(mhalf/1.E7) ;
+        trelax0 = trelax;
+        //cout << "	  -- Cluster relaxation time: " << trelax << " Gyr" << endl;
+
+        tcc = 0.138*mhalf/(150. * log(0.11*mhalf/150.))*sqrt(pow(rhalf*3.08E16,3.)/(6.67E-11*1.99E30*mhalf))/(365.*24.*3600.);
+
+        if(tcc < 0. || tcc > trelax)
+          tcc = 0.2 * trelax; //Portegies-Zwart & McMillan 2002/2004
+        
+        
+        vthre_in = vthre;
+        sig_clu_in = sig_clu;
+        rho_clu_in = rho_clu;
+        rho_cubicpc_in = rho_cubicpc;
 	  
 	  // HERE WE HAVE THE CLUSTER INITIAL PROPERTIES
 	  /*
@@ -2095,364 +2103,338 @@ int main(){
 	   */
 
 	  // Cluster scale radius (from Dehnen) //
-	  double g_cl;
-	  if(cluster == "young")
-	    g_cl = 1.0;
-	  else if(cluster == "globular")
-	    g_cl = 1.5;
-	  else if(cluster == "nuclear")
-	    g_cl = 1.9;
-	  
-	  double a_cl = rhalf*(pow(2.,1./(3.-g_cl))-1);
+        double g_cl;
+        if(cluster == "young")
+          g_cl = 1.0;
+        else if(cluster == "globular")
+          g_cl = 1.5;
+        else if(cluster == "nuclear")
+          g_cl = 1.9;
+      
+        double a_cl = rhalf*(pow(2.,1./(3.-g_cl))-1);
 
-	  // DOUBLE CHECK THE FOLLOWING //
-	  
-	  // Max radius from which BHs can spiral-in over a Hubble time via DF //	  
-	  double radius = rhalf * pow( (Hubble - tfor[i]*1.E9) / (0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9)) , 1./1.74);
+        // DOUBLE CHECK THE FOLLOWING //
+        
+        // Max radius from which BHs can spiral-in over a Hubble time via DF //	  
+        double radius = rhalf * pow( (Hubble - tfor[i]*1.E9) / (0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9)) , 1./1.74);
 
-	  // Fraction of mass enclosed within the infall radius above //
-	  double fencl = (radius / (radius + a_cl),3.-g_cl) * (1. + 0.2*(1.-2.*func.rnd()));
+        // Fraction of mass enclosed within the infall radius above //
+        double fencl = (radius / (radius + a_cl),3.-g_cl) * (1. + 0.2*(1.-2.*func.rnd()));
 
-	  // retention fraction freten //
-	  double freten = 0.5 * (1. + 0.3*(1.-2.*func.rnd()));
+        // retention fraction freten //
+        double freten = 0.5 * (1. + 0.3*(1.-2.*func.rnd()));
 
-	  // Fraction number of BHs in a power-law IMF between 0.08 and 150 Msun//
-	  double fraBH = 0.0008 * (1. + 0.1*(1.-2.*func.rnd()));
-	  
-	  // This depends on the number fraction of BHs in the cluster, we're also assuming mint == N_* 
-	  nbhs = fraBH * pow(10.,mint) * freten * fencl;
+        // Fraction number of BHs in a power-law IMF between 0.08 and 150 Msun//
+        double fraBH = 0.0008 * (1. + 0.1*(1.-2.*func.rnd()));
+        
+        // This depends on the number fraction of BHs in the cluster, we're also assuming mint == N_* 
+        nbhs = fraBH * pow(10.,mint) * freten * fencl;
 
+        if(nbhs < 2)
+          nbhs = 2;
+        if(nbhs < 1){
+          cout<<"Warning -- no BHs in the centre!? "<<nbhs<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<pcluster<<endl;
+          exit(0);
+        }
+      
+        stri_mrat = MRATIO;
+        nsafe_glob = 0;
+        nsafe = 0;	 
+      
+        if(mixer > mixing){		
+          mpri = -1;
+          kpri = 1.E30;
+          do{
+            //func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
+            func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, vthre);
+            mpri = single_bh[0];	 
+            tpri = single_bh[1];
+            kpri = single_bh[2];
+            if(mpri > 0.0 && kpri > vthre)
+              break;
+            nsafe ++;
+          }while(mpri <= 0.0 || kpri > vthre);
+        }
+        else{	  
+          MSLP = mslope;
+          mpri = -1;
+          kpri = 1.E30;
+          int nsafe = 0;
+          do{
+            //singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+            singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
+            mpri = single_bh[0];	  	  
+            tpri = single_bh[1];
+            kpri = single_bh[2];	      
+            if(nsafe > 1000)
+              break;
+            
+            nsafe ++;
+          }while(mpri <= 0.0 || kpri > vthre);
+        }  
+        apri = func.spin(mpri,dynaS);	
 
-	  
-	  if(nbhs < 2)
-	    nbhs = 2;
-	  
-	  
-	  if(nbhs < 1){
-	    cout<<"Warning -- no BHs in the centre!? "<<nbhs<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<pcluster<<endl;
-	    exit(0);
-	  }
-	  
-	  
-	  stri_mrat = MRATIO;
-	  nsafe_glob = 0;
-	  nsafe = 0;	 
-	  nhigen = 0;
-	  
-	  if(mixer > mixing){		
-	    mpri = -1;
-	    kpri = 1.E30;
-	    do{
-	      //func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
-	      func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, vthre);
-	      mpri = single_bh[0];	 
-	      tpri = single_bh[1];
-	      kpri = single_bh[2];
-	      if(mpri > 0.0 && kpri > vthre)
-		break;
+        if(nsafe == 1000)
+          cout<<"Wrong BH"<<endl;
+        
+        nsafe_glob += nsafe;
+        
+        mass_ratio = -1;
+        nsafe = 0;       
+        if(stri_mrat != "nouniform"){
+          do{
+            mass_ratio = func.mratio(mpri, MRATIO_SLOPE, stri_mrat);
+            msec = mpri * mass_ratio;
+            for(int iii=0; iii<remn_sin.size()-1;iii++){
+              if(msec > remn_sin[iii] && msec < remn_sin[iii+1]){
+                tsec = 0.5*(tdel_sin[iii] + tdel_sin[iii+1]) ;
+              }
+            }
 
-	      nsafe ++;
-	      
-	    }while(mpri <= 0.0 || kpri > vthre);
-	  }
-	  else{	  
-	    MSLP = mslope;
-	    mpri = -1;
-	    kpri = 1.E30;
-	    int nsafe = 0;
-	    do{
-	      //singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-	      singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
-	      mpri = single_bh[0];	  	  
-	      tpri = single_bh[1];
-	      kpri = single_bh[2];	      
-	      if(nsafe > 1000)
-		break;
-	      
-	      nsafe ++;
-	    }while(mpri <= 0.0 || kpri > vthre);
-	  }	  
-	  apri   = func.spin(mpri,dynaS);	
+            if(nsafe > 1000){
+              cout<<"mratio fails"<<endl;
+              exit(0);
+            }
+            nsafe += 1;
+          }while(msec < 1. || msec > 500.); 
+        }
 
-	  if(nsafe == 1000)
-	    cout<<"Wrong BH"<<endl;
-	  
-	  nsafe_glob += nsafe;
-	  
-	  mass_ratio = -1;
-	  nsafe = 0;       
-	  if(stri_mrat != "nouniform"){
-	    do{
-	      mass_ratio = func.mratio(mpri, MRATIO_SLOPE, stri_mrat);
-	      msec = mpri * mass_ratio;
-	      for(int iii=0; iii<remn_sin.size()-1;iii++){
-		if(msec > remn_sin[iii] && msec < remn_sin[iii+1]){
-		  tsec = 0.5*(tdel_sin[iii] + tdel_sin[iii+1]) ;
-		}
-	      }
+        else{
+          msec = -1;
+          ksec = 1.E30;
+          nsafe = 0;
+          if(mixer > mixing){
+            do{
+              //func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+              func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh,vthre);	  
+              msec = single_bh[0];	 
+              tsec = single_bh[1];
+              ksec = single_bh[2];	    
 
-	      if(nsafe > 1000){
-		cout<<"mratio fails"<<endl;
-		exit(0);
-	      }
-	      nsafe += 1;
-	    }while(msec < 1. || msec > 500.);
+              if(msec > minimus && ksec < vthre)
+                break;
+              
+              nsafe ++;
+              if(single_bh[3] == 1)
+                break;
+              
+              else if(nsafe > 500){
+                cout<<npar_runtime<<" "<<i<<" "<<Z[i]<<" "<<msec<<" "<<tsec<<" "<<ksec<<endl;
+              }
+              
+              if(nsafe > 1000){
+                cout<<"Something wrong " <<msec<<" "<<tsec<<" "<<ksec<<" "<<minimus<<" "<<vthre<<endl;
+                exit(0);
+              }
+        
+            }while(msec <= minimus || ksec > vthre);
+            
+            if(msec < minimus){
+              cout<<"Second BH mass below mmin = "<<minimus<<" "<<msec<<endl;
+            }  
+          }
+          else{
+            double MSLP = mslope;
+            msec = -1;
+            ksec = 1.E30;
+            do{
+              //singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+              singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
+              msec = single_bh[0];	  	  
+              tsec = single_bh[1];
+              ksec = single_bh[2];	    
+              if(nsafe > 1000)
+                break;
+              nsafe ++;
+            }while(msec <= 0.0 || ksec > vthre);
+          }
+          if(msec == 0){
+            time = 1.e30;
+            break;
+          }
 	    
-	  }
-	  else{
-	    msec = -1;
-	    ksec = 1.E30;
-	    nsafe = 0;
-	    if(mixer > mixing){
-	      do{
-		
-		//func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
-		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh,vthre);	  
-		msec = single_bh[0];	 
-		tsec = single_bh[1];
-		ksec = single_bh[2];	    
+        //   if(highgen == "yes"){
+        //     //This section needs to be improved, especially for what concern the probability of repeated mergers
+        //     double p_BPOP;
+        //     if(cluster == "globular")
+        // p_BPOP = 295. / 1.E4; //this is valid for GCs with Z = 0.0002 (would it change with different metallicity?)
+        //     else if(cluster == "nuclear")
+        // p_BPOP = 2740./ 1.E4;
+        //     else if(cluster == "young")
+        // p_BPOP = 0.0;
+          
+        //     double p_hgen = func.rnd();
+        //     double mav = 30.;
+        //     if(p_hgen < p_BPOP){
+        // double coef = 0.2 + 0.8*func.rnd();
+        // msec = mav * (1. + msec/mav * (1.+mav/6.0));	       
+        //     }
+        //     nhigen += int(msec / mav);
 
-		if(msec > minimus && ksec < vthre)
-		  break;
-		
-		nsafe ++;
-		if(single_bh[3] == 1)
-		  break;
-		
-		else if(nsafe > 500){
-		  cout<<npar_runtime<<" "<<i<<" "<<Z[i]<<" "<<msec<<" "<<tsec<<" "<<ksec<<endl;
-		}
-		
-		if(nsafe > 1000){
-		  cout<<"Something wrong " <<msec<<" "<<tsec<<" "<<ksec<<" "<<minimus<<" "<<vthre<<endl;
-		  exit(0);
-		}
-		
-	      }while(msec <= minimus || ksec > vthre);
-	      
-	      if(msec < minimus){
-		cout<<"Second BH mass below mmin = "<<minimus<<" "<<msec<<endl;
-	      }
-	      
-	    }
-	    else{
-	      double MSLP = mslope;
-	      msec = -1;
-	      ksec = 1.E30;
-	      do{
-		//singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-		singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
-		msec = single_bh[0];	  	  
-		tsec = single_bh[1];
-		ksec = single_bh[2];	    
-		if(nsafe > 1000)
-		  break;
-		nsafe ++;
-
-	      }while(msec <= 0.0 || ksec > vthre);
-	      
-	    }
-
-	    if(msec == 0){
-	      time = 1.e30;
-	      break;
-	    }
-	    
-	  //   if(highgen == "yes"){
-	  //     //This section needs to be improved, especially for what concern the probability of repeated mergers
-	  //     double p_BPOP;
-	  //     if(cluster == "globular")
-		// p_BPOP = 295. / 1.E4; //this is valid for GCs with Z = 0.0002 (would it change with different metallicity?)
-	  //     else if(cluster == "nuclear")
-		// p_BPOP = 2740./ 1.E4;
-	  //     else if(cluster == "young")
-		// p_BPOP = 0.0;
-	    
-	  //     double p_hgen = func.rnd();
-	  //     double mav = 30.;
-	  //     if(p_hgen < p_BPOP){
-		// double coef = 0.2 + 0.8*func.rnd();
-		// msec = mav * (1. + msec/mav * (1.+mav/6.0));	       
-	  //     }
-	  //     nhigen += int(msec / mav);
-
-	  //     asec = 0.7; // Need adjustments
-	      
-	  //   }
+        //     asec = 0.7; // Need adjustments
+            
+        //   }
 
 
-	    if(msec > mpri){
-	      double dum1;
-	      dum1 = msec;
-	      msec = mpri;
-	      mpri = dum1;
-	      dum1 = tsec;
-	      tsec = tpri;
-	      tpri = dum1;
-	    }
-	  }
+        if(msec > mpri){
+          double dum1;
+          dum1 = msec;
+          msec = mpri;
+          mpri = dum1;
+          dum1 = tsec;
+          tsec = tpri;
+          tpri = dum1;
+        }
+      }
 
-	  //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
-	  double prob_ugp = func.rnd();
-	  double prob_fgp = func.rnd();
-	  string UP = upgtp;
-	  double fUP= fupgp;
-			     
-	  if(UP == "dicarlo")
-	    fUP = 0.01 * (1. + 5.797 * exp(Z[i] / 0.0002 * log(5./5.797)));
-	  
-	  if(uppergap == "yes" && prob_ugp >= pbelow && prob_fgp < fUP){
-	      
-	    double p_gp;
-	    p_gp = func.rnd();
-	    double m1_gp = pow(p_gp * pow(100.,1.-a_gp) + (1.-p_gp)*pow(50., 1.-a_gp), 1./(1.-a_gp));
-	    p_gp = func.rnd();
-	    double m2_gp;
-	    //The following make results DRAGON-II like!
-	    if(m1_gp < 100.)
-	      m2_gp = m1_gp * (0.4 + 0.6*func.rnd()); 
-	    else
-	      m2_gp = m1_gp * pow(m1_gp / 65., -1.78) * (1. + 0.2*(-1. + 2.*func.rnd()));
+        //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
+        double prob_ugp = func.rnd();
+        double prob_fgp = func.rnd();
+        string UP = upgtp;
+        double fUP= fupgp;
+              
+        if(UP == "dicarlo")
+          fUP = 0.01 * (1. + 5.797 * exp(Z[i] / 0.0002 * log(5./5.797)));
+        
+        if(uppergap == "yes" && prob_ugp >= pbelow && prob_fgp < fUP){
+            
+          double p_gp;
+          p_gp = func.rnd();
+          double m1_gp = pow(p_gp * pow(100.,1.-a_gp) + (1.-p_gp)*pow(50., 1.-a_gp), 1./(1.-a_gp));
+          p_gp = func.rnd();
+          double m2_gp;
+          //The following make results DRAGON-II like!
+          if(m1_gp < 100.)
+            m2_gp = m1_gp * (0.4 + 0.6*func.rnd()); 
+          else
+            m2_gp = m1_gp * pow(m1_gp / 65., -1.78) * (1. + 0.2*(-1. + 2.*func.rnd()));
 
-	    if(m2_gp > m1_gp){
-	      double mex_gp = m1_gp;
-	      m1_gp = m2_gp;
-	      m2_gp = m1_gp;
-	    }
-	      
-	    // We need to implement something for the spins too ...
-	    if(prob_ugp >= pbelow && prob_ugp < pbelow + pbelup){
-	      if(mpri < mass_gap)
-		mpri = m1_gp;		  	      
-	      else if (msec < mass_gap)
-		msec = m2_gp;
-	      else{
-		cout<<"Both objects above the gap!"<<endl; //This may happen in multiple mergers?
-	      }
-	      
-	    }	      
-	    else if(prob_ugp > pbelow + pbelup){
-	      if(mpri < mass_gap)
-		mpri = m1_gp;
-	      if(msec < mass_gap)
-		msec = m2_gp;
-	    }		
-	    
-	  }
+          if(m2_gp > m1_gp){
+            double mex_gp = m1_gp;
+            m1_gp = m2_gp;
+            m2_gp = m1_gp;
+          }
+            
+          // We need to implement something for the spins too ...
+          if(prob_ugp >= pbelow && prob_ugp < pbelow + pbelup){
+            if(mpri < mass_gap)
+              mpri = m1_gp;		  	      
+            else if (msec < mass_gap)
+              msec = m2_gp;
+            else{
+              cout<<"Both objects above the gap!"<<endl; //This may happen in multiple mergers?
+            }
+          }	      
+          else if(prob_ugp > pbelow + pbelup){
+            if(mpri < mass_gap)
+              mpri = m1_gp;
+            if(msec < mass_gap)
+              msec = m2_gp;
+          }		
+        }
 
-	  
-	  nsafe_glob += nsafe;
-	  double dmy = func.rnd();
-	  if(bhseed == "bifrost" && dmy < f_seed && mint > log10(5.3E3) && pow(10., mint - 3.*rint) > 1.E5 && Z[i] < bifZ){ //min mass to form a seed of at least 150 Msun
+        nsafe_glob += nsafe;
+        double dmy = func.rnd();
+        if(bhseed == "bifrost" && dmy < f_seed && mint > log10(5.3E3) && pow(10., mint - 3.*rint) > 1.E5 && Z[i] < bifZ){ //min mass to form a seed of at least 150 Msun
 
-	    double mprimin = min(150., pow(pow(10.,mint), 0.53)*pow(10., -0.23));
-	    double mprimax = min(2.E4, 0.02 * pow(10.,mint));
-	      
-	    double mprit = mprimin + (mprimax - mprimin)*func.rnd();
+          double mprimin = min(150., pow(pow(10.,mint), 0.53)*pow(10., -0.23));
+          double mprimax = min(2.E4, 0.02 * pow(10.,mint));
+            
+          double mprit = mprimin + (mprimax - mprimin)*func.rnd();
 
-	    if(mprit > bhpisn)
-	      mpri = 0.9*mprit;
+          if(mprit > bhpisn)
+            mpri = 0.9*mprit;
+        }
 
-	    
-	    	    
-	  }
-	  else if(bhseed == "vms"){	    
-	    if(dmy < f_seed){
-	      double A_vms, B_vms;
+        else if(bhseed == "vms"){	    
+          if(dmy < f_seed){
+            double A_vms, B_vms;
 
-	      double provms = func.rnd();
-	      if(provms < 0.95){
-		A_vms = 309.;
-		B_vms = 0.015;
-	      }
-	      else if(provms > 0.95 && provms < 0.99){
-		A_vms = 648.;
-		B_vms = 0.05;
-	      }
-	      else{
-		A_vms = 1284.;
-		B_vms = 0.1;
-	      }
-	      
-	      double rho_vms = pow(10.,mint - 3.*rint);
-	      mpri = A_vms * pow(rho_vms / 1.E9, B_vms) * pow(10., -0.05 + 0.1 * func.rnd());
-	      
-	    }
-	  }
-	  else if(bhseed == "yes"){
-	    if(dmy < f_seed){
-	      double mimmi = func.rnd();
-	      mpri = pow(mimmi * pow(maxseed, 1.-seedslope) + (1.-mimmi) * pow(minseed,1.-seedslope) , 1./(1.-seedslope));	      
-	    }	    
-	  }
-	  else if(bhseed == "density"){
-	    double rho_vms = pow(10.,mint - 3.*rint);
-	    if(dmy < f_seed && rho_vms > 3.E5){
-		double mimmi = func.rnd();
-		mpri = pow(mimmi * pow(maxseed, 1.-seedslope) + (1.-mimmi) * pow(minseed,1.-seedslope) , 1./(1.-seedslope));	      
-	    }
-	    	  
-	  }
-	  else if(bhseed == "lupi"){
-	    mpri = 300.;
-	  }
-	  
-
-
+            double provms = func.rnd();
+            if(provms < 0.95){
+              A_vms = 309.;
+              B_vms = 0.015;
+            }
+            else if(provms > 0.95 && provms < 0.99){
+              A_vms = 648.;
+              B_vms = 0.05;
+            }
+            else{
+              A_vms = 1284.;
+              B_vms = 0.1;
+            }      
+            double rho_vms = pow(10.,mint - 3.*rint);
+            mpri = A_vms * pow(rho_vms / 1.E9, B_vms) * pow(10., -0.05 + 0.1 * func.rnd());
+            
+          }
+        }
+        else if(bhseed == "yes"){
+          if(dmy < f_seed){
+            double mimmi = func.rnd();
+            mpri = pow(mimmi * pow(maxseed, 1.-seedslope) + (1.-mimmi) * pow(minseed,1.-seedslope) , 1./(1.-seedslope));	      
+          }	    
+        }
+        else if(bhseed == "density"){
+          double rho_vms = pow(10.,mint - 3.*rint);
+          if(dmy < f_seed && rho_vms > 3.E5){
+            double mimmi = func.rnd();
+            mpri = pow(mimmi * pow(maxseed, 1.-seedslope) + (1.-mimmi) * pow(minseed,1.-seedslope) , 1./(1.-seedslope));	      
+          }    	  
+        }
+        else if(bhseed == "lupi"){
+          mpri = 300.;
+        }
 	  
 	  //Also, we should separate between the density stuff and the upper mass-gap stuff, that is more related to the binary fraction indeed
 
 	  
+        asec   = func.spin(msec,dynaS);
+        
+        
+        //FIRST MERGER
+        Spinning[0] = 0.0;
+        Spinning[1] = 0.0;
+        Spinning[2] = 0.0;
+        Spinning[3] = 0.0;
+        Spinning[4] = 0.0;
+        Spinning[5] = 0.0;
+        Spinning[6] = 0.0;
+
+        if(mpri>0.0 && msec>0.0)
+          func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
+          Srem[i] = Spinning[0];
+          Xrem[i] = Spinning[1];
+          Mrem[i] = Spinning[2];
+          Krem[i] = Spinning[3];
+          Cosa[i] = Spinning[4];
+          Cosb[i] = Spinning[5];
+          Cosg[i] = Spinning[6];
+          //cout<< "First merger - ID: " << i  << " nrecy: "<< nrecy<< " m1: " << mpri << " m2: " << msec << " M_rem: " << Mrem[i] << " Kick_rem: "<< Krem[i] << endl;	  
+	  
+        time = tfor[i];
+        tSNe = max(tpri,tsec);
+
+        if(bhseed != "no")
+          tSNe = max(5.0e6, tcc);
+          
+        
+        rhalf = pow(10.,rint);
+        mhalf = pow(10.,mint);
+        
+        trelax = 0.78E9 /log(0.11 * mhalf) * pow(mhalf/1.E5, 0.5) * pow(rhalf, 1.5); //4.2E9 * (15./logL) * pow(rhalf/4.0,1.5) * sqrt(mhalf/1.E7) ;		  
+        //tDF to sink	
+        tdf = 0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9);	  	  
+        
+        if(tdf > tSNe)
+          time += tdf;	  
+        else
+          time += tSNe;
 
 	  
-	  asec   = func.spin(msec,dynaS);
-	  
-	  
-	  //FIRST MERGER
-	  Spinning[0] = 0.0;
-	  Spinning[1] = 0.0;
-	  Spinning[2] = 0.0;
-	  Spinning[3] = 0.0;
-	  Spinning[4] = 0.0;
-	  Spinning[5] = 0.0;
-	  Spinning[6] = 0.0;
-
-	  if(mpri>0.0 && msec>0.0)
-	    func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
-	  Srem[i] = Spinning[0];
-	  Xrem[i] = Spinning[1];
-	  Mrem[i] = Spinning[2];
-	  Krem[i] = Spinning[3];
-	  Cosa[i] = Spinning[4];
-	  Cosb[i] = Spinning[5];
-	  Cosg[i] = Spinning[6];
-
-	  
-	  
-	  time = tfor[i];
-	  tSNe = max(tpri,tsec);
-
-	  if(bhseed != "no")
-	    tSNe = max(5.0e6, tcc);
-	    
-	  
-	  rhalf = pow(10.,rint);
-	  mhalf = pow(10.,mint);
-	   
-	  trelax = 0.78E9 /log(0.11 * mhalf) * pow(mhalf/1.E5, 0.5) * pow(rhalf, 1.5); //4.2E9 * (15./logL) * pow(rhalf/4.0,1.5) * sqrt(mhalf/1.E7) ;		  
-	  //tDF to sink	
-	  tdf = 0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9);	  	  
-	  
-	  if(tdf > tSNe)
-	    time += tdf;	  
-	  else
-	    time += tSNe;
-
-	  
-	  //if(CLevo == "yes"){
-	    
-	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+        //if(CLevo == "yes"){
+          
+        mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+        rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
 
 	  //------------------------------------------------------//
 	  //  Add here the first prototype for the coupling growth//
@@ -2462,197 +2444,185 @@ int main(){
 	  //  the call to this class at any call
 	  //------------------------------------------------------//
 	  
-	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+        sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+        rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+        rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+        
+        vthre = vthre_in * sqrt(mclcorr/rclcorr);
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	  
-	  semihard = 1./pow(sig_clu/30., 2.); //2.*6.67E-11*1.99E30/(1.E6*1.5E11) * (mpri+msec) / (sig_clu*sig_clu);
-	  
-	  t12capt = 3.E9 * (0.01 / fb) * (1.E6 / rho_cubicpc) * (sig_clu / 30.) * 10./(mpri + msec + mper) * 1./semihard;
-	  t3bb = 4.E9 * pow(1.E6 / rho_clu,2.) * pow(sig_clu/(zita * 30.),9.) * pow(mstar / 30. * 10., 9./2.) * pow(10./30.,-5.);
-	  
-	  fbin_rnd = func.rnd();
-	  if(fbin_rnd < fbin)
-	    t3bb = 0.0;
-	  
-	  if(t3bb < 0){
-	    cout<<t3bb<<" "<<rho_clu<<" "<<sig_clu<<" "<<mstar<<" "<<zita<<endl;
-	    exit(0);
-	  }
-	  tbbhform = min(t12capt,t3bb);
-	  tbbhform *= func.rndgen(1.0, 0.1);
-	  
-	  if(mclcorr * mhalf < 1.E1)
-	    tbbhform = 1.E12;
-	  
-	    
-	  if(time + tbbhform > tfor[i]+tcc && time < tfor[i]+tcc){
-	    time = tfor[i]+tcc;
-	    
-	    
-	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	    	    
-	    sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
+        semihard = 1./pow(sig_clu/30., 2.); //2.*6.67E-11*1.99E30/(1.E6*1.5E11) * (mpri+msec) / (sig_clu*sig_clu);
+        
+        t12capt = 3.E9 * (0.01 / fb) * (1.E6 / rho_cubicpc) * (sig_clu / 30.) * 10./(mpri + msec + mper) * 1./semihard;
+        t3bb = 4.E9 * pow(1.E6 / rho_clu,2.) * pow(sig_clu/(zita * 30.),9.) * pow(mstar / 30. * 10., 9./2.) * pow(10./30.,-5.);
+        
+        fbin_rnd = func.rnd();
+        if(fbin_rnd < fbin)
+          t3bb = 0.0;
+        
+        if(t3bb < 0){
+          cout<<t3bb<<" "<<rho_clu<<" "<<sig_clu<<" "<<mstar<<" "<<zita<<endl;
+          exit(0);
+        }
+        tbbhform = min(t12capt,t3bb);
+        tbbhform *= func.rndgen(1.0, 0.1);
+        
+        if(mclcorr * mhalf < 1.E1)
+          tbbhform = 1.E12;
+        
+          
+        if(time + tbbhform > tfor[i]+tcc && time < tfor[i]+tcc){
+          time = tfor[i]+tcc;
+          
+          
+          mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+                
+          sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+          rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+          rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+          
+          vthre = vthre_in * sqrt(mclcorr/rclcorr);
 
-	    if(mclcorr == 0.0 && rclcorr == 0.0)
-	      time += 1.E12;
+          if(mclcorr == 0.0 && rclcorr == 0.0)
+            time += 1.E12;
 
-	  }	    
+        }	    
 	    
 	    
 	  //}
 
-	  
-	 	  
 	  //Binary formation and BH captures
 
-	  
-	  semihard = 1./pow(sig_clu/30., 2.); //2.*6.67E-11*1.99E30/(1.E6*1.5E11) * (mpri+msec) / (sig_clu*sig_clu);
-	  
-	  t12capt = 3.E9 * (0.01 / fb) * (1.E6 / rho_cubicpc) * (sig_clu / 30.) * 10./(mpri + msec + mper) * 1./semihard;
-	  t3bb = 4.E9 * pow(1.E6 / rho_clu,2.) * pow(sig_clu/(zita * 30.),9.) * pow(mstar / 30. * 10., 9./2.) * pow(10./30.,-5.);
+        semihard = 1./pow(sig_clu/30., 2.); //2.*6.67E-11*1.99E30/(1.E6*1.5E11) * (mpri+msec) / (sig_clu*sig_clu);
+        
+        t12capt = 3.E9 * (0.01 / fb) * (1.E6 / rho_cubicpc) * (sig_clu / 30.) * 10./(mpri + msec + mper) * 1./semihard;
+        t3bb = 4.E9 * pow(1.E6 / rho_clu,2.) * pow(sig_clu/(zita * 30.),9.) * pow(mstar / 30. * 10., 9./2.) * pow(10./30.,-5.);
 
-	  fbin_rnd = func.rnd();
-	  if(fbin_rnd < fbin)
-	    t3bb = 0.0;
-	  
-	  if(t3bb < 0){
-	    cout<<t3bb<<" "<<rho_clu<<" "<<sig_clu<<" "<<mstar<<" "<<zita<<endl;
-	    exit(0);
-	  }
-	  tbbhform = min(t12capt,t3bb);
-	  tbbhform *= func.rndgen(1.0, 0.1);
-	  
-	  if(mclcorr * mhalf < 1.E1)
-	    tbbhform = 1.E12;
-	  
-	  
-	  time += tbbhform;	  
+        fbin_rnd = func.rnd();
+        if(fbin_rnd < fbin)
+          t3bb = 0.0;
+        
+        if(t3bb < 0){
+          cout<<t3bb<<" "<<rho_clu<<" "<<sig_clu<<" "<<mstar<<" "<<zita<<endl;
+          exit(0);
+        }
+        tbbhform = min(t12capt,t3bb);
+        tbbhform *= func.rndgen(1.0, 0.1);
+        
+        if(mclcorr * mhalf < 1.E1)
+          tbbhform = 1.E12;
+        
+        time += tbbhform;	  
 
-	  
-	  
-	  //if(CLevo == "yes"){
-	    
-	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  
-	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	  
-	  t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
-	  t12 *= func.rndgen(1.0, 0.1);
-	    
-	  if(mclcorr * mhalf < 1.E1)
-	    t12 = 1.E12;
-	    
-	  
-	  if(time < tfor[i]+tcc && time + t12 > tfor[i]+tcc){
-	    time = tfor[i]+tcc;
-	    
-	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	    
-	    sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	  }
+        //if(CLevo == "yes"){
+          
+        mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+        rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+        
+        sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+        rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+        rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+        
+        vthre = vthre_in * sqrt(mclcorr/rclcorr);
+        
+        t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
+        t12 *= func.rndgen(1.0, 0.1);
+          
+        if(mclcorr * mhalf < 1.E1)
+          t12 = 1.E12;
+          
+        
+        if(time < tfor[i]+tcc && time + t12 > tfor[i]+tcc){
+          time = tfor[i]+tcc;
+          
+          mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          
+          sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+          rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+          rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+          
+          vthre = vthre_in * sqrt(mclcorr/rclcorr);
+        }
 	  //}
 	  
+        //Time for BHs to pair --> assume it's already hard //see Antonini&Rasio2016
+        
+        t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
+        t12 *= func.rndgen(1.0, 0.1);
 
-	  //Time for BHs to pair --> assume it's already hard //see Antonini&Rasio2016
-	  
-	  t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
-	  t12 *= func.rndgen(1.0, 0.1);
+        if(mclcorr * mhalf < 1.E1)
+          t12 = 1.E12;
 
-	  if(mclcorr * mhalf < 1.E1)
-	    t12 = 1.E12;
+        time += t12;
 
-	  time += t12;
+        //if(CLevo == "yes"){
 
-	 
-	  
-	  
-	  //if(CLevo == "yes"){
+        mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+        rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+        
+        sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+        rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+        rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+        
+        
+        vthre = vthre_in * sqrt(mclcorr/rclcorr);
+          //}
 
-	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  
-	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	  
-	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	    //}
+        //Calculate hard binary separation and assign binary sma
+        semihard = 1./pow(sig_clu/30., 2.); 
+        
+        sma = semihard * func.Gaussian(1.,sigma_sma);
 
-	  //Calculate hard binary separation and assign binary sma
-	  semihard = 1./pow(sig_clu/30., 2.); 
-	  
-	  sma = semihard * func.Gaussian(1.,sigma_sma);
+        if(sigma_sma < 0)
+          sma = 0.1 + 0.1*func.rnd();
 
-	  if(sigma_sma < 0)
-	    sma = 0.1 + 0.1*func.rnd();
+        //calculate aej vs agw to merge inside or outside --> inside (tgwpeters), outside (5/q3 * t2-1)	  
+        semi_ej = 0.07 * (mu_red * mper / (mpri + msec + mper) * mper/(mpri+msec)) * pow(vthre/50.,-2.);
+        semi_gw = 0.05 * pow((mpri+msec)/20,3./5.)*pow( (msec/mpri) / pow(1+(msec/mpri),2.) , 1./5.) * pow(sig_clu/30., 1./5.) * pow(1.E6 / rho_clu,1./5.);
+        
+        //acrit = max(semi_ej,semi_gw);
+        //acrit = min(acrit,0.01); removed on 13-03-2024
+        //new recipe for calculations
 
-	  
-	  
-	  //calculate aej vs agw to merge inside or outside --> inside (tgwpeters), outside (5/q3 * t2-1)	  
-	  semi_ej = 0.07 * (mu_red * mper / (mpri + msec + mper) * mper/(mpri+msec)) * pow(vthre/50.,-2.);
-	  semi_gw = 0.05 * pow((mpri+msec)/20,3./5.)*pow( (msec/mpri) / pow(1+(msec/mpri),2.) , 1./5.) * pow(sig_clu/30., 1./5.) * pow(1.E6 / rho_clu,1./5.);
-	  
-	  //acrit = max(semi_ej,semi_gw);
-	  //acrit = min(acrit,0.01); removed on 13-03-2024
-	  //new recipe for calculations
+        double afin;
+        if(semi_ej > semi_gw)
+          afin = min(sma, semi_ej);
+        else
+          afin = min(sma, semi_gw);
+        
+        acrit = afin;
 
-	  double afin;
-	  if(semi_ej > semi_gw)
-	    afin = min(sma, semi_ej);
-	  else
-	    afin = min(sma, semi_gw);
+        tbbh = 2.E7/zita * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(10. * mstar / (mpri+msec)) * (0.05 / acrit) * (20./(mpri+msec));
+        tbbh *= func.rndgen(1.0, 0.1);	  
+        
+        if(mclcorr * mhalf < 1.E1){
+          tbbh = 1.E12;
+          semi_ej = -2.0;
+          semi_gw = -1.0;
+        }
 	  
-	  acrit = afin;
+        tmer = 5. * (mpri + msec)/mper * tbbh;						 	  
 
-	  tbbh = 2.E7/zita * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(10. * mstar / (mpri+msec)) * (0.05 / acrit) * (20./(mpri+msec));
-	  tbbh *= func.rndgen(1.0, 0.1);	  
-	  
-	  if(mclcorr * mhalf < 1.E1){
-	    tbbh = 1.E12;
-	    semi_ej = -2.0;
-	    semi_gw = -1.0;
-	  }
-	  
-	  tmer = 5. * (mpri + msec)/mper * tbbh;						 	  
+        mclcorr = func.mevol(time+tmer-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+        rclcorr = func.revol(time+tmer-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);	  
+        sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+        rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+        rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);	  	 
+        vthre = vthre_in * sqrt(mclcorr/rclcorr);
 
-	  mclcorr = func.mevol(time+tmer-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  rclcorr = func.revol(time+tmer-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);	  
-	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);	  	 
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
-
-	  if(mclcorr*mhalf <= 1.E1)
-	    tmer = 1.E12;
-	  
-	  
-	  if((time > 1.E9 || time+tmer > 1.E9) && cluster == "young" && CLfill == "critical"){
-	    time = 1.E30;
-	    label = "YCdisrupt";
-	  }
+        if(mclcorr*mhalf <= 1.E1)
+          tmer = 1.E12;
+        
+        
+        if((time > 1.E9 || time+tmer > 1.E9) && cluster == "young" && CLfill == "critical"){
+          time = 1.E30;
+          label = "YCdisrupt";
+        }
 
 
-	  
-	  time += tmer;
+        
+        time += tmer;
 
 
 	  
@@ -2667,10 +2637,10 @@ int main(){
 	  /* Insert a statistical consideration to check whether binaries with semi_ej > semi_gw can merge before ejection owing to a sufficiently large value of ecc -- May 2024 */
 	  // At 0th order, we can get
 
-	  double clight = 3.E8;
-	  double Grav   = 6.67E-11;
-	  double Msun   = 1.99E30;
-	  double Rau    = 1.5E11;	    
+        double clight = 3.E8;
+        double Grav   = 6.67E-11;
+        double Msun   = 1.99E30;
+        double Rau    = 1.5E11;	    
 	  
 	  /* Prescription suggested by F. Antonini, here however overestimate the amount of in-cluster mergers 
 	    double elim = sqrt(1 - pow(256./5.*((tbbh+tmer) * (365.*24*3600.) * pow(Grav * Msun, 3.) * (mpri*msec*(mpri+msec)))/(pow(clight,5.) * pow(Rau,4.)  * pow(acrit,4.)), 2./7.));
@@ -2691,26 +2661,24 @@ int main(){
 	    }
 	  }
 	  */
-	//Old prescription -- we must ensure that tight binaries merge inside if acrit < semi_ej//
-	  if(semi_ej < semi_gw)
-	    label="inside";
-	  else
-	    if(acrit < semi_gw)
-	      label="inside";
-	    else
-	      label="ejected";
-	    
-	  ecc = sqrt(func.rnd());
+      //Old prescription -- we must ensure that tight binaries merge inside if acrit < semi_ej//
+        if(semi_ej < semi_gw)
+          label="inside";
+        else
+          if(acrit < semi_gw)
+            label="inside";
+          else
+            label="ejected";
+          
+        ecc = sqrt(func.rnd());
 
-	  double teje = tmer;
-	
-	  tmer = 5./256. * pow(clight,5.) / pow(Grav * Msun, 3.) * pow(Rau,4.)  * pow(acrit,4.)/(mpri*msec*(mpri+msec)) * pow(1.-pow(ecc,2.),3.5) / (1. + 73./24. * ecc*ecc + 37./96.*ecc*ecc*ecc*ecc) * 1./ (365.*24.*3600.*1.E0);
+        double teje = tmer;
+      
+        tmer = 5./256. * pow(clight,5.) / pow(Grav * Msun, 3.) * pow(Rau,4.)  * pow(acrit,4.)/(mpri*msec*(mpri+msec)) * pow(1.-pow(ecc,2.),3.5) / (1. + 73./24. * ecc*ecc + 37./96.*ecc*ecc*ecc*ecc) * 1./ (365.*24.*3600.*1.E0);
 
-	  if(tmer < teje && label == "ejected")
-	    label = "inside";
+        if(tmer < teje && label == "ejected")
+          label = "inside";
 
-	  
-	  
 	/*REMOVING THE FOLLOWING TO TAKE INTO ACCOUNT NON-MERGING BINARIES 
 	  if(time + tmer > Hubble && time < Hubble && mclcorr*mhalf > 1.E1){
 	  do{
@@ -2723,619 +2691,623 @@ int main(){
 	  }while(time + tmer > Hubble);
 	}
 	else */
-	if(mclcorr*mhalf < 1.E1) 
-	  tmer = 1.E12;
-	
-	time += tmer;
+        if(mclcorr*mhalf < 1.E1) 
+          tmer = 1.E12;
+        
+        time += tmer;
 
-	
-	//ADDED PRINTOUT OF BINARY PROPERTIES      
-	if(time > Hubble){ //The other condition is not needed if nsafe_cal is just 1 --> || nsafe_cal > 1){
-	  hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<" "<<tfor[i]<<endl;
-	}
+        
+        //ADDED PRINTOUT OF BINARY PROPERTIES      
+        if(time > Hubble){ //The other condition is not needed if nsafe_cal is just 1 --> || nsafe_cal > 1){
+          hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<" "<<tfor[i]<<endl;
+        }
 
-	stringstream nan;
-	nan<<time;
-	
-	if(nan.str() == "nan" || nan.str() == "-nan"){
-	  cout<<"Step error "<<mpri<<" "<<msec<<" "<<tfor[i]<<" "<<tSNe<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<sig_clu<<" "<<vthre<<" "<<mclcorr<<" "<<rclcorr<<endl;
-	  exit(0);
-	}
+        stringstream nan;
+        nan<<time;
+        
+        if(nan.str() == "nan" || nan.str() == "-nan"){
+          cout<<"Step error "<<mpri<<" "<<msec<<" "<<tfor[i]<<" "<<tSNe<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<sig_clu<<" "<<vthre<<" "<<mclcorr<<" "<<rclcorr<<endl;
+          exit(0);
+        }
 
-	
-	if(time < Hubble)
-	  nH ++;
-	
-	clout<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<sig_clu<<" "<<rho_clu<<" "<<pcluster<<" "<<nbhs<<" ";
-	clout<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<kpri<<" "<<ksec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<time<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<(double) nH / (double) npar_runtime;
-	clout<<endl;	
+        
+        if(time < Hubble)
+          nH ++;
+        
+        clout<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<sig_clu<<" "<<rho_clu<<" "<<pcluster<<" "<<nbhs<<" ";
+        clout<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<kpri<<" "<<ksec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<time<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<(double) nH / (double) npar_runtime;
+        clout<<endl;	
 
 
-	//MULTIPLE MERGER CHAIN//
-	Spinning[0] = 0.0;
-	Spinning[1] = 0.0;	
-	Spinning[2] = 0.0;
-	Spinning[3] = 0.0;
-	Spinning[4] = 0.0;
-	Spinning[5] = 0.0;
-	Spinning[6] = 0.0;
+        //MULTIPLE MERGER CHAIN//
+        Spinning[0] = 0.0;
+        Spinning[1] = 0.0;	
+        Spinning[2] = 0.0;
+        Spinning[3] = 0.0;
+        Spinning[4] = 0.0;
+        Spinning[5] = 0.0;
+        Spinning[6] = 0.0;
 
-	if(mpri>0.0 && msec>0.0)
-	  func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  
+        if(mpri>0.0 && msec>0.0)
+          func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	
+          //nrecy++;  
+          //cout<<"Number of recycles = "<<nrecy<<endl;
 
-	Srem[i] = Spinning[0];
-	Xrem[i] = Spinning[1];
-	Mrem[i] = Spinning[2];
-	Krem[i] = Spinning[3];
-	Cosa[i] = Spinning[4];
-	Cosb[i] = Spinning[5];
-	Cosg[i] = Spinning[6];
+        Srem[i] = Spinning[0];
+        Xrem[i] = Spinning[1];
+        Mrem[i] = Spinning[2];
+        Krem[i] = Spinning[3];
+        Cosa[i] = Spinning[4];
+        Cosb[i] = Spinning[5];
+        Cosg[i] = Spinning[6];
 
-	vpri = Spinning[3];
+        vpri = Spinning[3];
 
-	double mzero = mpri;
-	
-	//if(CLevo == "yes"){
+        double mzero = mpri;
+        
+        //if(CLevo == "yes"){
 	  
 
-	mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	
-	sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	
-	
-	vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	
-	if(mclcorr * mhalf < 1.E1)
-	  cluster_stat="evaporated";
-	//}
-
-	double rinfinite = pow(10.,rint) * sqrt(pow(vthre,4.) / pow(vthre*vthre - vpri*vpri,2.) - 1.);       
-	//if(CLevo == "yes")
-	rinfinite *= rclcorr;
-
-	
-	// int nrecy = nhigen;
-	double trecy = 0.0;
-	double tsmbh = 0.0;
-
-	double sig_clu0 = sig_clu;
-
-	
-	
-	do{
-    //cout<< "Entering the do-while loop for the multiple merger chain with time = "<<time<<" and tmer = "<<tmer<<endl;
-
-	  if(time > Hubble)
-      //cout<<"Time > Hubble in do-while loop: "<<time<<" "<<Hubble<<endl;
-	    break;
-	  
-	  stringstream nan;
-	  nan<<time;
-	  
-	  if(nan.str() == "nan" || nan.str() == "-nan"){
-	    cout<<"Step error mean"<<tfor[i]<<" "<<tSNe<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<endl;
-	    exit(0);
-	  }
-	  
-	  if(time+trecy > Hubble){
-	    label = "highlander";
-	    cout<<"Highlander condition met at time = "<<time<<" for cluster "<<cluster<<endl;
-	    Srem[i] = Spinning[0];
-	    Xrem[i] = Spinning[1];
-	    Mrem[i] = Spinning[2];
-	    Krem[i] = Spinning[3];
-	    Cosa[i] = Spinning[4];
-	    Cosb[i] = Spinning[5];
-	    Cosg[i] = Spinning[6];
-
-	    hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<" "<<tfor[i]<<endl;
-	  
-
-	    break;
-	  }
-
-
-	  if(Spinning[3] > vthre && label != "ejected"){
-	    label = "GWrecoiled";
-      cout<<"GW recoiled at time "<<time<<" with vesc = "<<vthre<<" and Kick = "<<Spinning[3]<<endl;
-	    Srem[i] = Spinning[0];
-	    Xrem[i] = Spinning[1];
-	    Mrem[i] = Spinning[2];
-	    Krem[i] = Spinning[3];
-	    Cosa[i] = Spinning[4];
-	    Cosb[i] = Spinning[5];
-	    Cosg[i] = Spinning[6];
-	    break;
-	  }
-	  
-	  if(cluster_stat == "evaporated"){
-	    if(label != "ejected")
-	      label = "inevap";
-	    break;
-	  }
-	  
-	  time += trecy;
-	  nan.str("");
-	  nan<<time;	  
-	  if(nan.str() == "nan" || nan.str() == "-nan"){
-	    cout<<"Step error Final "<<tfor[i]<<" "<<tSNe<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<endl;
-	    exit(0);
-	  }
-
-	  trecy = 0.0;
-	  
-	  Srem[i] = Spinning[0];
-	  Xrem[i] = Spinning[1];
-	  Mrem[i] = Spinning[2];
-	  Krem[i] = Spinning[3];
-	  Cosa[i] = Spinning[4];
-	  Cosb[i] = Spinning[5];
-	  Cosg[i] = Spinning[6];
-
-
-	  double cj = pow(vthre,4.) / pow(vthre*vthre - Krem[i]*Krem[i],2.) - 1.;
-	  if(cj < 0.0 && abs(cj) < 1.E-10)
-	    cj = 0.0;
-	  
-	  rinfinite = pow(10.,rint) * sqrt(cj);
-	  //if(CLevo == "yes")
-	  rinfinite *= rclcorr;
-
-
-	  cout<<"rinfinite: "<<rinfinite<<" vthre: "<<vthre<<" Krem[i]: "<<Krem[i]<<" cj: "<<cj<<endl;
-	  if(vthre < Krem[i] ||  (cj < 0.0 && abs(cj) > 1.E-10))
-	    rinfinite = 1.E10;
-    //  m_p m_s spin_p spin_s semi-major semi-major_newton semi-major_gw formation time Stellar_evo_time time_12capture time3b_capture time_dyn_friction time_bbh(?) time_GW_merger time N_gen_primary N_gen_secondary mass cluster(t) radius_cluster(t) M_clu_ini R_clu_ini t_core_collapse id_BH label cluster_type M_rem S_rem X_rem K_rem escape_velocity itot                                                                                                                                                                                                                                                                                                                                                                         
-	  out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy <<" "<<nhigen<<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<endl;	
-	  
-	  if(mpri > msmbhmax && tsmbh == 0.0){
-	    tsmbh = time;
-	    break;
-	  }
-	  if(nrecy > nbhs)
-	    break;
-	  
-	  if(label == "ejected" || label == "GWrecoiled")
-	    break;
-
-	  
-	  mpri = Mrem[i];
-	  apri = Srem[i];
-
-	  mass_ratio = -1;
-	  nsafe = 0;       
-
-	  double msec_prec = msec;
-
-    cout<< "Chosing secondary BH mass and time for the multiple merger chain with mpri = "<<mpri <<endl;
-	  
-	  if(stri_mrat != "nouniform"){
-	    do{
-	      mass_ratio = func.mratio(mpri, MRATIO_SLOPE, stri_mrat);
-	      msec = mpri * mass_ratio;
-	      for(int iii=0; iii<remn_sin.size()-1;iii++){
-		if(msec > remn_sin[iii] && msec < remn_sin[iii+1]){
-		  tsec = 0.5*(tdel_sin[iii] + tdel_sin[iii+1]) ;
-		}
-	      }
-	      nsafe += 1;
-	      if(nsafe > 1000){
-		cout<<"mratio fails"<<endl;
-		exit(0);
-	      }
-	    }while(msec < 1. || msec > 500.);
-	    
-	  }
-	  else{
-	    msec = -1;
-	    ksec = 1.E30;
-	    nsafe = 0;
-	    if(mixer > mixing){
-	      do{
-          // We choose frome the SSE catalog
-          func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, vthre);	  
-          msec = single_bh[0];	 
-          tsec = single_bh[1];
-          ksec = single_bh[2];	
-          // Let's check if the secondary BHs comes from a hierarchical merger
-          double eps =  func.GWeff(pcluster,Z[i]);
-          double nmerg = eps * mhalf;
-          // Support vector for the high-gen code
-          int elem = 5;
-          double *Comp;
-          Comp = new double [elem];
-          for(int i=0;i<elem;i++) Comp[i] = 0.0;
-          double m_core = mhalf*mclcorr;
-          double r_core = rhalf*rclcorr;
+          mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
           
-          cout<<"msec: "<<msec<<" tsec: "<<tsec<<" ksec: "<<ksec<<endl;
-
-          hgen(eps, mpri, apri, msec, asec, vthre, dynaS, zams_sin, remn_sin, tdel_sin, kick_sin, Comp, Spinning, nbhs, nrecy, nmerg, i, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer);
+          sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+          rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+          rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
           
-          msec = Comp[0];
-          asec = Comp[1];
-          nhigen = int(Comp[2]);
-          double interaction_rate = Comp[3];
-          nbhs = int(Comp[4]);
-
-          cout<<"Stellar companion" << endl;
-          cout<<"Interaction rate: "<<interaction_rate<<endl;
-          cout<<"Number of BHs: "<<nbhs<<endl;
-          cout<<"High-gen: "<<nhigen<<endl;
-          cout<<"msec: "<<msec<<" asec: "<<asec<<" eps: "<<eps<<" nmerg: "<<nmerg<<endl;
-          cout<<"mpri: "<<mpri<<" apri: "<<apri<<" vthre: "<<vthre<<" dynaS: "<<dynaS<<endl;
           
-          nsafe ++;
-          if(single_bh[3] == 1)
+          vthre = vthre_in * sqrt(mclcorr/rclcorr);
+          
+          if(mclcorr * mhalf < 1.E1)
+            cluster_stat="evaporated";
+          //}
+
+          double rinfinite = pow(10.,rint) * sqrt(pow(vthre,4.) / pow(vthre*vthre - vpri*vpri,2.) - 1.);       
+          //if(CLevo == "yes")
+          rinfinite *= rclcorr;
+
+	
+          int nrecy = 0;
+          gen_primary++;
+          double trecy = 0.0;
+          double tsmbh = 0.0;
+
+          double sig_clu0 = sig_clu;
+
+	
+	
+        do{
+          //cout<< "Entering the do-while loop for the multiple merger chain with time = "<<time<<" and tmer = "<<tmer<<endl;
+          if(time > Hubble)
+            //cout<<"Time > Hubble in do-while loop: "<<time<<" "<<Hubble<<endl;
             break;
-          else if(nsafe > 500){
-            cout<<npar_runtime<<" "<<i<<" "<<Z[i]<<" "<<msec<<" "<<tsec<<" "<<ksec<<endl;
-          }
-          if(nsafe > 1000){
-            cout<<"Something wrong " <<msec<<" "<<tsec<<" "<<ksec<<" "<<minimus<<" "<<vthre<<endl;
+          
+          stringstream nan;
+          nan<<time;
+          
+          if(nan.str() == "nan" || nan.str() == "-nan"){
+            cout<<"Step error mean"<<tfor[i]<<" "<<tSNe<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<endl;
             exit(0);
           }
-		
-	      }while(msec <= 0.0 || ksec > vthre);
-	      
-	      if(msec < minimus){
-		cout<<"Second BH mass below mmin = "<<minimus<<" "<<msec<<endl;
-	      }
-
-	    }
-	    else{
-	      double MSLP = mslope;
-	      msec = -1;
-	      ksec = 1.E30;	      
-	      do{
-          // We choose frome the BSE catalog
-          singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
-          msec = single_bh[0];	  	  
-          tsec = single_bh[1];
-          ksec = single_bh[2];
-          // Let's check if the secondary BHs comes from a hierarchical merger
-          double eps =  func.GWeff(pcluster,Z[i]);
-          double nmerg = eps * mint;
-          // Support vector for the high-gen code
-          int elem = 5;
-          double *Comp;
-          Comp = new double [elem];
-          for(int i=0;i<elem;i++) Comp[i] = 0.0;
-          double m_core = mhalf*mclcorr;
-          double r_core = rhalf*rclcorr;
           
-          cout<<"msec: "<<msec<<" tsec: "<<tsec<<" ksec: "<<ksec<<endl;
+          if(time+trecy > Hubble){
+            label = "highlander";
+            //cout<<"Highlander condition met at time = "<<time<<" for cluster "<<cluster<<endl;
+            Srem[i] = Spinning[0];
+            Xrem[i] = Spinning[1];
+            Mrem[i] = Spinning[2];
+            Krem[i] = Spinning[3];
+            Cosa[i] = Spinning[4];
+            Cosb[i] = Spinning[5];
+            Cosg[i] = Spinning[6];
 
-          hgen(eps, mpri, apri, msec, asec, vthre, dynaS, zams_sin, remn_sin, tdel_sin, kick_sin, Comp, Spinning, nbhs, nrecy, nmerg, i, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer);
+            hout<<itot<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<mclcorr<<" "<<rclcorr<<" "<<trelax0<<" "<<vthre<<" "<<sig_clu<<" "<<tdf<<" "<<tbbhform<<" "<<t12<<" "<<tmer<<" "<<nsafe_cal+nsafe_glob<<" "<<Z[i]<<" "<<cluster<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<nrecy<<" "<<time<<" "<<tfor[i]<<endl;
+          
 
-          msec = Comp[0];
-          asec = Comp[1];
-          nhigen = int(Comp[2]);
-          double interaction_rate = Comp[3];
-          nbhs = int(Comp[4]);
-
-          cout<<"BSE companion" << endl;
-          cout<<"Interaction rate: "<<interaction_rate<<endl;
-          cout<<"Number of BHs: "<<nbhs<<endl;
-          cout<<"High-gen: "<<nhigen<<endl;
-          cout<<"msec: "<<msec<<" asec: "<<asec<<" eps: "<<eps<<" nmerg: "<<nmerg<<endl;
-          cout<<"mpri: "<<mpri<<" apri: "<<apri<<" vthre: "<<vthre<<" dynaS: "<<dynaS<<endl;
-
-          nsafe ++;
-          if(nsafe > 1000)
             break;
-	      }while(msec <= 0.0 || ksec > vthre);
-	      
-	    }
-	  }
-
-	  if(msec == 0){
-	    msec = msec_prec;
-	    break;
-	  }
-	  
-	  // if(highgen == "yes" && msec < 65.){
-	  //   double p_BPOP;
-	  //   if(cluster == "globular")
-	  //     p_BPOP = 295. / 1.E4; //this is valid for GCs with Z = 0.0002 (would it change with different metallicity?)
-	  //   else if(cluster == "nuclear")
-	  //     p_BPOP = 2740./ 1.E4;
-	  //   else if(cluster == "young")
-	  //     p_BPOP = 0.0;
-	    
-	  //   double p_hgen = func.rnd();
-	  //   double mav = 30.;
-	  //   if(p_hgen < p_BPOP){
-	  //     double coef = 0.2 + 0.8*func.rnd();
-	  //     msec = mav * (1. + msec/mav * (1.+mav/6.0));	       
-	  //   }
-	  //   nhigen += int(msec / mav);
-	  // }
-
-	  
-	  asec   = func.spin(msec,dynaS);
-
-	  if(apri > 1. || asec > 1.){
-	    cout<<"Critical error "<<mpri<<" "<<apri<<" "<<msec<<" "<<asec<<" "<<nrecy<<endl;
-	    exit(0);
-	  }
+          }
 
 
-	  mu_red = mpri * msec / (mpri+msec);
+          if(Spinning[3] > vthre && label != "ejected"){
+            label = "GWrecoiled";
+            //cout<<"GW recoiled at time "<<time<<" with vesc = "<<vthre<<" and Kick = "<<Spinning[3]<<endl;
+            Srem[i] = Spinning[0];
+            Xrem[i] = Spinning[1];
+            Mrem[i] = Spinning[2];
+            Krem[i] = Spinning[3];
+            Cosa[i] = Spinning[4];
+            Cosb[i] = Spinning[5];
+            Cosg[i] = Spinning[6];
+            break;
+          }
+          
+          if(cluster_stat == "evaporated"){
+            if(label != "ejected")
+              label = "inevap";
+            break;
+          }
+          
+          time += trecy;
+          nan.str("");
+          nan<<time;	  
+          if(nan.str() == "nan" || nan.str() == "-nan"){
+            cout<<"Step error Final "<<tfor[i]<<" "<<tSNe<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<endl;
+            exit(0);
+          }
 
-	  	 
-	  //tDF to sink, [(t3bb or t1-2)+t1-2bh] for BBH formation	
-	  tdf = 0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9) * pow(rinfinite/pow(10.,rint),1.74);
-	  //if(CLevo=="yes"){
-	  if(mclcorr*mhalf > 1.E1)
-	    tdf *= (pow(rclcorr,3./2.-1.74)*sqrt(mclcorr));
-	  else
-	    tdf  = 1.E12;
-	    
-	  //}
-	  
-	  nan.str("");
-	  nan<<tdf;
-	  if(nan.str()=="nan"||nan.str()=="-nan"){
-	    cout<<"DF ERROR: "<<tdf<<endl;
-	    exit(0);
-	  }
-	  trecy += tdf;
-
-	  //Time for BHs to pair --> assume it's already hard
-	  //if(CLevo == "yes"){
-	  
-	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  
-	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	  
-	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	  
-	  semihard = 1./pow(sig_clu/30., 2.);
-	  
-	  
-	  t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
-	  t12 *= func.rndgen(1.0, 0.1);
-
-	  
-	  if(time + trecy < tfor[i] +tcc && time + trecy + t12 > tfor[i] +tcc){
-	    time = tfor[i] + tcc;
-	    
-	    mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	    rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	    
-	    sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	    
-	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	  }
-	    
-	    
-	    //}
-	  
-	  
-	  semihard = 1./pow(sig_clu/30., 2.); 
-
-	  
-	  t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
-	  t12 *= func.rndgen(1.0, 0.1);
-
-	  if(mclcorr*mhalf < 1.E1) // && CLevo == "yes")
-	    t12 = 1.E12;
-	    
-	  
-	  trecy += t12;
-
-	  //if(CLevo == "yes"){
-	    
-	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  
-	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	  
-	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	    
-	  //}
-	  
-
-	  semihard = 1./pow(sig_clu/30., 2.); 
-	  sma = semihard * func.Gaussian(1.,sigma_sma);
-	  if(sigma_sma < 0)
-	    sma = 0.1 + 0.1*func.rnd();
-	  
-	  //calculate aej vs agw to merge inside or outside --> inside (tgwpeters), outside (5/q3 * t2-1)
-	  semi_ej = 0.07 * (mu_red * mper / (mpri + msec + mper) * mper/(mpri+msec)) * pow(vthre/50.,-2.);
-	  semi_gw = 0.05 * pow((mpri+msec)/20,3./5.)*pow( (msec/mpri) / pow(1+(msec/mpri),2.) , 1./5.) * pow(sig_clu/30., 1./5.) * pow(1.E6 / rho_clu,1./5.);
-
-	  //acrit = max(semi_ej,semi_gw); changed with the part below
-	  double afin;
-	  if(semi_ej > semi_gw){
-	    afin = min(sma, semi_ej);	    
-	  }
-	  else{
-	    afin = min(sma, semi_gw);
-	  }
-	  acrit = afin;
-	  
-	  
-	  tbbh = 2.E7/zita * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(10. * mstar / (mpri+msec)) * (0.05 / acrit) * (20./(mpri+msec));
-	  tbbh *= func.rndgen(1.0, 0.1);	  
-	  
-	  if(semi_ej > semi_gw)
-	    acrit = 2. * afin / (2. + afin/semihard); 
-
-	  
-	  
-	  tmer = 5. * (mpri + msec)/mper * tbbh;						 	  
-
-	  if(mclcorr*mhalf < 1.E1){
-	    semi_ej = -2.0;
-	    semi_gw = -1.0;
-	    acrit   = 1.E12;
-	    tmer    = 1.E12;
-	  }
-	  
-	  trecy+= tmer;
-	  
-	  //if(CLevo == "yes"){
-	    
-
-	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  
-	  
-	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
-	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
-	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
-	  
-	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
-	  
-	  //}
-	 	  
-	  if(semi_ej < 0.0 && semi_gw < 0.0)
-	    label="dissolved";
-	  else if(semi_ej < semi_gw)	    
-	    label="inside";
-	  else	   
-	    if(acrit < semi_gw)
-	      label="inside";
-	    else
-	      label="ejected";
-
-	  double teje = tmer;
-       
-
-	  ecc = sqrt(func.rnd());
-	 	  
-	  double clight = 3.E8;
-	  double Grav   = 6.67E-11;
-	  double Msun   = 1.99E30;
-	  double Rau    = 1.5E11;	    
-	  tmer = 5./256. * pow(clight,5.) / pow(Grav * Msun, 3.) * pow(Rau,4.)  * pow(acrit,4.)/(mpri*msec*(mpri+msec)) * pow(1.-pow(ecc,2.),3.5) / (1. + 73./24. * ecc*ecc + 37./96.*ecc*ecc*ecc*ecc) * 1./ (365.*24.*3600.*1.E0);
-	  
-	  if(tmer < teje && label == "ejected")
-	    label = "inside";
-	  
-	  if(mclcorr*mhalf < 1.E1)
-	    tmer = 1.E12;
-	  
-	  trecy += tmer;
-
-	  nan.str("");
-	  nan<<time;
-	  if(nan.str()=="-nan" || nan.str()=="nan"){
-	    cout<<"Critical error "<<tmer<<" "<<tbbh<<" "<<tdf<<" "<<t12<<" "<<time<<" "<<trecy<<endl;
-	    exit(0);
-	  }
-	  
-	  Spinning[0] = 0.0;
-	  Spinning[1] = 0.0;
-	  Spinning[2] = 0.0;
-	  Spinning[3] = 0.0;
-	  Spinning[4] = 0.0;
-	  Spinning[5] = 0.0;
-	  Spinning[6] = 0.0;
-
-	  if(mpri>0.0 && msec>0.0)
-	    func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  	 
+          trecy = 0.0;
+          
+          Srem[i] = Spinning[0];
+          Xrem[i] = Spinning[1];
+          Mrem[i] = Spinning[2];
+          Krem[i] = Spinning[3];
+          Cosa[i] = Spinning[4];
+          Cosb[i] = Spinning[5];
+          Cosg[i] = Spinning[6];
 
 
-	  if(mpri > 200.)
-	    sig_clu = sqrt(sig_clu0*sig_clu0 + mpri / (0.1*pow(10.,rint)));
-	  
-	  nrecy += 1;
-	  //nrecy += nhigen;
+          double cj = pow(vthre,4.) / pow(vthre*vthre - Krem[i]*Krem[i],2.) - 1.;
+          if(cj < 0.0 && abs(cj) < 1.E-10)
+            cj = 0.0;
+          
+          rinfinite = pow(10.,rint) * sqrt(cj);
+          //if(CLevo == "yes")
+          rinfinite *= rclcorr;
 
-	  //This will include all repeated mergers into the main catalogue ... 
-	  if(time < Hubble){
-	    zmer = func.inter(time / 1.E9, age, reds, redline);
-	    zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
-	    zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
-	  }
-	  else{
-	    zmer = func.zred(time/1.E9);
-	    zfor = func.zred(tfor[i]/1.E9);	  
-	    zsmbh = func.zred(tsmbh/1.E9);
-	  }
-	 
 
-	}while(1>0);
+          if(vthre < Krem[i] ||  (cj < 0.0 && abs(cj) > 1.E-10))
+            rinfinite = 1.E10;
+          //  m_p m_s spin_p spin_s semi-major semi-major_newton semi-major_gw formation time Stellar_evo_time time_12capture time3b_capture time_dyn_friction time_bbh(?) time_GW_merger time N_gen_primary N_gen_secondary interaction_rate mass cluster(t) radius_cluster(t) M_clu_ini R_clu_ini t_core_collapse id_BH label cluster_type M_rem S_rem X_rem K_rem escape_velocity itot                                                                                                                                                                                                                                                                                                                                                                         
+          out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy <<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<" "<<nhigen<<" "<<interaction_rate<<endl;	
+          
+          if(mpri > msmbhmax && tsmbh == 0.0){
+            tsmbh = time;
+            break;
+          }
+          if(nrecy > nbhs)
+            break;
+          
+          if(label == "ejected" || label == "GWrecoiled")
+            break;
+
+          
+          mpri = Mrem[i];
+          apri = Srem[i];
+
+          mass_ratio = -1;
+          nsafe = 0;       
+
+          double msec_prec = msec;
+
+          //cout<< "Chosing secondary BH mass and time for the multiple merger chain with mpri = "<<mpri <<endl;
+          
+          if(stri_mrat != "nouniform"){
+            do{
+              mass_ratio = func.mratio(mpri, MRATIO_SLOPE, stri_mrat);
+              msec = mpri * mass_ratio;
+              for(int iii=0; iii<remn_sin.size()-1;iii++){
+                if(msec > remn_sin[iii] && msec < remn_sin[iii+1]){
+                  tsec = 0.5*(tdel_sin[iii] + tdel_sin[iii+1]) ;
+                }
+              }
+              nsafe += 1;
+              if(nsafe > 1000){
+                cout<<"mratio fails"<<endl;
+                exit(0);
+              }
+            }while(msec < 1. || msec > 500.);
+          }
+          else{
+            msec = -1;
+            ksec = 1.E30;
+            nsafe = 0;
+            if(mixer > mixing){
+              do{
+                // We choose frome the SSE catalog
+                func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, vthre);	  
+                msec = single_bh[0];	 
+                tsec = single_bh[1];
+                ksec = single_bh[2];	
+                // Let's check if the secondary BHs comes from a hierarchical merger
+                double eps =  func.GWeff(pcluster,Z[i]);
+                double nmerg = eps * mhalf;
+                // Support vector for the high-gen code
+                int elem = 6;
+                double *Comp;
+                Comp = new double [elem];
+                for(int i=0;i<elem;i++) Comp[i] = 0.0;
+
+                //Let's account for the cluster evolution
+                mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+                rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          
+                double m_core = pow(10., mint)*mclcorr;
+                double r_core = rhalf*rclcorr;
+                
+                //cout<<"msec: "<<msec<<" tsec: "<<tsec<<" ksec: "<<ksec<<endl;
+                nhigen = 0;
+                interaction_rate = 0.0;
+                hgen(mpri, apri, msec, asec, ksec, vthre, dynaS, zams_sin, remn_sin, tdel_sin, kick_sin, Comp, Spinning, nbhs, gen_primary, nmerg, i, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer);
+                
+                msec = Comp[0];
+                asec = Comp[1];
+                ksec = Comp[2];
+                nhigen = int(Comp[3]);
+                interaction_rate = Comp[4];
+                nbhs = int(Comp[5]);
+                if(nhigen > 0)
+                  cout<<"ID: "<< i <<" Maximum higgen: "<< gen_primary<<" High-gen: "<<nhigen<<" Interaction rate: "<<interaction_rate<<endl;
+                else
+                  //cout<<"No high-gen companion found - Interaction rate: "<<interaction_rate<<endl;
+                 
+                nsafe ++;
+                if(single_bh[3] == 1)
+                  break;
+                else if(nsafe > 500){
+                  cout<<npar_runtime<<" "<<i<<" "<<Z[i]<<" "<<msec<<" "<<tsec<<" "<<ksec<<endl;
+                }
+                if(nsafe > 1000){
+                  cout<<"Something wrong " <<msec<<" "<<tsec<<" "<<ksec<<" "<<minimus<<" "<<vthre<<endl;
+                  exit(0);
+                }
+          
+              }while(msec <= 0.0 || ksec > vthre);
+              
+              if(msec < minimus){
+                cout<<"Second BH mass below mmin = "<<minimus<<" "<<msec<<endl;
+              }
+
+            }
+            else{
+              double MSLP = mslope;
+              msec = -1;
+              ksec = 1.E30;	      
+              do{
+                // We choose frome the BSE catalog
+                singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
+                msec = single_bh[0];	  	  
+                tsec = single_bh[1];
+                ksec = single_bh[2];
+                // Let's check if the secondary BHs comes from a hierarchical merger
+                double eps =  func.GWeff(pcluster,Z[i]);
+                double nmerg = eps * mhalf;
+                // Support vector for the high-gen code
+                int elem = 6;
+                double *Comp;
+                Comp = new double [elem];
+                for(int i=0;i<elem;i++) Comp[i] = 0.0;
+
+                //Let's account for the cluster evolution
+                mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+                rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          
+                double m_core = pow(10., mint)*mclcorr;
+                double r_core = rhalf*rclcorr;
+                
+                //cout<<"msec: "<<msec<<" tsec: "<<tsec<<" ksec: "<<ksec<<endl;
+                nhigen = 0;
+                interaction_rate = 0.0;
+
+                hgen(mpri, apri, msec, asec, ksec, vthre, dynaS, zams_sin, remn_sin, tdel_sin, kick_sin, Comp, Spinning, nbhs, gen_primary, nmerg, i, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer);
+
+                msec = Comp[0];
+                asec = Comp[1];
+                ksec = Comp[2];
+                nhigen = int(Comp[3]);
+                interaction_rate = Comp[4];
+                nbhs = int(Comp[5]);
+
+                if(nhigen > 0)
+                  cout<<"ID: "<< i <<" Maximum higgen: "<< gen_primary<<" High-gen: "<<nhigen<<" Interaction rate: "<<interaction_rate<<endl;
+                else
+                  //cout<<"No high-gen companion found - Interaction rate: "<<interaction_rate<<endl;
+                 
+                nsafe ++;
+                if(nsafe > 1000)
+                  break;
+              }while(msec <= 0.0 || ksec > vthre);
+              
+            }
+          }
+
+          if(msec == 0){
+            msec = msec_prec;
+            break;
+          }
+          
+          // if(highgen == "yes" && msec < 65.){
+          //   double p_BPOP;
+          //   if(cluster == "globular")
+          //     p_BPOP = 295. / 1.E4; //this is valid for GCs with Z = 0.0002 (would it change with different metallicity?)
+          //   else if(cluster == "nuclear")
+          //     p_BPOP = 2740./ 1.E4;
+          //   else if(cluster == "young")
+          //     p_BPOP = 0.0;
+            
+          //   double p_hgen = func.rnd();
+          //   double mav = 30.;
+          //   if(p_hgen < p_BPOP){
+          //     double coef = 0.2 + 0.8*func.rnd();
+          //     msec = mav * (1. + msec/mav * (1.+mav/6.0));	       
+          //   }
+          //   nhigen += int(msec / mav);
+          // }
+
+          
+          asec   = func.spin(msec,dynaS);
+
+          if(apri > 1. || asec > 1.){
+            cout<<"Critical error "<<mpri<<" "<<apri<<" "<<msec<<" "<<asec<<" "<<nrecy<<endl;
+            exit(0);
+          }
+
+
+          mu_red = mpri * msec / (mpri+msec);
+
+            
+          //tDF to sink, [(t3bb or t1-2)+t1-2bh] for BBH formation	
+          tdf = 0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9) * pow(rinfinite/pow(10.,rint),1.74);
+          //if(CLevo=="yes"){
+          if(mclcorr*mhalf > 1.E1)
+            tdf *= (pow(rclcorr,3./2.-1.74)*sqrt(mclcorr));
+          else
+            tdf  = 1.E12;
+            
+          //}
+          
+          nan.str("");
+          nan<<tdf;
+          if(nan.str()=="nan"||nan.str()=="-nan"){
+            cout<<"DF ERROR: "<<tdf<<endl;
+            exit(0);
+          }
+          trecy += tdf;
+
+          //Time for BHs to pair --> assume it's already hard
+          //if(CLevo == "yes"){
+          
+          mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          
+          sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+          rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+          rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+          
+          
+          vthre = vthre_in * sqrt(mclcorr/rclcorr);
+          
+          semihard = 1./pow(sig_clu/30., 2.);
+          
+          
+          t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
+          t12 *= func.rndgen(1.0, 0.1);
+
+          
+          if(time + trecy < tfor[i] +tcc && time + trecy + t12 > tfor[i] +tcc){
+            time = tfor[i] + tcc;
+            
+            mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+            rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+            
+            sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+            rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+            rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+            
+            
+            vthre = vthre_in * sqrt(mclcorr/rclcorr);
+          }
+            
+            
+            //}
+          
+          
+          semihard = 1./pow(sig_clu/30., 2.); 
+
+          
+          t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
+          t12 *= func.rndgen(1.0, 0.1);
+
+          if(mclcorr*mhalf < 1.E1) // && CLevo == "yes")
+            t12 = 1.E12;
+            
+          
+          trecy += t12;
+
+          //if(CLevo == "yes"){
+            
+          mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          
+          sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+          rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+          rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+          
+          
+          vthre = vthre_in * sqrt(mclcorr/rclcorr);
+            
+          //}
+          
+
+          semihard = 1./pow(sig_clu/30., 2.); 
+          sma = semihard * func.Gaussian(1.,sigma_sma);
+          if(sigma_sma < 0)
+            sma = 0.1 + 0.1*func.rnd();
+          
+          //calculate aej vs agw to merge inside or outside --> inside (tgwpeters), outside (5/q3 * t2-1)
+          semi_ej = 0.07 * (mu_red * mper / (mpri + msec + mper) * mper/(mpri+msec)) * pow(vthre/50.,-2.);
+          semi_gw = 0.05 * pow((mpri+msec)/20,3./5.)*pow( (msec/mpri) / pow(1+(msec/mpri),2.) , 1./5.) * pow(sig_clu/30., 1./5.) * pow(1.E6 / rho_clu,1./5.);
+
+          //acrit = max(semi_ej,semi_gw); changed with the part below
+          double afin;
+          if(semi_ej > semi_gw){
+            afin = min(sma, semi_ej);	    
+          }
+          else{
+            afin = min(sma, semi_gw);
+          }
+          acrit = afin;
+          
+          
+          tbbh = 2.E7/zita * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(10. * mstar / (mpri+msec)) * (0.05 / acrit) * (20./(mpri+msec));
+          tbbh *= func.rndgen(1.0, 0.1);	  
+          
+          if(semi_ej > semi_gw)
+            acrit = 2. * afin / (2. + afin/semihard); 
+
+          
+          
+          tmer = 5. * (mpri + msec)/mper * tbbh;						 	  
+
+          if(mclcorr*mhalf < 1.E1){
+            semi_ej = -2.0;
+            semi_gw = -1.0;
+            acrit   = 1.E12;
+            tmer    = 1.E12;
+          }
+          
+          trecy+= tmer;
+          
+          //if(CLevo == "yes"){
+            
+
+          mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          
+          
+          sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
+          rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
+          rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
+          
+          
+          vthre = vthre_in * sqrt(mclcorr/rclcorr);
+          
+          //}
+            
+          if(semi_ej < 0.0 && semi_gw < 0.0)
+            label="dissolved";
+          else if(semi_ej < semi_gw)	    
+            label="inside";
+          else	   
+            if(acrit < semi_gw)
+              label="inside";
+            else
+              label="ejected";
+
+          double teje = tmer;
+            
+
+          ecc = sqrt(func.rnd());
+            
+          double clight = 3.E8;
+          double Grav   = 6.67E-11;
+          double Msun   = 1.99E30;
+          double Rau    = 1.5E11;	    
+          tmer = 5./256. * pow(clight,5.) / pow(Grav * Msun, 3.) * pow(Rau,4.)  * pow(acrit,4.)/(mpri*msec*(mpri+msec)) * pow(1.-pow(ecc,2.),3.5) / (1. + 73./24. * ecc*ecc + 37./96.*ecc*ecc*ecc*ecc) * 1./ (365.*24.*3600.*1.E0);
+          
+          if(tmer < teje && label == "ejected")
+            label = "inside";
+          
+          if(mclcorr*mhalf < 1.E1)
+            tmer = 1.E12;
+          
+          trecy += tmer;
+
+          nan.str("");
+          nan<<time;
+          if(nan.str()=="-nan" || nan.str()=="nan"){
+            cout<<"Critical error "<<tmer<<" "<<tbbh<<" "<<tdf<<" "<<t12<<" "<<time<<" "<<trecy<<endl;
+            exit(0);
+          }
+          
+          Spinning[0] = 0.0;
+          Spinning[1] = 0.0;
+          Spinning[2] = 0.0;
+          Spinning[3] = 0.0;
+          Spinning[4] = 0.0;
+          Spinning[5] = 0.0;
+          Spinning[6] = 0.0;
+
+          if(mpri>0.0 && msec>0.0)
+            func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);	  	 
+
+
+          if(mpri > 200.)
+            sig_clu = sqrt(sig_clu0*sig_clu0 + mpri / (0.1*pow(10.,rint)));
+          
+          
+          //cout<<"Gen primary BH = "<<gen_primary<<" Mass: " << Mrem[i]<<endl;
+
+          nrecy += 1;
+          gen_primary++;
+          //nrecy += nhigen;
+
+          //This will include all repeated mergers into the main catalogue ... 
+          if(time < Hubble){
+            zmer = func.inter(time / 1.E9, age, reds, redline);
+            zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+            zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
+          }
+          else{
+            zmer = func.zred(time/1.E9);
+            zfor = func.zred(tfor[i]/1.E9);	  
+            zsmbh = func.zred(tsmbh/1.E9);
+          }
+        
+
+        }while(1>0);
 
 	
-	//if(CLevo == "yes"){
-	  
-	mclcorr = func.mevol(Hubble-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	rclcorr = func.revol(Hubble-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-	  
-	//}
+          //if(CLevo == "yes"){
+            
+          mclcorr = func.mevol(Hubble-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          rclcorr = func.revol(Hubble-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+            
+          //}
+
+          if(time < Hubble){
+            zmer = func.inter(time / 1.E9, age, reds, redline);
+            zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
+            zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
+          }
+          else{
+            zmer = func.zred(time/1.E9);
+            zfor = func.zred(tfor[i]/1.E9);
+            zsmbh = func.zred(tsmbh/1.E9);
+          }
+
+          itot++;
 	
+          if(time < Hubble){
+            out<<itot<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
+            out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<tmer<<" "<<Cosa[i]<<" "<<Cosb[i]<<" "<<Cosg[i]<<endl; //Eccentricity added to output
 
-	
-	
+          Ndyn_real++;
+          if(cluster == "young")
+            Nyou_real++;
+          else if(cluster == "globular")
+            Nglo_real++;
+          else if(cluster == "nuclear")
+            Nnuc_real++;
+          else{
+            cout<<"Error"<<endl;
+            exit(0);
+          }
 
-	if(time < Hubble){
-	  zmer = func.inter(time / 1.E9, age, reds, redline);
-	  zfor = func.inter(tfor[i] / 1.E9, age, reds, redline);
-	  zsmbh= func.inter(tsmbh/1.E9, age, reds, redline);
-	}
-	else{
-	  zmer = func.zred(time/1.E9);
-	  zfor = func.zred(tfor[i]/1.E9);
-	  zsmbh = func.zred(tsmbh/1.E9);
-	}
+          
+          if(mpri!=0.0)      
+            out2<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<endl;
+        }
 
-	itot++;
-	
-	if(time < Hubble){
-	  out<<itot<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
-	  out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs<<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<tmer<<" "<<Cosa[i]<<" "<<Cosb[i]<<" "<<Cosg[i]<<endl; //Eccentricity added to output
-
-
-	  
-	  Ndyn_real++;
-	  if(cluster == "young")
-	    Nyou_real++;
-	  else if(cluster == "globular")
-	    Nglo_real++;
-	  else if(cluster == "nuclear")
-	    Nnuc_real++;
-	  else{
-	    cout<<"Error"<<endl;
-	    exit(0);
-	  }
-
-	  
-	  if(mpri!=0.0)      
-	    out2<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<endl;
-	}
-
-
-
-	mx.erase(mx.begin(),mx.end());
-	my.erase(my.begin(),my.end());
-	rx.erase(rx.begin(),rx.end());
-	ry.erase(ry.begin(),ry.end());
+        mx.erase(mx.begin(),mx.end());
+        my.erase(my.begin(),my.end());
+        rx.erase(rx.begin(),rx.end());
+        ry.erase(ry.begin(),ry.end());
       }
       
     }
 
     //    cout<<" ----> Actual BBH found "<<npar_runtime<<endl;
 
-
-    
     zams_mix.erase(zams_mix.begin(),zams_mix.end());
     remn_mix.erase(remn_mix.begin(),remn_mix.end());
     zams_sin.erase(zams_sin.begin(),zams_sin.end());
@@ -3345,9 +3317,6 @@ int main(){
     kick_mix.erase(kick_mix.begin(),kick_mix.end());
     kick_sin.erase(kick_sin.begin(),kick_sin.end());
 
-    
-    
-    
   }
   clout.close();
 
@@ -3355,8 +3324,6 @@ int main(){
   out2.close();
   out3.close();
   hout.close();
-  
-  
   
 
   for(int i=0;i<100;i++){
@@ -3383,9 +3350,9 @@ int main(){
       in>>apa[0]>>apa[1]>>par2>>par3;
       for(int ll = 2;ll<9;ll++)in>>apa[ll];
 
-      mpost.push_back(apa[6]);
-      //cout<<mpost[k]<<endl;
-    }
+        mpost.push_back(apa[6]);
+        //cout<<mpost[k]<<endl;
+      }
     in.close();
   }
 
@@ -3426,7 +3393,7 @@ int main(){
     SFR = "KR13";
   else if(sfr_iso == "madau17" || sfr_iso == "MF17")
     SFR = "MF17";
-  SFR += "_";
+    SFR += "_";
   if(sfr_clu == "katz13" || sfr_clu == "KR13")
     SFR += "KR13";
   else if(sfr_clu == "madau17" || sfr_clu == "MF17")
