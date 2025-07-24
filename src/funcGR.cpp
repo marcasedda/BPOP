@@ -400,7 +400,7 @@ double Functions::sfr_red(string sfrtype){
   double Om = 0.3609;
   
   
-  double psisfrmax = 0.01 * pow(1+zredmax,2.6) / (1. + pow((1+zredmax)/3.2,6.2)) ; // * cor(zredmax, Om);
+  double psisfrmax = 0.01 * pow(1+zredmax,2.6) / (1. + pow((1+zredmax)/3.2,6.2)) ;/// cor(zredmax, Om);
   double psirnd;
 
   double reds_max = 20.0;
@@ -413,7 +413,7 @@ double Functions::sfr_red(string sfrtype){
 
     do{
       zred = reds_max*rnd();
-      psisfr = 0.01 * pow(1+zred,2.6) / (1. + pow((1+zred)/3.2,6.2));// * cor(zred, Om);
+      psisfr = 0.01 * pow(1+zred,2.6) / (1. + pow((1+zred)/3.2,6.2)) ;/// cor(zred, Om);
       psirnd = psisfrmax * rnd();
       if(psisfr > psirnd)
 	break;
@@ -423,11 +423,14 @@ double Functions::sfr_red(string sfrtype){
   else if(sfr=="continuous" || sfr == "constant"){
     zred = 15.0*rnd(); //REFERENCE?
   }
+  else if(sfr=="grid"){
+    zred = 15.0*rnd();
+  }
   else if(sfr=="burst"){
     zred = 20.0;
   }
   else if(sfr=="bigbang"){
-    zred = 1100.;
+    zred = 20.;
   }
   else if(sfr=="single"){
     zred = 20.;
@@ -1625,11 +1628,13 @@ void Functions::SREM2(double ndx, double a1, double a2, double m1, double m2, st
   do{
     double ccc  = rnd();
     double cosbeta = 2.*pow(ccc,1./(ndx+1.))-1.;    
-    ccc = rnd();
-    double cosgamma = 2.*pow(ccc,1./(ndx+1.))-1.;
-    
+
+    double ccc2 = rnd();
+    double cosgamma = 2.*pow(ccc2,1./(ndx+1.))-1.;
+
     double cosalpha = -1.+2.*rnd();
-    
+
+
     if(align=="align"){
       cosalpha = 1.0;
       cosbeta  = cosgamma;

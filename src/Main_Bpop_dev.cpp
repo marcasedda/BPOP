@@ -395,7 +395,7 @@ int main(){
   else if(SEVN=="iorio")
     nmetal = 15;
   else
-    nmetal = 13;
+    nmetal = 12;
 
   int numZ = nmetal;
   met = new double [nmetal];
@@ -567,6 +567,8 @@ int main(){
   vector<double> mpost;
  
   align = "whatever";
+
+  ndx = INDEX_ALIGN;
 
   // CREATING ESCAPE VEL ARRAYS //
 
@@ -1125,7 +1127,7 @@ int main(){
       Spinning[3] = 0.0;
       Spinning[4] = 0.0;
       Spinning[5] = 0.0;
-      Spinning[6] = 0.0;
+      Spinning[6] = 0.0;      
       if(mpri > 0.0 && msec > 0.0)
 	func.SREM2(ndx, apri, asec, mpri, msec, align, Spinning);
 	
