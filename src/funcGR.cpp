@@ -222,7 +222,10 @@ double Functions::Gss_weight(vector<double>& Zeta, vector<double>& Eeta, double 
 double Functions::mevol(double t, double rh, double mh, double trel, string type, string tclus){
 
   double tcc = 0.138*mh/(150. * log(0.11*mh/150.))*sqrt(pow(rh*3.08E16,3.)/(6.67E-11*1.99E30*mh))/(365.*24.*3600.);        
+  if(tcc < 0)
+    tcc = 0.2 * 4.2E9 * pow(rh/4.0,1.5) * sqrt(mh/1.E7) ;
 
+  
   double trlx = trel ; //0.78E9 / log(0.11*mh) * pow(mh/1.E5,0.5) * pow(rh,1.5);
     
   double fplu = 1.0; 
@@ -273,11 +276,20 @@ double Functions::mevol(double t, double rh, double mh, double trel, string type
     
   if(t < 1.E7){
     mfact = mfact_h * (0.005 + 0.08*rnd());
-  }
+  }  
   else{
     mfact = mfact_h * (0.001 + 0.05*rnd());
-  }    
-  
+    }   
+  if(t < 10.*tcc){
+    double rcoll = revol(t, rh, mh, trel, type, tclus);
+    if(t < 2.*tcc)
+      mfact *= pow(rcoll/0.15,0.4);
+    else
+      mfact *= pow(rcoll/0.15,1./1.3);
+  }
+
+
+    
   if(mfact <= 0.0 || mfact_h <= 0.0)
     mfact = 0.0;
 
@@ -287,7 +299,7 @@ double Functions::mevol(double t, double rh, double mh, double trel, string type
 
 double Functions::revol(double t, double rh, double mh, double trel, string type, string tclus){
 
-  double mfact = mevol(t, rh, mh, trel, type, tclus);
+  //double mfact = mevol(t, rh, mh, trel, type, tclus);
   
   double tcc = 0.138*mh/(150. * log(0.11*mh/150.))*sqrt(pow(rh*3.08E16,3.)/(6.67E-11*1.99E30*mh))/(365.*24.*3600.);
   if(tcc < 0.0)
@@ -299,16 +311,22 @@ double Functions::revol(double t, double rh, double mh, double trel, string type
 
   if(type == "under" || type == "over" || type == "critical" || type == "mix" || type == "GG23"){
     double t0 = tcc * 5. * (rh + 1.);
-    double rfact_h = pow(1. + t/t0,0.35);
+    double alpha = 0.15 + 0.1 * rnd();
+    double rfact_h = pow(1. + t/t0,alpha);    
 
-    if(t > 10.*tcc){
-      rfact = rfact_h * (0.08+0.2*rnd());
+    double gamma = .7;
+    double keep = 10.;
+    
+    if(t > keep*tcc){
+      double beta = pow(10., -3. + 2.*rnd());
+      double r10 =  (rfact_h * (rmin + 0.2*pow(keep/2. - 1.,gamma)*rnd()));
+      rfact =  r10 * pow(t/(2.*tcc)-1.,beta);
     }
-    else if(t>2.*tcc && t<=10.*tcc){     
-      rfact = rfact_h * (0.08 + 0.2*pow(t/(2.*tcc)-1.,0.35)*rnd());
+    else if(t>2.*tcc && t<=keep*tcc){     
+      rfact =  (rmin + 0.2*pow(t/(2.*tcc)-1.,gamma)*rnd());
     }
     else{
-      rfact = rfact_h * (0.1 + 0.2*rnd()) * pow(1.-t/(2.*tcc),0.53);
+      rfact = rfact_h * (0.05 + 0.25*rnd()) * pow(1.-t/(2.*tcc),0.53);
       if(rfact < rmin)
 	rfact = rmin;
     }
@@ -330,8 +348,8 @@ double Functions::revol(double t, double rh, double mh, double trel, string type
   }
 
   
-  if(mfact == 0.0)
-    rfact = 0.0;
+  //if(mfact == 0.0)
+  //  rfact = 0.0;
 
   return rfact;
 }
@@ -400,7 +418,7 @@ double Functions::sfr_red(string sfrtype){
   double Om = 0.3609;
   
   
-  double psisfrmax = 0.01 * pow(1+zredmax,2.6) / (1. + pow((1+zredmax)/3.2,6.2)) ; // * cor(zredmax, Om);
+  double psisfrmax = 0.01 * pow(1+zredmax,2.6) / (1. + pow((1+zredmax)/3.2,6.2)) ;/// cor(zredmax, Om);
   double psirnd;
 
   double reds_max = 20.0;
@@ -413,7 +431,7 @@ double Functions::sfr_red(string sfrtype){
 
     do{
       zred = reds_max*rnd();
-      psisfr = 0.01 * pow(1+zred,2.6) / (1. + pow((1+zred)/3.2,6.2));// * cor(zred, Om);
+      psisfr = 0.01 * pow(1+zred,2.6) / (1. + pow((1+zred)/3.2,6.2)) ;/// cor(zred, Om);
       psirnd = psisfrmax * rnd();
       if(psisfr > psirnd)
 	break;
@@ -423,11 +441,14 @@ double Functions::sfr_red(string sfrtype){
   else if(sfr=="continuous" || sfr == "constant"){
     zred = 15.0*rnd(); //REFERENCE?
   }
+  else if(sfr=="grid"){
+    zred = 15.0*rnd();
+  }
   else if(sfr=="burst"){
     zred = 20.0;
   }
   else if(sfr=="bigbang"){
-    zred = 1100.;
+    zred = 20.;
   }
   else if(sfr=="single"){
     zred = 20.;
@@ -1625,11 +1646,13 @@ void Functions::SREM2(double ndx, double a1, double a2, double m1, double m2, st
   do{
     double ccc  = rnd();
     double cosbeta = 2.*pow(ccc,1./(ndx+1.))-1.;    
-    ccc = rnd();
-    double cosgamma = 2.*pow(ccc,1./(ndx+1.))-1.;
-    
+
+    double ccc2 = rnd();
+    double cosgamma = 2.*pow(ccc2,1./(ndx+1.))-1.;
+
     double cosalpha = -1.+2.*rnd();
-    
+
+
     if(align=="align"){
       cosalpha = 1.0;
       cosbeta  = cosgamma;
@@ -1867,28 +1890,4 @@ string Functions::print(double mass, double mmax, double mmin,double wgh){
   
   succ = "success";
   return succ;
-}
-
-
-double Functions::GWeff(string pcluster, double met){
-  Functions func;
-
-  double eps;
-  double a,c;
-  if(pcluster == "young"){
-    a = 0.000134696 + 1.543E-5*(1.-2.*func.rnd());
-    c = -4.25476 + 1.221 *(1.-2.*func.rnd());
-  }
-  else if(pcluster == "globular"){
-    a = 0.00053 + 2.46E-5*(1.-2.*func.rnd());
-    c = -3.1727 + 0.3818*(1.-2.*func.rnd());
-  }
-  else if(pcluster == "nuclear"){
-    a = 0.0011 + 2.2E-5 * (1.-2.*func.rnd());
-    c = -1.84 + 0.11 * (1.-2.*func.rnd());  
-  }
-
-  eps = a * pow(1.+met/0.02,c);
-   
-  return eps;
 }
