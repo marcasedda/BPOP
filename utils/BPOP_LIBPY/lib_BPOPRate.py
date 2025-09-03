@@ -100,7 +100,7 @@ def msca(CLU, SFR):
                 fsca[0] = 6.E-5 * 1.E12 / 6.E10                
         elif(SFR == "eb19"):
             if(CLU == "nuclear"):
-                fsca[1] = 1.E-5
+                fsca[1] = 5.E-5
                 fsca[2] = 3.2
                 fsca[3] = 1.5
             elif(CLU == "globular"):
@@ -674,12 +674,12 @@ def print_cat(Ypd, idx_cat, clstr):
 
     
     f_out = open("Catalogue_"+clstr+".txt","w")
-    header = "#Metallicity zGW zfor m1 m2 a1 a2 mrem arem xeff vGW nrecy cluster mclu rclu ecce semiax status id cos1 cos2 cos12\n"
+    header = "Metallicity zGW zfor m1 m2 a1 a2 mrem arem xeff vGW nrecy cluster mclu rclu ecce semiax status cos1 cos2 cos12 id\n"
     f_out.write(header)
     [f_out.write("{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:1.4e} {14:1.4f} {15:1.5f} {16:1.5e} {17:s} {18:1.4f} {19:1.4f} {20:1.4f} {21:1.0f} \n".format(Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij], Mrem_cat[ij],arem_cat[ij],xeff_cat[ij],vgw_cat[ij], nrec_cat[ij],ctype_cat[ij],mcl_cat[ij],rcl_cat[ij], ecc_cat[ij],sma_cat[ij],status_cat[ij], cosL1[ij], cosL2[ij], cosS1S2[ij], id_cat[ij])) for ij in range(len(Z_cat))]
     f_out.close()
 
-    strix = ["{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:1.4e} {14:1.4f} {15:1.5f} {16:1.5e} {17:s} {18:1.4f} {19:1.4f} {20:1.4f} {21:1.0f} \n".format(Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij], Mrem_cat[ij],arem_cat[ij],xeff_cat[ij],vgw_cat[ij], nrec_cat[ij],ctype_cat[ij],mcl_cat[ij],rcl_cat[ij], ecc_cat[ij], sma_cat[ij], status_cat[ij], cosL1[ij], cosL2[ij], cosS1S2[ij],id_cat[ij] ) for ij in range(len(Z_cat))]
+    strix = ["{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:1.4e} {14:1.4f} {15:1.5f} {16:1.5e} {17:s} {18:1.4f} {19:1.4f} {20:1.4f} {21:1.0f}\n".format(Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij], Mrem_cat[ij],arem_cat[ij],xeff_cat[ij],vgw_cat[ij], nrec_cat[ij],ctype_cat[ij],mcl_cat[ij],rcl_cat[ij], ecc_cat[ij], sma_cat[ij], status_cat[ij], cosL1[ij], cosL2[ij], cosS1S2[ij],id_cat[ij] ) for ij in range(len(Z_cat))]
     
     return strix, header
 
