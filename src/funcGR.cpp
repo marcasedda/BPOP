@@ -222,7 +222,10 @@ double Functions::Gss_weight(vector<double>& Zeta, vector<double>& Eeta, double 
 double Functions::mevol(double t, double rh, double mh, double trel, string type, string tclus){
 
   double tcc = 0.138*mh/(150. * log(0.11*mh/150.))*sqrt(pow(rh*3.08E16,3.)/(6.67E-11*1.99E30*mh))/(365.*24.*3600.);        
+  if(tcc < 0)
+    tcc = 0.2 * 4.2E9 * pow(rh/4.0,1.5) * sqrt(mh/1.E7) ;
 
+  
   double trlx = trel ; //0.78E9 / log(0.11*mh) * pow(mh/1.E5,0.5) * pow(rh,1.5);
     
   double fplu = 1.0; 
@@ -273,11 +276,20 @@ double Functions::mevol(double t, double rh, double mh, double trel, string type
     
   if(t < 1.E7){
     mfact = mfact_h * (0.005 + 0.08*rnd());
-  }
+  }  
   else{
     mfact = mfact_h * (0.001 + 0.05*rnd());
-  }    
-  
+    }   
+  if(t < 10.*tcc){
+    double rcoll = revol(t, rh, mh, trel, type, tclus);
+    if(t < 2.*tcc)
+      mfact *= pow(rcoll/0.15,0.4);
+    else
+      mfact *= pow(rcoll/0.15,1./1.3);
+  }
+
+
+    
   if(mfact <= 0.0 || mfact_h <= 0.0)
     mfact = 0.0;
 
@@ -287,7 +299,7 @@ double Functions::mevol(double t, double rh, double mh, double trel, string type
 
 double Functions::revol(double t, double rh, double mh, double trel, string type, string tclus){
 
-  double mfact = mevol(t, rh, mh, trel, type, tclus);
+  //double mfact = mevol(t, rh, mh, trel, type, tclus);
   
   double tcc = 0.138*mh/(150. * log(0.11*mh/150.))*sqrt(pow(rh*3.08E16,3.)/(6.67E-11*1.99E30*mh))/(365.*24.*3600.);
   if(tcc < 0.0)
@@ -299,16 +311,22 @@ double Functions::revol(double t, double rh, double mh, double trel, string type
 
   if(type == "under" || type == "over" || type == "critical" || type == "mix" || type == "GG23"){
     double t0 = tcc * 5. * (rh + 1.);
-    double rfact_h = pow(1. + t/t0,0.35);
+    double alpha = 0.15 + 0.1 * rnd();
+    double rfact_h = pow(1. + t/t0,alpha);    
 
-    if(t > 10.*tcc){
-      rfact = rfact_h * (0.08+0.2*rnd());
+    double gamma = .7;
+    double keep = 10.;
+    
+    if(t > keep*tcc){
+      double beta = pow(10., -3. + 2.*rnd());
+      double r10 =  (rfact_h * (rmin + 0.2*pow(keep/2. - 1.,gamma)*rnd()));
+      rfact =  r10 * pow(t/(2.*tcc)-1.,beta);
     }
-    else if(t>2.*tcc && t<=10.*tcc){     
-      rfact = rfact_h * (0.08 + 0.2*pow(t/(2.*tcc)-1.,0.35)*rnd());
+    else if(t>2.*tcc && t<=keep*tcc){     
+      rfact =  (rmin + 0.2*pow(t/(2.*tcc)-1.,gamma)*rnd());
     }
     else{
-      rfact = rfact_h * (0.1 + 0.2*rnd()) * pow(1.-t/(2.*tcc),0.53);
+      rfact = rfact_h * (0.05 + 0.25*rnd()) * pow(1.-t/(2.*tcc),0.53);
       if(rfact < rmin)
 	rfact = rmin;
     }
@@ -330,8 +348,8 @@ double Functions::revol(double t, double rh, double mh, double trel, string type
   }
 
   
-  if(mfact == 0.0)
-    rfact = 0.0;
+  //if(mfact == 0.0)
+  //  rfact = 0.0;
 
   return rfact;
 }

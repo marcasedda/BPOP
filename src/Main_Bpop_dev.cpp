@@ -1683,6 +1683,9 @@ int main(){
 	      
 	      rint = (rx[ipre] - rx[ipos])/(ry[ipre] - ry[ipos])*(esc - ry[ipre])+rx[ipre];
 
+	      //New assumption on Clusters' initial radii//
+	      rint = log10(pow(10.,rint)/(2. + 18.*func.rnd()));
+	      
 	      double mclu_int = pow(10., mint);
 	      if(TagR == "Marks12" && cluster == "young"){
 
@@ -2201,6 +2204,8 @@ int main(){
 	  trelax = 0.78E9 /log(0.11 * mhalf) * pow(mhalf/1.E5, 0.5) * pow(rhalf, 1.5); //4.2E9 * (15./logL) * pow(rhalf/4.0,1.5) * sqrt(mhalf/1.E7) ;		  
 	  //tDF to sink	
 	  tdf = 0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9);	  	  
+
+	  double time0 = time;
 	  
 	  if(tdf > tSNe)
 	    time += tdf;	  
@@ -2213,13 +2218,25 @@ int main(){
 	  mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
 	  rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
 
+	  
 	  //------------------------------------------------------//
 	  //  Add here the first prototype for the coupling growth//
-	  //  mevol = func.coupling();
-	  //  mpri += mevol?
+	  //  z_i is the formation time of the first BH, is given by (time + tSNe) --> z_i = func.interp((time0+tSNe)/1.E9, age, reds, redline)
+	  //  z is the current redshift, given by --> z = func.interp(time/1.E9, age, reds, redline) 
+	  //  z_i  must remain fixed until a new merger occurs
+	  //  z    must be calculated at every new time-step calculation (whenever time is updated)
+	  //  fM(z, z_i, M_i) =  pow( (1+z_i)/(1+z) , k )
+	  //  
+	  //  mevol = func.coupling(mpri_form, z_form, z_time);
+	  //  mpri *= fM
+	  //  msec *= fM
+	  //
+	  //  Upon a merger, the remnant will be characterised by a new mpri_form and z_form, which are not the same as the original progenitor
 	  //  Check that mpri is defined before
 	  //  the call to this class at any call
+	  //  NOTE: if secondary is only 0-th generation --> z_i is a fixed value for any secondary
 	  //------------------------------------------------------//
+
 	  
 	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
 	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
@@ -2544,6 +2561,11 @@ int main(){
 	rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	
+	//Cosmological coupling
+	//a BH remnant is formed --> (z_i <-> time)
+	//
+	//
+	/////////////////////////////
 	
 	vthre = vthre_in * sqrt(mclcorr/rclcorr);
 	
@@ -2631,6 +2653,12 @@ int main(){
 	  Cosb[i] = Spinning[5];
 	  Cosg[i] = Spinning[6];
 
+	  //Cosmological coupling
+	  // z_i <-> time
+	  // M_i = Mrem
+	  // z == z_i
+	  ///////////////////////
+	  
 
 	  double cj = pow(vthre,4.) / pow(vthre*vthre - Krem[i]*Krem[i],2.) - 1.;
 	  if(cj < 0.0 && abs(cj) < 1.E-10)
