@@ -62,9 +62,9 @@ repetita = "no"
 evapora  = "no"
 adjust_red = "no"
 adjust_typ = "tmed" #tmed, zmed, rnd, lst, tave, zave, rate
-pre = "IORIO"
+pre = "SEVN"
 aCE = ""
-IBonly=True
+IBonly=False
 
 #**************************************************************#
 
@@ -120,9 +120,9 @@ vms   = ["","","","","",""]
 mstar   = 1.0
 fbh     = 0.0026
 fbin_is = 1.0
-fbin_yc = 1.0
-fbin_gc = 1.0
-fbin_nc = 1.0
+fbin_yc = 0.6
+fbin_gc = 0.2
+fbin_nc = 0.2
 
 
 
@@ -260,7 +260,7 @@ file_esc = "retention_Z"
 file_hie = "Catalogue_multiple_dyn.txt"
 
 
-z = np.linspace(0,maxz,500) #ogspace(-2, np.log10(maxz), 100) #0.01,maxz,100)
+z = np.linspace(0,maxz,1000) #ogspace(-2, np.log10(maxz), 100) #0.01,maxz,100)
 z = np.array(z)
 
 # The following vector contains scaling for NC, GC, YC, IB, respectively
@@ -363,7 +363,7 @@ for i in range(len(redshift)):
 ## Reading the file ## 
 
 Fn = directory[0] + file_mer
-X = np.loadtxt(Fn, dtype={'names':('zmer', 'zfor', 'met', 'clus', 'mclu', 'vesc','mas', 'tmer', 'nrep', 'msec','rclu', 'stat','id'), 'formats':(float, float, float, 'U8',float,float,float,float,float,float,float,'U8',float)}, usecols=[24, 25, 1, 3, 15, 17, 5, 14, 2, 6,16,18,0], unpack=True)
+X = np.loadtxt(Fn, dtype={'names':('zmer', 'zfor', 'met', 'clus', 'mclu', 'vesc','mas', 'tmer', 'nrep', 'msec','rclu', 'stat','id', 'tfor'), 'formats':(float, float, float, 'U8',float,float,float,float,float,float,float,'U8',float,float)}, usecols=[24, 25, 1, 3, 15, 17, 5, 14, 2, 6, 16, 18, 0, 13], unpack=True)
 
 zmer_a = X[0]
 zfor_a = X[1]
@@ -378,9 +378,12 @@ nrep_a = X[8]
 rclu_a = X[10]
 stat_a = X[11]
 id_a   = X[12]
+tfor_a = X[13]
+
 
 Ln = directory[0] + file_all
 Y = np.loadtxt(Ln, dtype={'names':('met','clus','nrecy','tmer','tfor'), 'formats':(float,'U8',float,float,float)}, usecols=[13,14,22,23,24], unpack=True)                
+
 
 
 if(adjust_red == "yes"):
@@ -486,23 +489,15 @@ for i in range(len(Mmer)):
     
 Vmer = np.array(Vmer)
 
-Zloss_tot= Y[0]
-Closs_tot= Y[1]
-nloss_tot= Y[2]
-tloss_tot= Y[3]
-tgwloss_tot= Y[4]
-zloss_tot= [interp(tloss_tot[i]/1.E9, tage, redshift) for i in range(len(tloss_tot))]
-zloss_tot= np.array(zloss_tot)
+Zloss= Y[0]
+Closs= Y[1]
+nloss= Y[2]
+tloss= Y[3]
+tgwloss= Y[4]
+zloss= [interp(tloss[i]/1.E9, tage, redshift) for i in range(len(tloss))]
+zloss= np.array(zloss)
 
 
-id_ck = np.where((tgwloss_tot - tloss_tot) > tHubble)
-pd_ck = np.where((tgwloss_tot - tloss_tot) <= tHubble)
-Zloss = Zloss_tot[id_ck]
-Znlos = Zloss_tot[pd_ck]
-Closs= Closs_tot[id_ck]
-Cnlos= Closs_tot[pd_ck]
-nloss= nloss_tot[id_ck] 
-nnlos= nloss_tot[pd_ck]
 
 f = open("efficiency_Z_SET"+str(IDmod)+a+"_massive_"+massive+".txt","w")
 fstr = ""
@@ -549,10 +544,8 @@ for kt in range(len(clt)):
 
             idx_Z = np.where((Zmet >= dcen - dZsx) & (Zmet < dcen + dZdx) & (ctype == cluster))
             idx_N = np.where((Zloss >= dcen - dZsx) & (Zloss < dcen + dZdx) & (Closs == cluster) & (nloss==0))
-            idx_NZ= np.where((Znlos >= dcen - dZsx) & (Znlos < dcen + dZdx) & (Cnlos == cluster) & (nnlos==0))
             Zmet_Z = Zmet_a[idx_Z]
             Zmet_no= Zloss[idx_N]
-            Zmet_si= Znlos[idx_NZ]
             
             ## Multiple mergers should also be counted here? ##
             nrep_Z = nrep[idx_Z]
@@ -573,11 +566,10 @@ for kt in range(len(clt)):
             Mweight = np.sum(fret * Mmer_mer)
             Msummed = np.sum(Mmer_mer)
             
-            NZgw = len(Zmet_Z) + len(Zmet_si)
+            NZgw = len(Zmet_Z) 
             NZno = len(Zmet_no)
             eta = 0.0
 
-            #print(len(Zmet_si))
             
             
             if(repetita == "no"):
@@ -585,11 +577,6 @@ for kt in range(len(clt)):
             
             if(mstar != 0.0 and (NZgw+NZno != 0) and Msummed!=0):
                 eta = fbh / mstar * (NZgw + nrep_sum) / (NZgw + NZno) * fbin[kt] * Mweight/Msummed
-                
-            #if(clt[kt] == "young"):                
-            #    eta = 0.5 * eta                
-            #    if(Z[i] > 0.01):                    
-            #        eta = 0.2 * eta
             
 
         eta_eff[kt][i] = eta        
@@ -639,9 +626,9 @@ for kt in range(len(clt)):
 
     ## binaries that don't merge for a given environment ##
     ## we need to know how many don't merge at a formation redshift ##
-    idx_non = np.where(Closs_tot == cluster)
-    zlos_non= zloss_tot[idx_non]
-    Zlos_non= Zloss_tot[idx_non]
+    idx_non = np.where(Closs == cluster)
+    zlos_non= zloss[idx_non]
+    Zlos_non= Zloss[idx_non]
     
     zmob_Ztot=[None]*len(Z)
     tmob_Ztot=[None]*len(Z)
