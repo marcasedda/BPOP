@@ -1741,6 +1741,40 @@ int main(){
       
     }while(!in.eof());
     in.close();
+
+    // Reading the GW recoil velocity tables 
+    vector<double> gw_recoil, gw_recoil_cdf;
+    vector<double> gw_recoil_hg, gw_recoil_hg_cdf;
+    string gw_cat_name = predir+"include/kick_velocity_cdf.csv";
+    in.open(gw_cat_name.c_str());
+
+    int gw_kick_col=2;
+
+    do{
+      double bpar[spar];
+
+      for(int jj=0; jj<gw_kick_col; jj++) in>>par[jj];
+      gw_recoil.push_back(par[0]);
+      gw_recoil_cdf.push_back(par[1]);
+      
+      }while (!in.eof());
+
+    in.close();
+
+    // Let's read the GW kick cdf for generation above the first
+    string gw_hg_cat_name = predir+"include/kick_velocity_hg_cdf.csv";
+    in.open(gw_cat_name.c_str());
+    
+    do{
+      double bpar[spar];
+
+      for(int jj=0; jj<gw_kick_col; jj++) in>>par[jj];
+      gw_recoil_hg.push_back(par[0]);
+      gw_recoil_hg_cdf.push_back(par[1]);
+      
+      }while (!in.eof());
+
+      in.close();
     
     /*double msdx[bin_st],mssx[bin_st];
     double mbdx[nsize],mbsx[nsize];
@@ -1866,7 +1900,8 @@ int main(){
     for(int i=Niso; i<Nsrc; i++){
       
       string cluster_stat="none";
-	
+
+      int gen_primary = 0;
       
       Zi[i] = Z[i];
       
@@ -1926,6 +1961,7 @@ int main(){
 	double tSNe, mper, trelax, trelax0, tcc, tdf, semihard, kappa, semi, ecc, t12, acrit, tbbh, tmer, mu_red, sma;
 	double t3bb, t12capt, tbbhform;
 	double time,nsafe_glob,nsafe,mass_ratio, mixer, nhigen;
+  double interaction_rate;
 	string stri_mrat;
 
 	double mclcorr = 1.0;
@@ -2216,30 +2252,30 @@ int main(){
 	  // retention fraction freten //
 	  double freten = 0.5 * (1. + 0.3*(1.-2.*func.rnd()));
 
-        // Fraction number of BHs in a power-law IMF between 0.08 and 150 Msun//
-        double fraBH = 0.0008 * (1. + 0.1*(1.-2.*func.rnd()));
-        
-        // This depends on the number fraction of BHs in the cluster, we're also assuming mint == N_* 
-        double init_bhs = fraBH * pow(10.,mint) * freten * fencl;
+    // Fraction number of BHs in a power-law IMF between 0.08 and 150 Msun//
+    double fraBH = 0.0008 * (1. + 0.1*(1.-2.*func.rnd()));
+    
+    // This depends on the number fraction of BHs in the cluster, we're also assuming mint == N_* 
+    double init_bhs = fraBH * pow(10.,mint) * freten * fencl;
 
-        if(init_bhs < 2)
-          init_bhs = 2;
-        if(init_bhs < 1){
-          cout<<"Warning -- no BHs in the centre!? "<<init_bhs<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<pcluster<<endl;
-          exit(0);
-        }
+    if(init_bhs < 2)
+      init_bhs = 2;
+    if(init_bhs < 1){
+      cout<<"Warning -- no BHs in the centre!? "<<init_bhs<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<pcluster<<endl;
+      exit(0);
+    }
         
-        // nbhs will account for the number of BHs in the cluster of each generation, to be used for interaction rate estimate
-        // nbhs[0] is the total number of BHs in the system
-        // nbhs[1] is the number of BHs of the first generation, aka stellar BHs
-        // nbhs[2] is the number of BHs of the second generation, aka produced by a BBH merger
-        // nbhs[i] is the number of BHs of the i-th generation
-        // and so on...
+    // nbhs will account for the number of BHs in the cluster of each generation, to be used for interaction rate estimate
+    // nbhs[0] is the total number of BHs in the system
+    // nbhs[1] is the number of BHs of the first generation, aka stellar BHs
+    // nbhs[2] is the number of BHs of the second generation, aka produced by a BBH merger
+    // nbhs[i] is the number of BHs of the i-th generation
+    // and so on...
 
-        vector<double> nbhs(7, 0.0);  // [total, g1, g2, g3, g4, g5, g6]
-        double nbhs_6plus = 0.0; //number of BHs with generation >= 6
-        nbhs[1] = init_bhs;    // gen-1 (stellar BHs)
-        nbhs[0] = nbhs[1];     // total = gen-1 initially (others are zero)
+    vector<double> nbhs(7, 0.0);  // [total, g1, g2, g3, g4, g5, g6]
+    double nbhs_6plus = 0.0; //number of BHs with generation >= 6
+    nbhs[1] = init_bhs;    // gen-1 (stellar BHs)
+    nbhs[0] = nbhs[1];     // total = gen-1 initially (others are zero)
       
         stri_mrat = MRATIO;
         nsafe_glob = 0;
