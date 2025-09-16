@@ -206,8 +206,12 @@ int main(){
 
   ifstream in;
 
-  double sigmaZ = sigma_metal;
-  string metal_dis = sigma_distri;
+  double sigmaZ = sigma_metal_iso;
+  string metal_dis = sigma_distri_iso;
+
+  double sigmaZ_clu = sigma_metal_clu;
+  string metal_dis_clu = sigma_distri_clu;
+
   string predir = PREDIR;
 
   double sigma_sma = SSMA;
@@ -865,10 +869,35 @@ int main(){
       logz1 = log10(met[ntxt]);
     }
     else{
-      double logz_me;    
-      logz_me = func.metcor(metal_dis, sigmaZ, red_del);
-      logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[nmetal-1]/Zsun), logz_me, sigmaZ) + log10(Zsun);
-    //double logz2 = func.GSS_smpl(met[0], met[11], logz_me, sigmaZ);
+      double logz_me;
+
+      
+      if(i < Niso+Nyc+Ngc){
+	//globular clusters
+	if(sfr_clu_gc == "EB18" || sfr_clu_gc == "continuous"){
+	  //From Eq. 13 in El-Badry et al 2019, based on Ma et al 2016
+	  logz_me = func.metcor(metal_dis_clu, sigmaZ_clu, red_del);
+	  logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[nmetal-1]/Zsun), logz_me, sigmaZ_clu) + log10(Zsun);	  
+	}
+	else if(sfr_clu_gc == "MF17"){
+	  logz_me = func.metcor(metal_dis, sigmaZ, red_del);
+	  logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[nmetal-1]/Zsun), logz_me, sigmaZ) + log10(Zsun);
+	}
+      }
+      else{
+	//nuclear clusters
+ 	if(sfr_clu_nc == "EB18"){
+	  //dry scenario
+	  logz_me = func.metcor(metal_dis_clu, sigmaZ_clu, red_del);
+	  logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[nmetal-1]/Zsun), logz_me, sigmaZ_clu) + log10(Zsun);
+	}
+	else if(sfr_clu_nc == "MF17" || sfr_clu_nc == "continuous"){
+	  //in situ formation
+	  logz_me = func.metcor(metal_dis, sigmaZ, red_del);
+	  logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[nmetal-1]/Zsun), logz_me, sigmaZ) + log10(Zsun);
+	}
+      }
+      
     }
     
     logz = logz1;
@@ -889,6 +918,7 @@ int main(){
 
     
   }
+  
   //----------------------------------------------------------
   
   
@@ -1743,7 +1773,7 @@ int main(){
 	      }
 	      else if(TagR == "lupi"){
 		mint = log10(1.E6);
-		rint = log10(1.0);
+		rint = log10(0.5);
 	      }
 	      else if(TagR == "AS20" && cluster == "nuclear"){
 		//Select if it's late type (50%) or early type (50%)
@@ -2196,14 +2226,16 @@ int main(){
 
 	  if(bhseed != "no")
 	    tSNe = max(5.0e6, tcc);
-	    
-	  
 	  rhalf = pow(10.,rint);
 	  mhalf = pow(10.,mint);
 	   
 	  trelax = 0.78E9 /log(0.11 * mhalf) * pow(mhalf/1.E5, 0.5) * pow(rhalf, 1.5); //4.2E9 * (15./logL) * pow(rhalf/4.0,1.5) * sqrt(mhalf/1.E7) ;		  
 	  //tDF to sink	
 	  tdf = 0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9);	  	  
+	  if(bhseed == "lupi"){
+            tSNe = 0.0;
+	    tdf  = 0.0;
+          }
 
 	  double time0 = time;
 	  
@@ -2523,7 +2555,7 @@ int main(){
 	  nH ++;
 	
 	clout<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<sig_clu<<" "<<rho_clu<<" "<<pcluster<<" "<<nbhs<<" ";
-	clout<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<kpri<<" "<<ksec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<time<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<(double) nH / (double) npar_runtime;
+	clout<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<kpri<<" "<<ksec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<time<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<(double) nH / (double) npar_runtime<<" "<<Z[i];
 	clout<<endl;	
 
 

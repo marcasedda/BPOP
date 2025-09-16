@@ -105,6 +105,12 @@ double Functions::metcor(string metal_dis, double sigmaZ, double red_del){
 	logz_me = -0.24*red_del;
       else if(metal_dis == "Giacobbo20b")
 	logz_me = -0.24*red_del - 0.18;
+      else if(metal_dis == "Elbadry19"){
+	//Eq. 13 in EB19
+	double Mstar_mass = 1.e10;
+	//logz_me =  0.35 * (log10(Mstar_mass) - 10) + 0.93 * exp(-0.43*red_del) - 1.05 *(1. + pow(red_del/15,3)); //gas phase (see Ma et al 2016)
+	logz_me =  0.40 * (log10(Mstar_mass) - 10) + 0.67 * exp(-0.50*red_del) - 1.04 *(1. + pow(red_del/15,3)); //star phase (see Ma et al 2016)
+      }
       else{
 	cout<<"Metallicity distribution not found, please retry"<<endl;
 	exit(0);
