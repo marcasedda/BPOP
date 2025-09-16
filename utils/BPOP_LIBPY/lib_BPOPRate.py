@@ -104,9 +104,14 @@ def msca(CLU, SFR):
                 fsca[2] = 3.2
                 fsca[3] = 1.5
             elif(CLU == "globular"):
-                fsca[1] = 1.E-4
+                #From EB19 - fig. 8, dashed
+                fsca[1] = 1.2E-4
+                fsca[2] = 4.5
+                fsca[3] = 2.0                
+                #From Mapelli 
+                '''fsca[1] = 1.E-4
                 fsca[2] = 3.2
-                fsca[3] = 1.5
+                fsca[3] = 1.5'''
 
     if(SFR == "kr13"):
         if(CLU=="globular"):

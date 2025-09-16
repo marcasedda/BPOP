@@ -260,7 +260,7 @@ file_esc = "retention_Z"
 file_hie = "Catalogue_multiple_dyn.txt"
 
 
-z = np.linspace(0,maxz,1000) #ogspace(-2, np.log10(maxz), 100) #0.01,maxz,100)
+z = np.linspace(0,maxz,500) #ogspace(-2, np.log10(maxz), 100) #0.01,maxz,100)
 z = np.array(z)
 
 # The following vector contains scaling for NC, GC, YC, IB, respectively
@@ -695,7 +695,7 @@ for kt in range(len(clt)):
         fsum = [0.0]*len(Z)
         Iz = [0.0]*len(Z)        
         
-        zp = np.linspace(zcen[i], maxz, 1000)
+        zp = np.linspace(zcen[i], maxz, 500)
         
         
         zp_cen = [0.5*(zp[j]+zp[j+1]) for j in range(len(zp)-1)]
