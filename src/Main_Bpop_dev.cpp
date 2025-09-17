@@ -89,7 +89,7 @@
       // and make sure that the secondary is of the same generation or lower of the primary
 
       //In this loop I grow the hierarchical companion BH
-      while (gen2 < nmerg && max(tbbhform/tcc, t12capt/tcc) >= tau && nrecy > gen2 && nbhs[0] > 0) {
+      while (gen2 < nmerg && max(tbbhform/tcc, t12capt/tcc) >= tau && nrecy >= gen2 && nbhs[0] > 0) {
         
         grew = true;         // mark that we actually did at least one hierarchical step
         
@@ -2734,7 +2734,7 @@
 	if(time < Hubble)
 	  nH ++;
 	
-	clout<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<sig_clu<<" "<<rho_clu<<" "<<pcluster<<" "<<nbhs<<" ";
+	clout<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<sig_clu<<" "<<rho_clu<<" "<<pcluster<<" "<<nbhs[0]<<" ";
 	clout<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<kpri<<" "<<ksec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<time<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<(double) nH / (double) npar_runtime<<" "<<Z[i];
 	clout<<endl;	
 

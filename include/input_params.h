@@ -8,38 +8,38 @@
 //#define Hubble 13.99E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
-#define PREDIR "/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/"
-#define SINGPTH  "../SEVN_Catalog/rapid_M20/"
-#define PATH     "../SEVN_Catalog/rapid_M20/" 
+#define PREDIR "../"
+#define SINGPTH  "../../../SEVN_Catalogs/rapid_M20_a1/" //"../SEVN_Catalog/IORIO_zenodo_cat" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
+#define PATH     "../../../SEVN_Catalogs/rapid_M20_a1/" //"../SEVN_Catalog/IORIO_zenodo_cat" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
 #define SEVN "yes"
 #define MERGER_EFF_CORR "no"
 
 // GLOBAL
-#define N        1000000
+#define N        6000000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
 #define Zsun     0.019
 
 //DYNAMICAL FRACTIONS
-#define DynOvTot 0.9
-#define pYC      0.75
-#define pGC      0.15
-#define pNC      0.1
+#define DynOvTot 1.0
+#define pYC      0.33
+#define pGC      0.33
+#define pNC      0.34
 
 #define uppergap "yes"
-#define bhseed   "bifrost"
+#define bhseed   "no"
 #define bifZ     0.001
 #define bhpisn   270.
 #define fupgp    0.15
 #define mass_gap  60.0
 #define upgtp   "dicarlo"
-#define SFRTYPE_ISO "continuous" //"MF17" //"continuous" //"bigbang" //
-#define SFRTYPE_CLU "continuous" //"EB18_MF17" //"KR13" //"EB18_MF17" //"continuous" //"bigbang" //
+#define SFRTYPE_ISO "single" //"MF17" //"continuous" //"bigbang" //
+#define SFRTYPE_CLU "single" //"EB18_MF17" //"KR13" //"EB18_MF17" //"continuous" //"bigbang" //
 
 
 #define mixing  0.5
-#define fbin    0.0
+#define fbin    0.5
 
 //YC mass-size relation
 //Marks12, Rantala24, Mapelli20, AS20
@@ -51,8 +51,8 @@
 
 //CLUSTER EVOLUTION
 #define CLfill       "GG23"
-#define MonoZ        "no"
-#define mono_Z       0.002
+#define MonoZ        "yes"
+#define mono_Z       0.0002
 #define cluster_test "no"
 #define cluster_test_env "NC"
 #define msmbhmax 5.E7
