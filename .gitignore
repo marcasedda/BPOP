@@ -1,0 +1,5 @@
+# local stages
+.vscode/
+.ipynb_checkpoints/
+
+
