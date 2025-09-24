@@ -107,9 +107,13 @@ def msca(CLU, SFR):
                 #From EB19 - fig. 8, dashed
                 fsca[1] = 1.2E-4
                 fsca[2] = 4.5
-                fsca[3] = 2.0                
-                #From Mapelli 
+                fsca[3] = 2.0
+                #From Mapelli
                 '''fsca[1] = 1.E-4
+                fsca[2] = 3.2
+                fsca[3] = 1.5'''
+		#From Zhao25
+                '''fsca[1] = 2.E-4
                 fsca[2] = 3.2
                 fsca[3] = 1.5'''
 
@@ -322,7 +326,7 @@ def IMBHdetrate(red, Ratex, Hub0, OmegaM, OmegaL):
 
 # BPOP-SAMPLER Functions
 
-def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs):
+def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, massive_mass):
     
     print("\n===================  BSmplr package  =====================")
     start = time.time()
@@ -381,7 +385,7 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs):
                 pltZtst(Ypd, YpdicZ)
 
 
-    max_mas = 1.E3
+    max_mas = massive_mass
     if(massive == "yes"):
         max_mas = 1.E2
 
