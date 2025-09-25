@@ -1,4 +1,5 @@
 #include "funcGR.h"
+//#include "input_params.h"   // your #defines
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -1897,3 +1898,270 @@ string Functions::print(double mass, double mmax, double mmin,double wgh){
   succ = "success";
   return succ;
 }
+
+
+double Functions::GWeff(string pcluster, double met){
+
+  //This function computes the efficiency of formation of merging BBHs in different environments
+  //as a function of the metallicity of the progenitor stars and the type of cluster
+  //The formula is a fit from the catalogs
+
+  Functions func;
+
+  double eps;
+  double a,c;
+  if(pcluster == "young"){
+    a = 0.000134696 + 1.543E-5*(1.-2.*func.rnd());
+    c = -4.25476 + 1.221 *(1.-2.*func.rnd());
+  }
+  else if(pcluster == "globular"){
+    a = 0.00053 + 2.46E-5*(1.-2.*func.rnd());
+    c = -3.1727 + 0.3818*(1.-2.*func.rnd());
+  }
+  else if(pcluster == "nuclear"){
+    a = 0.0011 + 2.2E-5 * (1.-2.*func.rnd());
+    c = -1.84 + 0.11 * (1.-2.*func.rnd());  
+  }
+
+  eps = a * pow(1.+met/0.02,c);
+   
+  return eps;
+}
+
+
+
+void Functions::singBHt_mix(vector<double>& zams_mix,
+//This function selects a single BH from the mixed population
+      vector<double>& remn_mix,
+      vector<double>& tdel_mix,
+      vector<double>& kick_mix,
+      double *sing_out,
+      double vescape){
+
+        
+    Functions func;
+    double mblack, vblack, tblack;
+    sing_out[0] = 0.0;
+    sing_out[1] = 0.0;
+    sing_out[2] = 0.0;
+
+    int cat_size = zams_mix.size() ;
+    int id;
+    int nctn = 0;
+    do{
+      id = static_cast<int>(cat_size * func.rnd());
+      nctn++;    
+    }while(kick_mix[id] > vescape);
+    
+    //cout<<id<<" "<<zams_mix[id]<<" "<<remn_mix[id]<<" "<<tdel_mix[id]<<" "<<kick_mix[id]<<" "<<vescape<<endl;
+    
+    sing_out[0] = remn_mix[id];
+    sing_out[1] = tdel_mix[id];
+    sing_out[2] = kick_mix[id];
+    
+    //cout<<sing_out[0]<<" "<<sing_out[1]<<" "<<sing_out[2]<<" "<<vescape<<" "<<nctn<<endl;
+    return ;
+  }
+
+  double Functions::inter_rate(double m1, double m2, double vesc, double m_hg, int gen,
+            double nbhs, double mhalf, double mcore, double rcore, double n_bin,
+            double trelax, double t12capt, double tbbhform, double tcc,
+            string pcluster){
+
+  //  This function computes the interaction rate considering:
+  //  - the density of stellar BHs in the core
+  //  - the density of hierarchical BHs in the core --> computed considering the influence radius and the wandering radius of the hierarchical BHs
+  //  - the average mass of BHs
+  //  - the mass of the binary
+  //  - the mass of the hierarchical BH
+  //  - the escape velocity of the cluster
+  //  - the relaxation time of the cluster
+  //  - the time of formation of the BBH
+  //  - the time of core collapse of the cluster
+
+  //We compute the number densities
+  // rho_star = M_core/R_core^3 ==> n_star = rho_star/mstar_avg
+  // R_hier = max(R_inf, R_wand) 
+  // with the wandering radius R_wand being the region of the core where we can find the BH
+  // and the influence radius being the region of the core where the BHs dominates the interactions
+  //                   | alpha, with alpha = m_hier/m_core
+  // R_hier = R_core x |
+  //                   | mu exp[-0.5], with mu = m_hier/mstar_avg
+
+  // Thus, we define the number density of hierarchical BHs as:
+  // rho_hier = n_hier / (R_hier)^3 from Di Cinto et al. 2023
+  // n_hier = rho_hier / (R_hier)^3 from Di Cinto et al. 2023
+
+  // with m_hier = max( 2 * mstar_avg, s[2] )
+
+  // in this way we account for the average mass of the 1-g BHs in the cluster for low gens and for the higher gen mergers    Functions func;
+    
+    double IR;
+    
+    // Let's define the quantities intervining in the interaction rate
+    double mstar_avg = 17.4 - 4.0 * log10(tbbhform/trelax);  // Dragon-II paper II, eq. 8
+    
+    // Masses involved in the interaction rate
+    double m_bin = m1 + m2;
+    double m_hier = gen * mstar_avg;
+
+    // Let's define the influence sphere of the hierarchical BH, see Di Cinto et al. 2023
+    double alpha =  m_hier/mcore; 
+    double mu = m_hier/mstar_avg;
+
+    double r_inf = rcore * alpha;
+    double r_wand = rcore * pow(mu, -0.5);
+    double r_hier = max(r_inf, r_wand);
+
+    // Let's define the densities of stars and hierarchical BHs
+    double n_star = mcore / (mstar_avg * pow(rcore, 3)); // Number density of stellar BHs in the core
+    double n_hier = nbhs / pow(r_hier, 3); // Number density of hierarchical BHs in the core
+    
+    // Now we can compute the interaction rate
+    IR = (n_hier / n_star) * pow(m_hg / mstar_avg, 3. / 2.) * (m_bin + m_hg) / (m_bin + mstar_avg);
+
+    if (IR>1.0) IR = 1.0; // Cap the interaction rate to 1.0
+    
+    return IR;
+
+    }
+
+
+     void Functions::evolve_bhs(vector<double>& nbhs,           // total of bhs
+                  double n_bin,                   // fraction of bhs in binaries
+                  const vector<double>& gwK,      // kick distribution
+                  const vector<double>& gwK_cdf,  // kick cdf
+                  double vesc,                     // escape velocity of the cluster
+                  int gen2){                       // generation of the hierarchical merger (to set the max gen to update)
+
+      // This function evolves the population of BHs in the cluster considering:
+      // - the fraction of BHs in binaries (n_bin)
+      // - the kick distribution (gwK and gwK_cdf)
+      // - the escape velocity of the cluster (vesc)
+      // - the generation of the hierarchical merger (gen2)
+
+      // We'll append one zero slot to allow the formation of a next generation
+      nbhs.push_back(0.0);                // reserve the next generation (zero)
+
+      // old snapshot
+      const vector<double> old = nbhs;
+      const size_t oldS = old.size();     // e.g. 2 when we have [total, gen1]
+
+      // ---- retention fraction ret_fract = P(v_kick <= vesc) ----
+      double ret_fract = 0.0;
+      
+      auto it = upper_bound(gwK.begin(), gwK.end(), vesc);
+      size_t idx = (it == gwK.begin()) ? 0
+                : (it == gwK.end())   ? gwK_cdf.size() - 1
+                                      : size_t(it - gwK.begin() - 1);
+      ret_fract = gwK_cdf[idx];
+
+      // Update gen-1 explicitly (loses a fraction n_bin because of mergers)
+      nbhs[1] = old[1] * (1.0 - n_bin);
+
+      // Update gens 2..oldS
+      // (flow within and from previous gen, aka BHs not merging of the current gen and merging ones of the previous)
+      for (size_t g = 2; g < oldS; ++g) {
+          const double stay      = old[g]     * (1.0 - n_bin);
+          const double from_prev = old[g - 1] * 0.5 * n_bin * ret_fract;
+          //cout << "gen " << g << ": stay " << stay << ", from_prev " << from_prev << endl;
+          nbhs[g] = stay + from_prev;
+      }
+
+      // Recompute total as sum over all actual generations (exclude the newly appended zero at the end)
+      double total = 0.0;
+      for (size_t g = 1; g < oldS; ++g) total += nbhs[g];
+      nbhs[0] = total;
+      
+      // Debug output to check for negative burnt BHs
+      double burnt_bhs = old[0] - nbhs[0];
+      if (burnt_bhs < 0.0) {
+          cout << "Warning: negative burnt BHs: " << burnt_bhs << endl;
+          cout << "Cluster properties: vesc " << vesc << ", n_bin " << n_bin << ", ret_fract " << ret_fract << ", gen2 " << gen2 << endl;
+          cout << " old total: " << old[0] << ", new total: " << nbhs[0] << endl;
+          // Debug output for nbhs and old arrays before exiting
+          cout << "nbhs array contents:" << endl;
+          for (size_t i = 0; i < nbhs.size(); ++i) {
+            cout << "nbhs[" << i << "] = " << nbhs[i] << endl;
+          }
+          cout << "old array contents:" << endl;
+          for (size_t i = 0; i < old.size(); ++i) {
+            cout << "old[" << i << "] = " << old[i] << endl;
+          }
+      }
+
+      return;
+  }
+
+  void Functions::DiCarlo_BHs(double* mpri, double* msec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp){
+    //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
+    //We follow Di Carlo+2020 for the upper mass gap treatment
+    // The function modifies the masses of the binary components considering:
+    // - the metallicity of the cluster (Z)
+    // - if the BHs are processed or not (processed), i.e. if they have been already modified in the hierarchical merger chain
+    // - the user choice for the upper mass gap treatment (uppergap)
+    // - the fraction of mergers in the upper mass gap (fupgp)
+    // - the slope of the power-law distribution for the masses in the gap (a_gp)
+    // - the mass of the upper mass gap (mass_gap)
+
+    //We assume a power-law distribution for the masses in the gap, with slope a_gp
+    Functions func;
+
+    //From DRAGON: distribution of mergers with no compo. in the gap, both compo. in the gap, one compo. in the gap
+    double pbelow = 45./78. ;
+    double pupper = 12./78. ;
+    double pbelup = 21./78. ;
+
+    double prob_ugp = func.rnd();
+    double prob_fgp = func.rnd();
+    
+    string UP = upgtp;
+    double fUP= fupgp;
+          
+    if(UP == "dicarlo")
+      fUP = 0.01 * (1. + 5.797 * exp(Z / 0.0002 * log(5./5.797)));
+    
+    if(uppergap == "yes" && prob_ugp >= pbelow && prob_fgp < fUP){
+        
+      double p_gp;
+      p_gp = func.rnd();
+      double m1_gp = pow(p_gp * pow(100.,1.-a_gp) + (1.-p_gp)*pow(50., 1.-a_gp), 1./(1.-a_gp));
+      p_gp = func.rnd();
+      double m2_gp;
+
+      //The following make results DRAGON-II like!
+      if(m1_gp < 100.)
+        m2_gp = m1_gp * (0.4 + 0.6*func.rnd()); 
+      else
+        m2_gp = m1_gp * pow(m1_gp / 65., -1.78) * (1. + 0.2*(-1. + 2.*func.rnd()));
+
+      if(m2_gp > m1_gp){
+        double temp_gp = m1_gp;
+        m1_gp = m2_gp;
+        m2_gp = temp_gp;
+      }
+        
+      // We need to implement something for the spins too ...
+      if(prob_ugp >= pbelow && prob_ugp < pbelow + pbelup){
+
+        if(*mpri < mass_gap && !processed) *mpri = m1_gp;
+
+        else if (*msec < mass_gap) *msec = m2_gp;
+        
+        else if (!processed){
+          //cout<<"Both objects above the gap!"<<endl; //This may happen in multiple mergers?
+        }
+      }	      
+      
+      else if(prob_ugp > pbelow + pbelup){
+
+        if(*mpri < mass_gap && !processed) *mpri = m1_gp;
+
+        if(*msec < mass_gap) *msec = m2_gp;
+
+      }
+    }
+    return;
+  }
+
+  
