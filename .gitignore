@@ -1,5 +1,23 @@
 # local stages
 .vscode/
 .ipynb_checkpoints/
+# === Directory locali / temporanee ===
+cat_new/
+old_stuff/
+rapid_M20_A5/
+test_bpop_hg/
+
+# === File specifici da ignorare ===
+spectrum0003.txt
+
+# === File binari e compilati ===
+*.o
+*.so
+*.a
+*.out
+*.exe
+*.bin
+*.dll
+*.obj
 
 
