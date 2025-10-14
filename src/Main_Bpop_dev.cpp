@@ -367,10 +367,16 @@ int main(){
 
   double m_seed, r_seed, mbh_seed, abh_seed;
 
-  m_seed = MCL_popIII;
-  r_seed = RCL_popIII;
-  mbh_seed=MBH_popIII;
-  abh_seed=aBH_popIII;
+  // m_seed = MCL_popIII;
+  // r_seed = RCL_popIII;
+  // mbh_seed=MBH_popIII;
+  // abh_seed=aBH_popIII;
+
+  
+  m_seed = 0.0;
+  r_seed = 0.0;
+  mbh_seed=0.0;
+  abh_seed=0.0;
   
   //Creation of merger efficiency tables: only isolated binaries at the moment//
   vector<double> Zeta_b;

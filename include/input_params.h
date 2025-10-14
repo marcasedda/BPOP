@@ -4,7 +4,7 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#define CHUNKS "yes"
+#define CHUNKS "no"
 //#define Hubble 13.99E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
@@ -15,7 +15,7 @@
 #define MERGER_EFF_CORR "no"
 
 // GLOBAL
-#define N        6000000
+#define N        10000000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
