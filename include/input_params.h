@@ -4,13 +4,13 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#define CHUNKS "no"
+#define CHUNKS "yes"
 //#define Hubble 13.99E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
-#define PREDIR "../"
-#define SINGPTH  "../../../SEVN_Catalogs/rapid_M20_a1/" //"../SEVN_Catalog/IORIO_zenodo_cat" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
-#define PATH     "../../../SEVN_Catalogs/rapid_M20_a1/" //"../SEVN_Catalog/IORIO_zenodo_cat" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
+#define PREDIR "/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/"
+#define SINGPTH  "../SEVN_Catalog/rapid_M20/"
+#define PATH     "../SEVN_Catalog/rapid_M20/"
 #define SEVN "yes"
 #define MERGER_EFF_CORR "no"
 
@@ -28,21 +28,21 @@
 #define pNC      0.34
 
 #define uppergap "yes"
-#define bhseed   "no"
+#define bhseed   "bifrost"
 #define bifZ     0.001
 #define bhpisn   270.
 #define fupgp    0.15
 #define mass_gap  60.0
 #define upgtp   "dicarlo"
-#define SFRTYPE_ISO "single" //"MF17" //"continuous" //"bigbang" //
-#define SFRTYPE_CLU "single" //"EB18_MF17" //"KR13" //"EB18_MF17" //"continuous" //"bigbang" //
+#define SFRTYPE_ISO "continuous" //"MF17" //"continuous" //"bigbang" // "single"
+#define SFRTYPE_CLU "continuous" //"EB18_MF17" //"KR13" //"EB18_MF17" //"continuous" //"bigbang" //
 
 
-#define mixing  0.5
-#define fbin    0.5
+#define mixing  1.0
+#define fbin    0.0
 
 //YC mass-size relation
-//Marks12, Rantala24, Mapelli20, AS20
+//Marks12, Rantala24, Mapelli20, AS20, seeds
 //if None, sizes and masses are rescaled from GCs
 #define TagR "AS20"
 
@@ -51,7 +51,7 @@
 
 //CLUSTER EVOLUTION
 #define CLfill       "GG23"
-#define MonoZ        "yes"
+#define MonoZ        "no"
 #define mono_Z       0.0002
 #define cluster_test "no"
 #define cluster_test_env "NC"
@@ -77,7 +77,7 @@
 #define sigma_distri_clu "Elbadry19"
 
 //SPINS
-#define spinlb  "maxwellian02"
+#define spinlb  "bavera"
 #define obslope  0.0
 
 //STAR FORMATION
@@ -99,6 +99,16 @@
 #define slope       -1.5
 
 #define INDEX_ALIGN 8.0
+
+
+//Seeds - pop III
+#define MCL_popIII 1.E6
+#define RCL_popIII 1.0
+#define MBH_popIII 300.0
+#define aBH_popIII 0.0001
+
+
+
 
 //FILE STRUCTURE
 #define kpar 20

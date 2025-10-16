@@ -45,16 +45,21 @@ matplotlib.rcParams.update({'font.family': family})
 
 print("\n===================  BPOPRate package  =====================")
 ## User-defined quantities: type of cluster, CSFH, binary fraction, typical mass, max redshift, and repository path and name ##
-#
+## SEE Notes below. Additional notes: add parameters for sfr coefficients (e.g. el-badry gaussians) and for additional sfr (e.g. elbadry for nuclear)
+##
+
 IDmod = 2
 a = "a"
 name_file = "../"
-
 IBfrac   = 0.4
-fysc_mw = 0.005
+fysc_mw = 0.01
 f_NCoc = 1.0
 f_GCsc = 1.0
 Tobs = 1.0
+
+clt  = ["nuclear", "globular", "young", "none"]
+sigma_Z = 0.2
+
 
 maxz = 15
 massive = "no"
@@ -68,7 +73,8 @@ IBonly=False
 
 #**************************************************************#
 
-
+sfrt, metdis, finp = models(a)
+print(sfrt, metdis, finp)
 
 if(pre=="MOBSE"):
     IBcorr = 0.285
@@ -102,19 +108,6 @@ else:
     print("Uknown type of model, check fmix")
     exit()
  
-fdyn  = [0.9,0.9,0.9,0.9,0.9,0.9]
-fgc   = [0.1,0.1,0.1,0.1,0.1,0.1]
-fyc   = [0.8,0.8,0.8,0.8,0.8,0.8]
-fnc   = [0.1,0.1,0.1,0.1,0.1,0.1]
-spinI = ["maxwellian02","maxwellian02","maxwellian02","maxwellian02","maxwellian02","maxwellian02"]
-spinD = ["maxwellian02","maxwellian02","maxwellian02","maxwellian02","maxwellian02","maxwellian02"]
-clurad= ["AS20","AS20","AS20","AS20","AS20","AS20"]
-bhseed= ["bifrost","bifrost","bifrost","bifrost","bifrost","bifrost"]
-umg   = ["dicarlo","dicarlo","dicarlo","dicarlo","dicarlo","dicarlo"]
-highg = ["no","no","no","no","no","no"]
-mix   = ["0G","0.25G","0.5G","0.75G","1G","0.5G"]
-vms   = ["","","","","",""]
-
 #-------------------------------------------------------------
 
 mstar   = 1.0
@@ -126,23 +119,15 @@ fbin_nc = 0.2
 
 
 
-clt  = ["nuclear", "globular", "young", "none"]
-lab  = ["nuc", "glo", "you", "iso"]
 
-
-if(a == "a"):
-    sfrt = ["mf17", "eb19", "mf17", "mf17"]
-elif (a == "b"):
-    sfrt = ["kr13", "kr13", "mf17", "mf17"]        
-else:
-    print("Picked wrong letter, retry")
-    exit()
-    
+'''
 if(clurad[IDmod] == "Mapelli20"):
     mtyp = [pow(10.,6.18), pow(10.,5.6), pow(10., 4.3), 1.0]
 else:
     mtyp = [pow(10.,6.36), pow(10.,5.01), pow(10., 3.53), 1.0]
-    
+'''
+
+mtyp = [pow(10.,6.36), pow(10.,5.01), pow(10., 3.53), 1.0]
 fbin = [fbin_nc, fbin_gc, fbin_yc, fbin_is]
 
 #-------------------------------------------------------------
@@ -259,6 +244,7 @@ file_mer = "Catalogue.txt"
 file_esc = "retention_Z"
 file_hie = "Catalogue_multiple_dyn.txt"
 
+lab  = ["nuc", "glo", "you", "iso"]
 
 z = np.linspace(0,maxz,500) #ogspace(-2, np.log10(maxz), 100) #0.01,maxz,100)
 z = np.array(z)
@@ -266,7 +252,7 @@ z = np.array(z)
 # The following vector contains scaling for NC, GC, YC, IB, respectively
 Bf   = [[f_NCoc]*len(z), [f_GCsc]*len(z), [1.0]*len(z), [1.0]*len(z)]
 if(IBonly):
-    Bf =  [[0.0]*len(z), [0.0]*len(z), [1.0]*len(z), [1.0]*len(z)]
+    Bf =  [[0.0]*len(z), [0.0]*len(z), [0.0]*len(z), [1.0]*len(z)]
 
 ## Preliminarly, we need to evaluate the scaling between the SFR among different channels ##
 
@@ -283,11 +269,11 @@ for i in range(len(z)):
     sfr[i] = sfr_tot
     
     ## Evaluate the scale factor w.r.t. the SFR ##
-    fsca   = msca(clt[0], sfrt[0])
+    fsca   = msca(clt[0], sfrt[0], finp[0])
     sfr_nc = psi(sfrt[0], z[i], fsca[0], fsca[1], fsca[2], fsca[3])
     sfr_N[i] = sfr_nc    
     
-    fsca   = msca(clt[1], sfrt[1])
+    fsca   = msca(clt[1], sfrt[1], finp[1])
     sfr_gc = psi(sfrt[1], z[i], fsca[0], fsca[1], fsca[2], fsca[3])
     sfr_G[i] = sfr_gc
     
@@ -321,7 +307,6 @@ ax.set_xlim(0.0,15.0)
 plt.legend(loc="upper right")
 plt.savefig("SFR_uni.jpeg")
 plt.close()
-#exit()
 
 print("--------------- Local denstity in Mpc^{-3} -----------------")
 
@@ -329,8 +314,8 @@ for kt in range(len(clt)):
     
     cluster = clt[kt]
     typ = sfrt[kt]
-    fsca   = msca(cluster, typ)
-
+    fsca   = msca(cluster, typ, finp[kt])
+    
     I = [None]*len(z)
     dtdz = DtDz(z, H0, Om, Ol)
     
@@ -347,6 +332,7 @@ for kt in range(len(clt)):
     print (prtstr)
 
 print("------------------------------------------------------------")
+
 
 ## Now we are ready to calculate the merger rate, taking into account that the above loop calculate the star formation rate of different environments ##
 rt = np.loadtxt("/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/utils/BPOP_MERGER_RATE/redshift_time.txt", usecols=[0,1,2], unpack=True)
@@ -665,7 +651,7 @@ for kt in range(len(clt)):
         znon_Ztot[k] = zlos_non[idn_Z]
 
         
-    fsca = msca(cluster, typ)
+    fsca = msca(cluster, typ, finp[kt])
     
     N = 0
     Rz = [None] * (len(z) - 1)
@@ -758,9 +744,17 @@ for kt in range(len(clt)):
                 dN = float(len(zmer_z[id_H]))                
                 ###       
 
-                
-                sZ = 0.2
-                lZ = 0.153 - 0.074 * pow(zp_cen[j],1.34) - (np.log(10.0) * sZ*sZ/2.0)            
+                ### This is valid only if metcor is a la Mapelli+20 --- Add El-Badry2019 option for GCs (and for NCs?) ###
+                ### Also, need to consider redshift with metallicity outside boundaries
+                ### Something like:
+                ### let's use as 'string' below the variable used to determine the sfr
+                ### important NOTE: there must be coeherence between this and BPOP (or not?)
+                ### if(clt[k] == "globular" and string == "EB19"): ### Mstar_mass = 1.E10
+                ### lZ =  0.40 * (np.log10(Mstar_mass) - 10) + 0.67 * np.exp(-0.50*zp_cen[j]) - 1.04 *(1. + pow(zp_cen[j]/15,3)) [ElBadry+19, star phase]
+
+                sZ = sigma_Z
+                lZ = metcor(metdis[kt], zp_cen[j], sZ)
+                        
                 pzZsx = 0.5 * (1. + erf((np.log10((Z[k]-dZsx)/Zsun)-lZ)/(sZ*np.sqrt(2.)))) 
                 pzZdx = 0.5 * (1. + erf((np.log10((Z[k]+dZdx)/Zsun)-lZ)/(sZ*np.sqrt(2.)))) 
 
@@ -771,14 +765,15 @@ for kt in range(len(clt)):
                 frac = 0.0
                 
                 if(Nz > 0):
-                    fcl = pzZ
-                    frac =  (dN / Nz) * fcl
-                    
                     #mergers in z, born in zp, with Z, divided by
                     #total number of sources born in zp, multiplied by
                     #Delta_CDF from log-normal distri, divided by
                     #number of sources formed in zp with Z over number of sources formed in zp
                     #This corresponds to dN / Nz * pzZ
+
+                    fcl = pzZ
+                    frac =  (dN / Nz) * fcl
+                    
                     
 
                 fsum[k] = frac 
@@ -854,7 +849,7 @@ start = time.time()
 
 cat    = Fn
 MRDfile= fname
-bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clt, Z, massive, Tobs)
+bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clt, Z, massive, Tobs, max_mas)
 
 strig = "SET{0:1.0f}{1:s}_IB{2:1.2f}_YC{3:1.0e}_GC{4:1.1f}_NC{5:1.1f}_stev{6:s}_Tobs{7:1.1f}".format(IDmod, a, IBfrac, fysc_mw, f_GCsc, f_NCoc, pre+aCE, Tobs)
 if not(os.path.isdir(strig)):

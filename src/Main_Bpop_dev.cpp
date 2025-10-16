@@ -367,16 +367,13 @@ int main(){
 
   double m_seed, r_seed, mbh_seed, abh_seed;
 
-  // m_seed = MCL_popIII;
-  // r_seed = RCL_popIII;
-  // mbh_seed=MBH_popIII;
-  // abh_seed=aBH_popIII;
+  m_seed = MCL_popIII;
+  r_seed = RCL_popIII;
+  mbh_seed=MBH_popIII;
+  abh_seed=aBH_popIII;
 
   
-  m_seed = 0.0;
-  r_seed = 0.0;
-  mbh_seed=0.0;
-  abh_seed=0.0;
+  
   
   //Creation of merger efficiency tables: only isolated binaries at the moment//
   vector<double> Zeta_b;
@@ -2051,8 +2048,23 @@ int main(){
 	    }while( pow(10.,rint) < 0.0 ); //10.*0.8*pow(pow(10.,mint)/1000.,0.2));
 	    
 	    
+	    // Cluster scale radius (from Dehnen) //
+	    double rnd_cl = func.rnd();
+	    /*if(cluster == "young")	      
+	      g_cl = 1.*rnd_cl;
+	    else if(cluster == "globular")
+	    g_cl = 1.5*rnd_cl;*/
+	    g_cl = 0.0;
+	    a_cl = pow(10.,rint)/1.3;
+	    if(cluster == "nuclear"){
+	      a_cl = rhalf*(pow(2.,1./(3.-g_cl))-1);
+	      g_cl = 1.95*rnd_cl;
+	    }
 	    
-	    vthre = func.vescape(pow(10.,rint),pow(10.,mint),pcluster);
+	    
+	    a_cl = pow(10.,rint)/1.3; //rhalf*(pow(2.,1./(3.-g_cl))-1);
+	    
+	    vthre = func.vescape(g_cl,pow(10.,rint),pow(10.,mint),pcluster);
 	  }while(vthre < vlimiting);// || mint < 3.0 || pow(10.,mint)/pow(pow(10.,rint),3.) < 100.);
 	  	  
 	  //the limiting values above lead to 20-50% loss of sources and ensure that the time remain t < 13.5 Gyr//
@@ -2061,7 +2073,7 @@ int main(){
 	  lsig = 0.5 * (-1.14 + log10(6.67E-11*1.99E30/3.08E16 * pow(10.,mint)/pow(10.,rint) ));			 
 	  sig_clu = 0.001*pow(10.,lsig);
 	  
-	  rho_clu = 3. *pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));//(3.-2.*func.rnd())*pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));
+	  rho_clu = 3. *pow(10.,mint) / ( 8. * M_PI * pow(pow(10.,rint),3.));//(3.-2.*func.rnd())*pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));
 	  
 	  mstar = 1.0;
 	  rho_cubicpc = rho_clu / mstar;
@@ -2109,24 +2121,14 @@ int main(){
 
 	   */
 
-	  // Cluster scale radius (from Dehnen) //
-	  double g_cl;
-	  if(cluster == "young")
-	    g_cl = 1.0;
-	  else if(cluster == "globular")
-	    g_cl = 1.5;
-	  else if(cluster == "nuclear")
-	    g_cl = 1.9;
-	  
-	  double a_cl = rhalf*(pow(2.,1./(3.-g_cl))-1);
 
 	  // DOUBLE CHECK THE FOLLOWING //
 	  
 	  // Max radius from which BHs can spiral-in over a Hubble time via DF //	  
-	  double radius = rhalf * pow( (Hubble - tfor[i]*1.E9) / (0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9)) , 1./1.74);
+	  double radius = rhalf * pow( (Hubble - tfor[i]) / (0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9)) , 1./1.74);
 
 	  // Fraction of mass enclosed within the infall radius above //
-	  double fencl = (radius / (radius + a_cl),3.-g_cl) * (1. + 0.2*(1.-2.*func.rnd()));
+	  double fencl = pow(radius / (radius + a_cl),3.-g_cl) * (1. + 0.2*(1.-2.*func.rnd()));
 
 	  // retention fraction freten //
 	  double freten = 0.5 * (1. + 0.3*(1.-2.*func.rnd()));
@@ -2508,7 +2510,7 @@ int main(){
 	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster) ; //sqrt(mclcorr/rclcorr);
 	  
 	  semihard = 1./pow(sig_clu/30., 2.); //2.*6.67E-11*1.99E30/(1.E6*1.5E11) * (mpri+msec) / (sig_clu*sig_clu);
 	  
@@ -2541,7 +2543,7 @@ int main(){
 	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	    vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster); //sqrt(mclcorr/rclcorr);
 
 	    if(mclcorr == 0.0 && rclcorr == 0.0)
 	      time += 1.E12;
@@ -2589,7 +2591,7 @@ int main(){
 	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster); //sqrt(mclcorr/rclcorr);
 	  
 	  t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
 	  t12 *= func.rndgen(1.0, 0.1);
@@ -2608,7 +2610,7 @@ int main(){
 	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	    vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster); //sqrt(mclcorr/rclcorr);
 	  }
 	  //}
 	  
@@ -2636,7 +2638,7 @@ int main(){
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster); // sqrt(mclcorr/rclcorr);
 	    //}
 
 	  //Calculate hard binary separation and assign binary sma
@@ -2681,7 +2683,7 @@ int main(){
 	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
 	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);	  	 
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time+tmer-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 
 	  if(mclcorr*mhalf <= 1.E1)
 	    tmer = 1.E12;
@@ -2833,7 +2835,7 @@ int main(){
 	//
 	/////////////////////////////
 	
-	vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	
 	if(mclcorr * mhalf < 1.E1)
 	  cluster_stat="evaporated";
@@ -3176,7 +3178,7 @@ int main(){
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	  
 	  semihard = 1./pow(sig_clu/30., 2.);
 	  
@@ -3196,7 +3198,7 @@ int main(){
 	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	    
 	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	    vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	  }
 	    
 	    
@@ -3225,7 +3227,7 @@ int main(){
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	    
 	  //}
 	  
@@ -3281,7 +3283,7 @@ int main(){
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	  
 	  //}
 	 	  

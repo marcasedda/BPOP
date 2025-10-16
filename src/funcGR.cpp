@@ -225,7 +225,6 @@ double Functions::Gss_weight(vector<double>& Zeta, vector<double>& Eeta, double 
 
 
 
-
 double Functions::mevol(double t, double rh, double mh, double trel, string type, string tclus){
 
   double tcc = 0.138*mh/(150. * log(0.11*mh/150.))*sqrt(pow(rh*3.08E16,3.)/(6.67E-11*1.99E30*mh))/(365.*24.*3600.);        
@@ -233,111 +232,74 @@ double Functions::mevol(double t, double rh, double mh, double trel, string type
     tcc = 0.2 * 4.2E9 * pow(rh/4.0,1.5) * sqrt(mh/1.E7) ;
 
   
-  double trlx = trel ; //0.78E9 / log(0.11*mh) * pow(mh/1.E5,0.5) * pow(rh,1.5);
+  double mfact_h ,  mfact;
+  if(type == "GG23"){
+    mfact_h = mhalf_evo( t,  rh,  mh,  trel,  type,  tclus ); 
+    mfact = mfact_h * 0.03;
     
-  double fplu = 1.0; 
-  
-  double mfact = 1.0;
-  double mfact_h = 1.0;
+    double rcoll = revol(5.*tcc, rh, mh, trel, type, tclus);
     
-
-  double fcohn = 300.0;
-
-  double tstev = 1.E7;
-
-  if(type == "under" || type == "over" || type == "critical"){
-    if(type == "under")
-      fcohn = 300.0;
-    else if(type == "over" && tclus != "young")
-      fcohn = 60.0;
-    else if(type == "critical" || (type == "over" && tclus == "young"))
-      fcohn = 5.0;
+    if(t < 5.*tcc){
+      double rcoll = revol(t, rh, mh, trel, type, tclus);
+      if(t < 2.*tcc)
+	mfact *= pow(rcoll/0.15,0.4);
+      else
+	mfact *= pow(rcoll/0.15,1./1.3);
+    }
+    if(t >= 5.*tcc){
+      mfact *= pow(rcoll/0.15,1./1.3);
+    }
+    
+    
+    if(mfact <= 0.0 || mfact_h <= 0.0)
+      mfact = 0.0;
+    
   }
   else if(type == "noevo"){
     mfact = 1.0;
   }
-  else if(type == "mix"){
-    if(tclus == "young")
-      fcohn = 5.0;
-    else if (tclus == "globular")
-      fcohn = 300.0;
-    else if (tclus == "nuclear")
-      fcohn = 1000.0;    
-  }
-  else if(type == "GG23"){
-    //Note: in Gieles&Gnedin23 they derive the lifetime of GCs and compare with observations. I used the lifetime to adjust the parameters below, keeping for GCs and NCs calculations related to a distance >= 8 kpc, whilst for YCs we adopt a distance ~ 1 kpc.
-    
-    if(tclus == "young")
-      fcohn = 100. * pow(mh/1.E6,0.6);
-    else
-      fcohn = 1000. * pow(mh/1.E6,0.6);
-
-  }
   else{
     cout<<"Select noevo, under, over, critical, GG23, or mix"<<endl;
-    exit(0);
+    exit(0);    
   }
-
-
-  mfact_h = pow(1. + t/tstev,-0.1) * (1.-(t/(fcohn*trlx)));
-    
-  if(t < 1.E7){
-    mfact = mfact_h * (0.005 + 0.08*rnd());
-  }  
-  else{
-    mfact = mfact_h * (0.001 + 0.05*rnd());
-    }   
-  if(t < 10.*tcc){
-    double rcoll = revol(t, rh, mh, trel, type, tclus);
-    if(t < 2.*tcc)
-      mfact *= pow(rcoll/0.15,0.4);
-    else
-      mfact *= pow(rcoll/0.15,1./1.3);
-  }
-
-
-    
-  if(mfact <= 0.0 || mfact_h <= 0.0)
-    mfact = 0.0;
-
 
   return mfact;
 }
 
 double Functions::revol(double t, double rh, double mh, double trel, string type, string tclus){
-
-  //double mfact = mevol(t, rh, mh, trel, type, tclus);
   
   double tcc = 0.138*mh/(150. * log(0.11*mh/150.))*sqrt(pow(rh*3.08E16,3.)/(6.67E-11*1.99E30*mh))/(365.*24.*3600.);
   if(tcc < 0.0)
     tcc = 0.2 * 4.2E9 * pow(rh/4.0,1.5) * sqrt(mh/1.E7) ;
 
+  double rfact_h;
   double rfact;
-  double rmin = 0.01;
-
-
-  if(type == "under" || type == "over" || type == "critical" || type == "mix" || type == "GG23"){
-    double t0 = tcc * 5. * (rh + 1.);
-    double alpha = 0.15 + 0.1 * rnd();
-    double rfact_h = pow(1. + t/t0,alpha);    
-
-    double gamma = .7;
-    double keep = 10.;
+  double rmin = pow(5000. / mh , 1./0.43);
+  
+  if(type == "GG23"){
+    rfact_h = rhalf_evo( t,  rh,  mh,  trel,  type,  tclus);
+    double gamma = .25;//7;
+    double keep = 5.;
+    double fct = (1. + 0.25*(1.-2.*rnd()));
+    double alfct = 0.2;
     
     if(t > keep*tcc){
-      double beta = pow(10., -3. + 2.*rnd());
-      double r10 =  (rfact_h * (rmin + 0.2*pow(keep/2. - 1.,gamma)*rnd()));
-      rfact =  r10 * pow(t/(2.*tcc)-1.,beta);
+      double beta = 0.05;  //pow(10., -3. + 2.*rnd());
+      double r10 =  rmin + alfct*pow(keep/2. - 1.,gamma);
+      rfact =  r10 + pow(t/(2.*tcc)-1.,beta) - pow(keep/2. - 1.,beta); //*rnd());
     }
-    else if(t>2.*tcc && t<=keep*tcc){     
-      rfact =  (rmin + 0.2*pow(t/(2.*tcc)-1.,gamma)*rnd());
+    else if(t>2.*tcc && t<=keep*tcc){
+      rfact =  (rmin + alfct*pow(t/(2.*tcc)-1.,gamma));//*rnd());
     }
     else{
-      rfact = rfact_h * (0.05 + 0.25*rnd()) * pow(1.-t/(2.*tcc),0.53);
-      if(rfact < rmin)
-	rfact = rmin;
+      rfact = rfact_h * 0.2 * pow(1.-t/(2.*tcc),0.53); //* (0.05 + 0.25*rnd()) ;      
+      //if(rfact < rmin)
+      //rfact = rmin;
+      rfact = max(rmin, rfact);		
     }
 
+    rfact *= fct;
+    
     stringstream chk;
     chk<<rfact;
     if(chk.str() == "nan" || rfact == 0.0){
@@ -360,7 +322,6 @@ double Functions::revol(double t, double rh, double mh, double trel, string type
 
   return rfact;
 }
-
 
 
 void Functions::test(){
@@ -690,11 +651,11 @@ double Functions::zred(double toff){
   return zr;
 }
 
-double Functions::phiP(double x,double M,double a){
-  return 2*M/sqrt(x*x+a*a);
+double Functions::vphiP(double x,double M,double a){
+  return sqrt(2.*M/sqrt(x*x+a*a)*6.67E-11*1.99E30/3.08E16)*1.E-3;
 }
-double Functions::phiD(double x,double M,double a,double g){
-  return 2*M/((2-g)*a)*(1.-pow(x/(x+a),2.-g));
+double Functions::vphiD(double x,double M,double a,double g){
+  return sqrt(2.*M/((2-g)*a)*(1.-pow(x/(x+a),2.-g))*6.67E-11*1.99E30/3.08E16)*1.E-3;
 }
 
 double Functions::Rh(double a,double g){
@@ -704,49 +665,134 @@ double Functions::Rh(double a,double g){
 double Functions::ah(double Rh,double g){
   return Rh*(pow(2.,1./(3.-g))-1);
 }
-double Functions::vescape(double r, double m, string type){
-
-  double g;
-  double flag;
-  
-  if(type == "young"){
-    g = 1.0;
-    double rn = rnd();
-    if(rn > 0.5)
-      flag = 0;
-    else
-      flag = 1;
-  }
-  else if(type == "globular"){
-    g = 1.5;
-    double rn = rnd();  
-    if(rn > 0.5)
-      flag = 0;
-    else
-      flag = 1;
-  }
-  else if(type == "nuclear"){
-    g = 1.9;
-    flag = 1;    
-  }
-
-  double a = ah(r,g);  
-  double vs = sqrt(6.67E-11*1.99E30/3.08E16)*1.E-3;
-  
-  double vplum = sqrt(2.*phiP(0.0,m,r/1.3))*vs;
-  double vdehn = sqrt(2.*phiD(r,m,a,g))*vs;
-
-  //cout<<vplum<<" "<<vdehn<<endl;
+double Functions::vescape(double g, double r, double m, string type){
   double vesc;
-  if(flag == 0)
-    vesc = vplum;
-  else
-    vesc = vdehn;
+
+
+  double rn = rnd();
+
+  vesc = vphiP(0.0,m,r/1.3);
+     
+  if(g > 0.){
+    double rcore = 0.2;
+    double rndmu = rnd();
+    double bD    = pow(rndmu,1./(3.-g));
+    double pos = bD/(1.-bD);        
+    double rpos  = min(rcore, pos);
+    double a     = ah(r,g);    
+
+    vesc = vphiD(rpos, m, a, g);
+  }  
+
+  double rho = 3.*m/(8.*M_PI*r*r*r);
+  vesc = 40. * pow(m/1.E5,1./3.) * pow(rho/1.E5, 1./6.);
 
   
   return vesc;
 
 }
+
+
+double Functions::mhalf_evo(double t, double rh, double mh, double trel, string type, string tclus){
+
+  double tcc = 0.138*mh/(150. * log(0.11*mh/150.))*sqrt(pow(rh*3.08E16,3.)/(6.67E-11*1.99E30*mh))/(365.*24.*3600.);        
+  if(tcc < 0)
+    tcc = 0.2 * 4.2E9 * pow(rh/4.0,1.5) * sqrt(mh/1.E7) ;
+
+  
+  double trlx = trel ; //0.78E9 / log(0.11*mh) * pow(mh/1.E5,0.5) * pow(rh,1.5);
+    
+  double fplu = 1.0; 
+  
+  double mfact = 1.0;
+  double mfact_h = 1.0;
+    
+
+  double fcohn = 300.0;
+
+  double tstev = 1.E7;
+
+
+  if(type == "GG23"){
+
+  
+    /*if(type == "under" || type == "over" || type == "critical"){
+    if(type == "under")
+      fcohn = 300.0;
+    else if(type == "over" && tclus != "young")
+      fcohn = 60.0;
+    else if(type == "critical" || (type == "over" && tclus == "young"))
+      fcohn = 5.0;
+  }
+  else if(type == "noevo"){
+    mfact = 1.0;
+  }
+  else if(type == "mix"){
+    if(tclus == "young")
+      fcohn = 5.0;
+    else if (tclus == "globular")
+      fcohn = 300.0;
+    else if (tclus == "nuclear")
+      fcohn = 1000.0;    
+  }
+  else if(type == "GG23"){*/
+
+    
+    //Note: in Gieles&Gnedin23 they derive the lifetime of GCs and compare with observations. I used the lifetime to adjust the parameters below, keeping for GCs and NCs calculations related to a distance >= 8 kpc, whilst for YCs we adopt a distance ~ 1 kpc.
+    
+    if(tclus == "young")
+      fcohn = 100. * pow(mh/1.E6,0.6);
+    else
+      fcohn = 1000. * pow(mh/1.E6,0.6);
+
+  }
+  else{
+    cout<<"Select GG23, or implement your choice"<<endl;
+    exit(0);
+  }
+
+
+  mfact_h = pow(1. + t/tstev,-0.1) * (1.-(t/(fcohn*trlx)));
+
+  return mfact_h;
+  
+  
+}
+
+double Functions::rhalf_evo(double t, double rh, double mh, double trel, string type, string tclus){
+
+  
+  double tcc = 0.138*mh/(150. * log(0.11*mh/150.))*sqrt(pow(rh*3.08E16,3.)/(6.67E-11*1.99E30*mh))/(365.*24.*3600.);
+  if(tcc < 0.0)
+    tcc = 0.2 * 4.2E9 * pow(rh/4.0,1.5) * sqrt(mh/1.E7) ;
+
+  double rfact, alpha, t0, rfact_h;
+  double rmin = pow(5000. / mh , 1./0.43);
+
+  if(type == "GG23"){
+    t0 = tcc * 5. * (rh + 1.);
+    alpha = 0.15 + 0.1 * rnd();
+    rfact_h = pow(1. + t/t0,alpha);    
+  }
+  else{
+     cout<<"Select GG23, or implement your choice"<<endl;
+     exit(0);
+  }
+  return rfact_h;
+  
+}
+
+double Functions::vevol(double t, double rh, double mh, double trel, string type, string tclus){
+  double r = rhalf_evo(t, rh, mh, trel, type, tclus);
+  double m = mhalf_evo(t, rh, mh, trel, type, tclus);
+  double ve = sqrt(m/r);
+  if(r <= 0.0 || m <= 0.0)
+    ve = 0.0;
+
+  return ve;
+}
+
+
 
 void Functions::histo(double* XX, int N, int nbin, string binning, string name){
 
