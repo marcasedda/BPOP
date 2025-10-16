@@ -222,8 +222,13 @@ int main(){
   int Nglo_real = 0;
   int Nnuc_real = 0;
 
+  double m_seed, r_seed, mbh_seed, abh_seed;
 
-
+  m_seed = MCL_popIII;
+  r_seed = RCL_popIII;
+  mbh_seed=MBH_popIII;
+  abh_seed=aBH_popIII;
+  
   //Creation of merger efficiency tables: only isolated binaries at the moment//
   vector<double> Zeta_b;
   vector<double> Eeta_b;
@@ -683,7 +688,7 @@ int main(){
 
 
 
-  
+  vector<double> mpro1,mpro2;
   vector<double> miso1,miso2;
   vector<double> aiso1,aiso2;
   vector<double> sma_iso;
@@ -804,9 +809,11 @@ int main(){
   double z;
   cout<<"Assigning metallicities"<<endl;
 
-  
+  if(TagR == "seed")
+    sfr_clu = "single";
+
   for(int i=0;i<Niso+Nyc;i++){
-    
+
     double tof = tfor[i] / 1.E9;      
     double zinit = z;
     double red_del = func.inter(tof, age, reds, redline);
@@ -922,7 +929,7 @@ int main(){
   //----------------------------------------------------------
   
   
-  if(MonoZ == "yes" || (sfr_iso=="single" && sfr_clu=="single"))
+  if(MonoZ == "yes" || (sfr_iso=="single" && sfr_clu=="single") || TagR == "seed")
     for(int i=0;i<Nsrc;i++){
       Z[i] = mono_Z;
       Z0 = Z[i];
@@ -1096,19 +1103,36 @@ int main(){
     int chk = 0;
     do{	
       for(int kk=0;kk<kpar;kk++)in>>par[kk];
+      double a_man1 = 0.0;
+      double a_man2 = 0.0;
+
+      //Sezione per spin isolati (primaria evolve prima -> spin nullo, secondaria spin random (?)) //
+      //NOTA: METTI DUE VETTORI PER LE MASSE ZAMS E USA QUELLI PER GLI SPIN SOTTO, DOVE HAI GIÀ L'OPZIONE GIACOBBO//
+      /*if(par[3] > par[4]){
+	a_man1 = ;
+	a_man2 = ;
+      }
+      else{
+	a_man1 = ;
+	a_man2 = ;      
+	}*/
 
       
       if(par[1]>par[2]){
 	miso1.push_back(par[1]);
 	miso2.push_back(par[2]);
 	aiso1.push_back(par[8]);
-	aiso2.push_back(par[9]);	
+	aiso2.push_back(par[9]);
+	mpro1.push_back(par[3]);
+	mpro2.push_back(par[4]);
       }
       else{
 	miso1.push_back(par[2]);
 	miso2.push_back(par[1]);
 	aiso1.push_back(par[9]);
 	aiso2.push_back(par[8]);
+	mpro1.push_back(par[4]);
+	mpro2.push_back(par[3]);
       }
       sma_iso.push_back(par[7]*6.9E8/1.5E11);
       tdel_iso.push_back(par[6]*1.E6);
@@ -1140,13 +1164,25 @@ int main(){
       
       mpri = miso1[ext];
       msec = miso2[ext];
-      if(isospin != "giacobbo" || isospin != "Giacobbo"){
-	apri   = func.spin(mpri,isospin);
-	asec   = func.spin(msec,isospin);	
-      }
-      else{
+      if(isospin == "giacobbo" || isospin == "Giacobbo"){
 	apri = aiso1[ext];
 	asec = aiso2[ext];
+      }
+      else if(isospin == "bavera"){
+	double apri_try = func.spin(mpri, "fuller");
+	double asec_try = func.rnd();
+	if(mpro1[ext] > mpro2[ext]){
+	  apri = apri_try;
+	  asec = asec_try;
+	}
+	else{
+	  apri = asec_try;
+	  asec = apri_try;
+	}
+      }
+      else{
+	apri   = func.spin(mpri,isospin);
+	asec   = func.spin(msec,isospin);	
       }
       
       tdel = tdel_iso[ext];
@@ -1220,6 +1256,8 @@ int main(){
     }
     for(int i = 0;i<numZ;i++)
       arr[i].erase(arr[i].begin(), arr[i].end());
+    mpro1.erase(mpro1.begin(),mpro1.end());
+    mpro2.erase(mpro2.begin(),mpro2.end());
     miso1.erase(miso1.begin(),miso1.end());
     aiso1.erase(aiso1.begin(),aiso1.end());
     miso2.erase(miso2.begin(),miso2.end());
@@ -1620,6 +1658,8 @@ int main(){
 	double time,nsafe_glob,nsafe,mass_ratio, mixer, nhigen;
 	string stri_mrat;
 
+	double g_cl, a_cl;
+	
 	double mclcorr = 1.0;
 	double rclcorr = 1.0;
 
@@ -1771,9 +1811,9 @@ int main(){
 		rint = (mint - rhoint)/3.0;
 
 	      }
-	      else if(TagR == "lupi"){
-		mint = log10(1.E6);
-		rint = log10(0.5);
+	      else if(TagR == "seed"){
+		mint = log10(m_seed);
+		rint = log10(r_seed);
 	      }
 	      else if(TagR == "AS20" && cluster == "nuclear"){
 		//Select if it's late type (50%) or early type (50%)
@@ -1809,7 +1849,7 @@ int main(){
 	      
 	      
 	      
-	      if(TagR != "AS20" && (cluster=="nuclear" || cluster_test == "yes")){
+	      if((TagR != "AS20" && TagR != "seed")  && (cluster=="nuclear" || cluster_test == "yes")){
 		double lnrhalf;
 		
 		double A_r = 0.222887 ; // +/- 0.03415      (15.32%)
@@ -1828,8 +1868,23 @@ int main(){
 	    }while( pow(10.,rint) < 0.0 ); //10.*0.8*pow(pow(10.,mint)/1000.,0.2));
 	    
 	    
+	    // Cluster scale radius (from Dehnen) //
+	    double rnd_cl = func.rnd();
+	    /*if(cluster == "young")	      
+	      g_cl = 1.*rnd_cl;
+	    else if(cluster == "globular")
+	    g_cl = 1.5*rnd_cl;*/
+	    g_cl = 0.0;
+	    a_cl = pow(10.,rint)/1.3;
+	    if(cluster == "nuclear"){
+	      a_cl = rhalf*(pow(2.,1./(3.-g_cl))-1);
+	      g_cl = 1.95*rnd_cl;
+	    }
 	    
-	    vthre = func.vescape(pow(10.,rint),pow(10.,mint),pcluster);
+	    
+	    a_cl = pow(10.,rint)/1.3; //rhalf*(pow(2.,1./(3.-g_cl))-1);
+	    
+	    vthre = func.vescape(g_cl,pow(10.,rint),pow(10.,mint),pcluster);
 	  }while(vthre < vlimiting);// || mint < 3.0 || pow(10.,mint)/pow(pow(10.,rint),3.) < 100.);
 	  	  
 	  //the limiting values above lead to 20-50% loss of sources and ensure that the time remain t < 13.5 Gyr//
@@ -1838,7 +1893,7 @@ int main(){
 	  lsig = 0.5 * (-1.14 + log10(6.67E-11*1.99E30/3.08E16 * pow(10.,mint)/pow(10.,rint) ));			 
 	  sig_clu = 0.001*pow(10.,lsig);
 	  
-	  rho_clu = 3. *pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));//(3.-2.*func.rnd())*pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));
+	  rho_clu = 3. *pow(10.,mint) / ( 8. * M_PI * pow(pow(10.,rint),3.));//(3.-2.*func.rnd())*pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));
 	  
 	  mstar = 1.0;
 	  rho_cubicpc = rho_clu / mstar;
@@ -1886,24 +1941,14 @@ int main(){
 
 	   */
 
-	  // Cluster scale radius (from Dehnen) //
-	  double g_cl;
-	  if(cluster == "young")
-	    g_cl = 1.0;
-	  else if(cluster == "globular")
-	    g_cl = 1.5;
-	  else if(cluster == "nuclear")
-	    g_cl = 1.9;
-	  
-	  double a_cl = rhalf*(pow(2.,1./(3.-g_cl))-1);
 
 	  // DOUBLE CHECK THE FOLLOWING //
 	  
 	  // Max radius from which BHs can spiral-in over a Hubble time via DF //	  
-	  double radius = rhalf * pow( (Hubble - tfor[i]*1.E9) / (0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9)) , 1./1.74);
+	  double radius = rhalf * pow( (Hubble - tfor[i]) / (0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9)) , 1./1.74);
 
 	  // Fraction of mass enclosed within the infall radius above //
-	  double fencl = (radius / (radius + a_cl),3.-g_cl) * (1. + 0.2*(1.-2.*func.rnd()));
+	  double fencl = pow(radius / (radius + a_cl),3.-g_cl) * (1. + 0.2*(1.-2.*func.rnd()));
 
 	  // retention fraction freten //
 	  double freten = 0.5 * (1. + 0.3*(1.-2.*func.rnd()));
@@ -1913,8 +1958,6 @@ int main(){
 	  
 	  // This depends on the number fraction of BHs in the cluster, we're also assuming mint == N_* 
 	  nbhs = fraBH * pow(10.,mint) * freten * fencl;
-
-
 	  
 	  if(nbhs < 2)
 	    nbhs = 2;
@@ -1930,160 +1973,10 @@ int main(){
 	  nsafe_glob = 0;
 	  nsafe = 0;	 
 	  nhigen = 0;
+
+
+
 	  
-	  if(mixer > mixing){		
-	    mpri = -1;
-	    kpri = 1.E30;
-	    do{
-	      //func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
-	      func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, vthre);
-	      mpri = single_bh[0];	 
-	      tpri = single_bh[1];
-	      kpri = single_bh[2];
-	      if(mpri > 0.0 && kpri > vthre)
-		break;
-
-	      nsafe ++;
-	      
-	    }while(mpri <= 0.0 || kpri > vthre);
-	  }
-	  else{	  
-	    MSLP = mslope;
-	    mpri = -1;
-	    kpri = 1.E30;
-	    int nsafe = 0;
-	    do{
-	      //singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-	      singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
-	      mpri = single_bh[0];	  	  
-	      tpri = single_bh[1];
-	      kpri = single_bh[2];	      
-	      if(nsafe > 1000)
-		break;
-	      
-	      nsafe ++;
-	    }while(mpri <= 0.0 || kpri > vthre);
-	  }	  
-	  apri   = func.spin(mpri,dynaS);	
-
-	  if(nsafe == 1000)
-	    cout<<"Wrong BH"<<endl;
-	  
-	  nsafe_glob += nsafe;
-	  
-	  mass_ratio = -1;
-	  nsafe = 0;       
-	  if(stri_mrat != "nouniform"){
-	    do{
-	      mass_ratio = func.mratio(mpri, MRATIO_SLOPE, stri_mrat);
-	      msec = mpri * mass_ratio;
-	      for(int iii=0; iii<remn_sin.size()-1;iii++){
-		if(msec > remn_sin[iii] && msec < remn_sin[iii+1]){
-		  tsec = 0.5*(tdel_sin[iii] + tdel_sin[iii+1]) ;
-		}
-	      }
-
-	      if(nsafe > 1000){
-		cout<<"mratio fails"<<endl;
-		exit(0);
-	      }
-	      nsafe += 1;
-	    }while(msec < 1. || msec > 500.);
-	    
-	  }
-	  else{
-	    msec = -1;
-	    ksec = 1.E30;
-	    nsafe = 0;
-	    if(mixer > mixing){
-	      do{
-		
-		//func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
-		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh,vthre);	  
-		msec = single_bh[0];	 
-		tsec = single_bh[1];
-		ksec = single_bh[2];	    
-
-		if(msec > minimus && ksec < vthre)
-		  break;
-		
-		nsafe ++;
-		if(single_bh[3] == 1)
-		  break;
-		
-		else if(nsafe > 500){
-		  cout<<npar_runtime<<" "<<i<<" "<<Z[i]<<" "<<msec<<" "<<tsec<<" "<<ksec<<endl;
-		}
-		
-		if(nsafe > 1000){
-		  cout<<"Something wrong " <<msec<<" "<<tsec<<" "<<ksec<<" "<<minimus<<" "<<vthre<<endl;
-		  exit(0);
-		}
-		
-	      }while(msec <= minimus || ksec > vthre);
-	      
-	      if(msec < minimus){
-		cout<<"Second BH mass below mmin = "<<minimus<<" "<<msec<<endl;
-	      }
-	      
-	    }
-	    else{
-	      double MSLP = mslope;
-	      msec = -1;
-	      ksec = 1.E30;
-	      do{
-		//singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-		singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
-		msec = single_bh[0];	  	  
-		tsec = single_bh[1];
-		ksec = single_bh[2];	    
-		if(nsafe > 1000)
-		  break;
-		nsafe ++;
-
-	      }while(msec <= 0.0 || ksec > vthre);
-	      
-	    }
-
-	    if(msec == 0){
-	      time = 1.e30;
-	      break;
-	    }
-	    
-	    if(highgen == "yes"){
-	      //This section needs to be improved, especially for what concern the probability of repeated mergers
-	      double p_BPOP;
-	      if(cluster == "globular")
-		p_BPOP = 295. / 1.E4; //this is valid for GCs with Z = 0.0002 (would it change with different metallicity?)
-	      else if(cluster == "nuclear")
-		p_BPOP = 2740./ 1.E4;
-	      else if(cluster == "young")
-		p_BPOP = 0.0;
-	    
-	      double p_hgen = func.rnd();
-	      double mav = 30.;
-	      if(p_hgen < p_BPOP){
-		double coef = 0.2 + 0.8*func.rnd();
-		msec = mav * (1. + msec/mav * (1.+mav/6.0));	       
-	      }
-	      nhigen += int(msec / mav);
-
-	      asec = 0.7; // Need adjustments
-	      
-	    }
-
-
-	    if(msec > mpri){
-	      double dum1;
-	      dum1 = msec;
-	      msec = mpri;
-	      mpri = dum1;
-	      dum1 = tsec;
-	      tsec = tpri;
-	      tpri = dum1;
-	    }
-	  }
-
 	  //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
 	  double prob_ugp = func.rnd();
 	  double prob_fgp = func.rnd();
@@ -2091,6 +1984,8 @@ int main(){
 	  double fUP= fupgp;
 			     
 	  if(UP == "dicarlo")
+	    fUP = 0.005 * (1. + 44.386 * exp( Z[i]/0.0002 * log(0.9147))) ;
+	  else if(UP == "oldicarlo")
 	    fUP = 0.01 * (1. + 5.797 * exp(Z[i] / 0.0002 * log(5./5.797)));
 	  
 	  if(uppergap == "yes" && prob_ugp >= pbelow && prob_fgp < fUP){
@@ -2098,40 +1993,228 @@ int main(){
 	    double p_gp;
 	    p_gp = func.rnd();
 	    double m1_gp = pow(p_gp * pow(100.,1.-a_gp) + (1.-p_gp)*pow(50., 1.-a_gp), 1./(1.-a_gp));
+	    
 	    p_gp = func.rnd();
 	    double m2_gp;
+	    double a1_gp, a2_gp;
+	    
 	    //The following make results DRAGON-II like!
-	    if(m1_gp < 100.)
-	      m2_gp = m1_gp * (0.4 + 0.6*func.rnd()); 
+	    if(m1_gp < 100)
+	      m2_gp = m1_gp * (0.4 + 0.6*func.rnd());
 	    else
 	      m2_gp = m1_gp * pow(m1_gp / 65., -1.78) * (1. + 0.2*(-1. + 2.*func.rnd()));
 
+	    if(dynaS != "bavera"){
+	      a1_gp = func.spin(m1_gp, dynaS);
+	      a2_gp = func.spin(m2_gp, dynaS);
+	    }
+	    else{
+	      a1_gp = func.rnd();
+	      if(m2_gp < 65)
+		a2_gp = func.spin(m2_gp, "fuller");
+	      else
+		a2_gp = func.rnd();
+	      
+	    }
+
+	    
 	    if(m2_gp > m1_gp){
 	      double mex_gp = m1_gp;
+	      double aex_gp = a1_gp;
 	      m1_gp = m2_gp;
-	      m2_gp = m1_gp;
+	      m2_gp = mex_gp;
+	      a1_gp = a2_gp;
+	      a2_gp = aex_gp;
 	    }
 	      
-	    // We need to implement something for the spins too ...
 	    if(prob_ugp >= pbelow && prob_ugp < pbelow + pbelup){
-	      if(mpri < mass_gap)
-		mpri = m1_gp;		  	      
-	      else if (msec < mass_gap)
+	      if(mpri < mass_gap){
+		mpri = m1_gp;
+		apri = a1_gp;
+	      }
+	      else if (msec < mass_gap){
 		msec = m2_gp;
+		asec = a2_gp;
+	      }
 	      else{
 		cout<<"Both objects above the gap!"<<endl; //This may happen in multiple mergers?
 	      }
 	      
 	    }	      
 	    else if(prob_ugp > pbelow + pbelup){
-	      if(mpri < mass_gap)
+	      if(mpri < mass_gap){
 		mpri = m1_gp;
-	      if(msec < mass_gap)
+		apri = a1_gp;
+	      }
+	      if(msec < mass_gap){
 		msec = m2_gp;
+		asec = a2_gp;
+	      }
 	    }		
 	    
 	  }
+      
+	  else{
 
+
+	  
+	    if(mixer > mixing){		
+	      mpri = -1;
+	      kpri = 1.E30;
+	      do{
+		//func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
+		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, vthre);
+		mpri = single_bh[0];	 
+		tpri = single_bh[1];
+		kpri = single_bh[2];
+		if(mpri > 0.0 && kpri > vthre)
+		  break;
+		
+		
+		nsafe ++;
+		
+	      }while(mpri <= 0.0 || kpri > vthre);
+	    }
+	    else{	  
+	      MSLP = mslope;
+	      mpri = -1;
+	      kpri = 1.E30;
+	      int nsafe = 0;
+	      do{
+		//singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
+		mpri = single_bh[0];	  	  
+		tpri = single_bh[1];
+		kpri = single_bh[2];	      
+		
+		if(nsafe > 1000)
+		  break;
+	      
+		nsafe ++;
+	      }while(mpri <= 0.0 || kpri > vthre);
+	    }
+	    
+	    if(dynaS != "bavera")
+	      apri = func.spin(mpri,dynaS);	
+	    else
+	      if(mpri < 65.)
+		apri = func.spin(mpri,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+	      else
+		apri = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+	    
+	    if(nsafe == 1000)
+	      cout<<"Wrong BH"<<endl;
+	    
+	    nsafe_glob += nsafe;
+	    
+	    mass_ratio = -1;
+	    nsafe = 0;       
+	    if(stri_mrat != "nouniform"){
+	      do{
+		mass_ratio = func.mratio(mpri, MRATIO_SLOPE, stri_mrat);
+		msec = mpri * mass_ratio;
+		for(int iii=0; iii<remn_sin.size()-1;iii++){
+		  if(msec > remn_sin[iii] && msec < remn_sin[iii+1]){
+		    tsec = 0.5*(tdel_sin[iii] + tdel_sin[iii+1]) ;
+		  }
+		}
+		
+		if(nsafe > 1000){
+		  cout<<"mratio fails"<<endl;
+		  exit(0);
+		}
+		nsafe += 1;
+	      }while(msec < 1. || msec > 500.);
+	      
+	    }
+	    else{
+	      msec = -1;
+	      ksec = 1.E30;
+	      nsafe = 0;
+	      if(mixer > mixing){
+		do{
+		  
+		  //func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		  func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh,vthre);	  
+		  msec = single_bh[0];	 
+		  tsec = single_bh[1];
+		  ksec = single_bh[2];	    
+		  
+		  if(msec > minimus && ksec < vthre)
+		    break;
+		  
+		  nsafe ++;
+		  if(single_bh[3] == 1)
+		    break;
+		  
+		  else if(nsafe > 500){
+		    cout<<npar_runtime<<" "<<i<<" "<<Z[i]<<" "<<msec<<" "<<tsec<<" "<<ksec<<endl;
+		  }
+		  
+		  if(nsafe > 1000){
+		    cout<<"Something wrong " <<msec<<" "<<tsec<<" "<<ksec<<" "<<minimus<<" "<<vthre<<endl;
+		    exit(0);
+		  }
+		  
+		}while(msec <= minimus || ksec > vthre);
+		
+		if(msec < minimus){
+		  cout<<"Second BH mass below mmin = "<<minimus<<" "<<msec<<endl;
+		}
+		
+	      }
+	      else{
+		double MSLP = mslope;
+		msec = -1;
+		ksec = 1.E30;
+		do{
+		  //singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		  singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
+		  msec = single_bh[0];	  	  
+		  tsec = single_bh[1];
+		  ksec = single_bh[2];	    
+		  if(nsafe > 1000)
+		    break;
+		  nsafe ++;
+		  
+		}while(msec <= 0.0 || ksec > vthre);
+		
+	      }
+	      
+	      if(msec == 0){
+		time = 1.e30;
+		break;
+	      }
+	      
+	      /*if(highgen == "yes"){
+	      //Work by Ugolini et al in prep.
+	      }*/
+	      
+	      if(dynaS != "bavera")
+		asec = func.spin(msec,dynaS);	
+	      else
+		if(mpri < 65.)
+		  asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+		else
+		  asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+	      
+	      
+	      if(msec > mpri){
+		double dum1;
+		dum1 = msec;
+		msec = mpri;
+		mpri = dum1;
+		
+		dum1 = asec;
+		asec = apri;
+		apri = dum1;
+		
+		dum1 = tsec;
+		tsec = tpri;
+		tpri = dum1;
+	      }
+	    }
+	  }
 	  
 	  nsafe_glob += nsafe;
 	  double dmy = func.rnd();
@@ -2142,11 +2225,11 @@ int main(){
 	      
 	    double mprit = mprimin + (mprimax - mprimin)*func.rnd();
 
-	    if(mprit > bhpisn)
-	      mpri = 0.9*mprit;
-
+	    if(mprit > bhpisn){
+	      mpri = 0.9*mprit;	    
+	      apri = func.rnd(); //we assume that stellar merger products have random natal spins
+	    }
 	    
-	    	    
 	  }
 	  else if(bhseed == "vms"){	    
 	    if(dmy < f_seed){
@@ -2168,13 +2251,14 @@ int main(){
 	      
 	      double rho_vms = pow(10.,mint - 3.*rint);
 	      mpri = A_vms * pow(rho_vms / 1.E9, B_vms) * pow(10., -0.05 + 0.1 * func.rnd());
-	      
+	      apri = func.rnd();
 	    }
 	  }
 	  else if(bhseed == "yes"){
 	    if(dmy < f_seed){
 	      double mimmi = func.rnd();
 	      mpri = pow(mimmi * pow(maxseed, 1.-seedslope) + (1.-mimmi) * pow(minseed,1.-seedslope) , 1./(1.-seedslope));	      
+	      apri = func.rnd();
 	    }	    
 	  }
 	  else if(bhseed == "density"){
@@ -2182,11 +2266,13 @@ int main(){
 	    if(dmy < f_seed && rho_vms > 3.E5){
 		double mimmi = func.rnd();
 		mpri = pow(mimmi * pow(maxseed, 1.-seedslope) + (1.-mimmi) * pow(minseed,1.-seedslope) , 1./(1.-seedslope));	      
-	    }
-	    	  
+		apri = func.rnd();
+	    }	    	    	  
 	  }
-	  else if(bhseed == "lupi"){
-	    mpri = 300.;
+	  else if(bhseed == "seed" && TagR == "seed"){
+	    mpri = mbh_seed;
+	    apri = abh_seed;
+	    tpri = 0.0;
 	  }
 	  
 
@@ -2194,10 +2280,14 @@ int main(){
 	  
 	  //Also, we should separate between the density stuff and the upper mass-gap stuff, that is more related to the binary fraction indeed
 
-	  
+	  if(dynaS != "bavera")
+	    apri = func.spin(mpri,dynaS);	
+	  else
+	    if(mpri < 65.)
+	      apri = func.spin(mpri,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+	    else
+	      apri = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
 
-	  
-	  asec   = func.spin(msec,dynaS);
 	  
 	  
 	  //FIRST MERGER
@@ -2232,10 +2322,6 @@ int main(){
 	  trelax = 0.78E9 /log(0.11 * mhalf) * pow(mhalf/1.E5, 0.5) * pow(rhalf, 1.5); //4.2E9 * (15./logL) * pow(rhalf/4.0,1.5) * sqrt(mhalf/1.E7) ;		  
 	  //tDF to sink	
 	  tdf = 0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9);	  	  
-	  if(bhseed == "lupi"){
-            tSNe = 0.0;
-	    tdf  = 0.0;
-          }
 
 	  double time0 = time;
 	  
@@ -2274,7 +2360,7 @@ int main(){
 	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster) ; //sqrt(mclcorr/rclcorr);
 	  
 	  semihard = 1./pow(sig_clu/30., 2.); //2.*6.67E-11*1.99E30/(1.E6*1.5E11) * (mpri+msec) / (sig_clu*sig_clu);
 	  
@@ -2307,7 +2393,7 @@ int main(){
 	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	    vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster); //sqrt(mclcorr/rclcorr);
 
 	    if(mclcorr == 0.0 && rclcorr == 0.0)
 	      time += 1.E12;
@@ -2355,7 +2441,7 @@ int main(){
 	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster); //sqrt(mclcorr/rclcorr);
 	  
 	  t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
 	  t12 *= func.rndgen(1.0, 0.1);
@@ -2374,7 +2460,7 @@ int main(){
 	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	    vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster); //sqrt(mclcorr/rclcorr);
 	  }
 	  //}
 	  
@@ -2402,7 +2488,7 @@ int main(){
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster); // sqrt(mclcorr/rclcorr);
 	    //}
 
 	  //Calculate hard binary separation and assign binary sma
@@ -2447,7 +2533,7 @@ int main(){
 	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
 	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);	  	 
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time+tmer-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 
 	  if(mclcorr*mhalf <= 1.E1)
 	    tmer = 1.E12;
@@ -2599,7 +2685,7 @@ int main(){
 	//
 	/////////////////////////////
 	
-	vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	
 	if(mclcorr * mhalf < 1.E1)
 	  cluster_stat="evaporated";
@@ -2741,7 +2827,7 @@ int main(){
 		exit(0);
 	      }
 	    }while(msec < 1. || msec > 500.);
-	    
+
 	  }
 	  else{
 	    msec = -1;
@@ -2755,7 +2841,6 @@ int main(){
 		msec = single_bh[0];	 
 		tsec = single_bh[1];
 		ksec = single_bh[2];	    
-		
 		nsafe ++;
 		if(single_bh[3] == 1)
 		  break;
@@ -2792,31 +2877,20 @@ int main(){
 	    }
 	  }
 
+	  if(dynaS != "bavera")
+	    asec = func.spin(msec,dynaS);	
+	  else
+	    if(mpri < 65.)
+	      asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+	    else
+	      asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+
 	  if(msec == 0){
 	    msec = msec_prec;
 	    break;
 	  }
 	  
-	  if(highgen == "yes" && msec < 65.){
-	    double p_BPOP;
-	    if(cluster == "globular")
-	      p_BPOP = 295. / 1.E4; //this is valid for GCs with Z = 0.0002 (would it change with different metallicity?)
-	    else if(cluster == "nuclear")
-	      p_BPOP = 2740./ 1.E4;
-	    else if(cluster == "young")
-	      p_BPOP = 0.0;
-	    
-	    double p_hgen = func.rnd();
-	    double mav = 30.;
-	    if(p_hgen < p_BPOP){
-	      double coef = 0.2 + 0.8*func.rnd();
-	      msec = mav * (1. + msec/mav * (1.+mav/6.0));	       
-	    }
-	    nhigen += int(msec / mav);
-	  }
-
-	  
-	  asec   = func.spin(msec,dynaS);
+	  //if(highgen == "yes" && msec < 65.){}
 
 	  if(apri > 1. || asec > 1.){
 	    cout<<"Critical error "<<mpri<<" "<<apri<<" "<<msec<<" "<<asec<<" "<<nrecy<<endl;
@@ -2856,7 +2930,7 @@ int main(){
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	  
 	  semihard = 1./pow(sig_clu/30., 2.);
 	  
@@ -2876,7 +2950,7 @@ int main(){
 	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	    
 	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	    vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	  }
 	    
 	    
@@ -2905,7 +2979,7 @@ int main(){
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	    
 	  //}
 	  
@@ -2961,7 +3035,7 @@ int main(){
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	  
 	  //}
 	 	  
@@ -3197,6 +3271,8 @@ int main(){
     SFR += "EB18";
   else if(sfr_clu == "EB18_MF17")
     SFR += "EB18MF17";
+  else if(sfr_clu == "single")
+    SFR += "single";
   
   cmdstr_zero += "_SFR_"+SFR;
   cmdstr_zero += "_sfronly_";
