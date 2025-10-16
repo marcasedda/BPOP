@@ -15,17 +15,17 @@
 #define MERGER_EFF_CORR "no"
 
 // GLOBAL
-#define N        10000000
+#define N        1000000
 #define mmax     150.
 #define mmin     18.5
 #define mslope  -2.35
 #define Zsun     0.019
 
 //DYNAMICAL FRACTIONS
-#define DynOvTot 1.0
-#define pYC      0.33
-#define pGC      0.33
-#define pNC      0.34
+#define DynOvTot 0.9
+#define pYC      0.75
+#define pGC      0.15
+#define pNC      0.1
 
 #define uppergap "yes"
 #define bhseed   "bifrost"
