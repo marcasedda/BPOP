@@ -2122,17 +2122,6 @@ int main(){
 
 	   */
 
-	  // Cluster scale radius (from Dehnen) //
-	  double g_cl;
-	  if(cluster == "young")
-	    g_cl = 1.0;
-	  else if(cluster == "globular")
-	    g_cl = 1.5;
-	  else if(cluster == "nuclear")
-	    g_cl = 1.9;
-	  
-	  double a_cl = rhalf*(pow(2.,1./(3.-g_cl))-1);
-
 		// DOUBLE CHECK THE FOLLOWING //
 	  
 	  // Max radius from which BHs can spiral-in over a Hubble time via DF //	  

@@ -4,13 +4,13 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#define CHUNKS "yes"
+#define CHUNKS "no"
 //#define Hubble 13.99E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
-#define PREDIR "/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/"
-#define SINGPTH  "../SEVN_Catalog/rapid_M20/"
-#define PATH     "../SEVN_Catalog/rapid_M20/"
+#define PREDIR "../"
+#define SINGPTH  "../../../SEVN_Catalogs/rapid_M20_a1/" //"../SEVN_Catalog/IORIO_zenodo_cat" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
+#define PATH     "../../../SEVN_Catalogs/rapid_M20_a1/" //"../SEVN_Catalog/IORIO_zenodo_cat" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
 #define SEVN "yes"
 #define MERGER_EFF_CORR "no"
 
@@ -77,7 +77,7 @@
 #define sigma_distri_clu "Elbadry19"
 
 //SPINS
-#define spinlb  "bavera"
+#define spinlb  "maxwellian02"
 #define obslope  0.0
 
 //STAR FORMATION
