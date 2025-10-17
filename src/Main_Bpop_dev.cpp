@@ -1315,10 +1315,10 @@ int main(){
 	apri = aiso1[ext];
 	asec = aiso2[ext];
       }
-      else if(isospin == "bavera"){
-	double apri_try = func.spin(mpri, "fuller");
-	double asec_try = func.rnd();
-	if(mpro1[ext] > mpro2[ext]){
+    else if(isospin == "bavera"){
+        double apri_try = func.spin(mpri, "fuller");
+        double asec_try = func.rnd();
+    if(mpro1[ext] > mpro2[ext]){
 	  apri = apri_try;
 	  asec = asec_try;
 	}
@@ -2319,7 +2319,7 @@ int main(){
 	      }
 	    }
 
-      func.DiCarlo_BHs(&mpri, &msec, Z[i], false, uppergap, fupgp, a_gp, mass_gap, upgtp);
+      func.DiCarlo_BHs(&mpri, &msec, &apri, &asec, Z[i], false, uppergap, fupgp, a_gp, mass_gap, upgtp, dynaS);
       /*
       //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
       double prob_ugp = func.rnd();

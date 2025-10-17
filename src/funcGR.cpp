@@ -2136,7 +2136,7 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
       return;
   }
 
-  void Functions::DiCarlo_BHs(double* mpri, double* msec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp){
+  void Functions::DiCarlo_BHs(double* mpri, double* msec, double* apri, double* asec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp, string dynaS){
     //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
     //We follow Di Carlo+2020 for the upper mass gap treatment
     // The function modifies the masses of the binary components considering:
@@ -2157,6 +2157,8 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
 
     double prob_ugp = func.rnd();
     double prob_fgp = func.rnd();
+
+    double a1_gp, a2_gp;
     
     string UP = upgtp;
     double fUP= fupgp;
@@ -2178,19 +2180,36 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
       else
         m2_gp = m1_gp * pow(m1_gp / 65., -1.78) * (1. + 0.2*(-1. + 2.*func.rnd()));
 
+      //Bavera Spins
+
+      if(dynaS != "bavera"){
+	      a1_gp = func.spin(m1_gp, dynaS);
+	      a2_gp = func.spin(m2_gp, dynaS);
+	    }
+	    else{
+	      a1_gp = func.rnd();
+	      if(m2_gp < 65)
+		      a2_gp = func.spin(m2_gp, "fuller");
+	      else
+		      a2_gp = func.rnd();
+	    }
+
       if(m2_gp > m1_gp){
         double temp_gp = m1_gp;
         m1_gp = m2_gp;
         m2_gp = temp_gp;
       }
         
-      // We need to implement something for the spins too ...
       if(prob_ugp >= pbelow && prob_ugp < pbelow + pbelup){
 
-        if(*mpri < mass_gap && !processed) *mpri = m1_gp;
-
-        else if (*msec < mass_gap) *msec = m2_gp;
-        
+        if(*mpri < mass_gap && !processed){
+          *mpri = m1_gp;
+          *apri = a1_gp;
+        }
+        else if (*msec < mass_gap){
+          *msec = m2_gp;
+          *asec = a2_gp;
+        }
         else if (!processed){
           //cout<<"Both objects above the gap!"<<endl; //This may happen in multiple mergers?
         }
@@ -2198,9 +2217,15 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
       
       else if(prob_ugp > pbelow + pbelup){
 
-        if(*mpri < mass_gap && !processed) *mpri = m1_gp;
+        if(*mpri < mass_gap && !processed){
+          *mpri = m1_gp;
+          *apri = a1_gp;
+        }
 
-        if(*msec < mass_gap) *msec = m2_gp;
+        if(*msec < mass_gap){
+          *msec = m2_gp;
+          *asec = a2_gp;
+        }
 
       }
     }
