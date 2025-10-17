@@ -367,17 +367,11 @@ int main(){
 
   double m_seed, r_seed, mbh_seed, abh_seed;
 
-  // m_seed = MCL_popIII;
-  // r_seed = RCL_popIII;
-  // mbh_seed=MBH_popIII;
-  // abh_seed=aBH_popIII;
+  m_seed = MCL_popIII;
+  r_seed = RCL_popIII;
+  mbh_seed=MBH_popIII;
+  abh_seed=aBH_popIII;
 
-  
-  m_seed = 0.0;
-  r_seed = 0.0;
-  mbh_seed=0.0;
-  abh_seed=0.0;
-  
   //Creation of merger efficiency tables: only isolated binaries at the moment//
   vector<double> Zeta_b;
   vector<double> Eeta_b;
@@ -1838,7 +1832,9 @@ int main(){
 	double tSNe, mper, trelax, trelax0, tcc, tdf, semihard, kappa, semi, ecc, t12, acrit, tbbh, tmer, mu_red, sma;
 	double t3bb, t12capt, tbbhform;
 	double time,nsafe_glob,nsafe,mass_ratio, mixer, nhigen;
-    double interaction_rate;
+  double interaction_rate;
+  double g_cl, a_cl;
+
 	string stri_mrat;
 
     nhigen = 0.0;
@@ -2050,10 +2046,27 @@ int main(){
 	      }
 	    }while( pow(10.,rint) < 0.0 ); //10.*0.8*pow(pow(10.,mint)/1000.,0.2));
 	    
+	  
+	    
+	    // Cluster scale radius (from Dehnen) //
+	    double rnd_cl = func.rnd();
+	    /*if(cluster == "young")	      
+	      g_cl = 1.*rnd_cl;
+	    else if(cluster == "globular")
+	    g_cl = 1.5*rnd_cl;*/
+	    g_cl = 0.0;
+	    a_cl = pow(10.,rint)/1.3;
+	    if(cluster == "nuclear"){
+	      a_cl = rhalf*(pow(2.,1./(3.-g_cl))-1);
+	      g_cl = 1.95*rnd_cl;
+	    }
 	    
 	    
-	    vthre = func.vescape(pow(10.,rint),pow(10.,mint),pcluster);
-	  }while(vthre < vlimiting);// || mint < 3.0 || pow(10.,mint)/pow(pow(10.,rint),3.) < 100.);
+	    a_cl = pow(10.,rint)/1.3; //rhalf*(pow(2.,1./(3.-g_cl))-1);
+	    
+	    vthre = func.vescape(g_cl, pow(10.,rint), pow(10.,mint), pcluster);
+    
+    }while(vthre < vlimiting);// || mint < 3.0 || pow(10.,mint)/pow(pow(10.,rint),3.) < 100.);
 	  	  
 	  //the limiting values above lead to 20-50% loss of sources and ensure that the time remain t < 13.5 Gyr//
 	  //particularly the M/R^3 < 100 Msun/pc^3 region has no sources with t < 13.5 Gyr with single BHs  !!//
@@ -2061,7 +2074,7 @@ int main(){
 	  lsig = 0.5 * (-1.14 + log10(6.67E-11*1.99E30/3.08E16 * pow(10.,mint)/pow(10.,rint) ));			 
 	  sig_clu = 0.001*pow(10.,lsig);
 	  
-	  rho_clu = 3. *pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));//(3.-2.*func.rnd())*pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));
+	  rho_clu = 3. *pow(10.,mint) / ( 8. * M_PI * pow(pow(10.,rint),3.));//(3.-2.*func.rnd())*pow(10.,mint) / ( 4. * M_PI * pow(pow(10.,rint),3.));
 	  
 	  mstar = 1.0;
 	  rho_cubicpc = rho_clu / mstar;
@@ -2120,13 +2133,13 @@ int main(){
 	  
 	  double a_cl = rhalf*(pow(2.,1./(3.-g_cl))-1);
 
-	  // DOUBLE CHECK THE FOLLOWING //
+		// DOUBLE CHECK THE FOLLOWING //
 	  
 	  // Max radius from which BHs can spiral-in over a Hubble time via DF //	  
-	  double radius = rhalf * pow( (Hubble - tfor[i]*1.E9) / (0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9)) , 1./1.74);
+	  double radius = rhalf * pow( (Hubble - tfor[i]) / (0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9)) , 1./1.74);
 
 	  // Fraction of mass enclosed within the infall radius above //
-	  double fencl = (radius / (radius + a_cl),3.-g_cl) * (1. + 0.2*(1.-2.*func.rnd()));
+	  double fencl = pow(radius / (radius + a_cl),3.-g_cl) * (1. + 0.2*(1.-2.*func.rnd()));
 
 	  // retention fraction freten //
 	  double freten = 0.5 * (1. + 0.3*(1.-2.*func.rnd()));
@@ -2508,7 +2521,7 @@ int main(){
 	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster) ; //sqrt(mclcorr/rclcorr);
 	  
 	  semihard = 1./pow(sig_clu/30., 2.); //2.*6.67E-11*1.99E30/(1.E6*1.5E11) * (mpri+msec) / (sig_clu*sig_clu);
 	  
@@ -2541,7 +2554,7 @@ int main(){
 	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	    vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster); //sqrt(mclcorr/rclcorr);
 
 	    if(mclcorr == 0.0 && rclcorr == 0.0)
 	      time += 1.E12;
@@ -2589,7 +2602,7 @@ int main(){
 	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster); //sqrt(mclcorr/rclcorr);
 	  
 	  t12 = 3.E8 / zita * (0.01/fb) * (1.E6/rho_cubicpc) * (sig_clu/30.) * sqrt(mstar / (mpri+msec)) * (30./(mpri+msec+mper)) * (1./semihard);
 	  t12 *= func.rndgen(1.0, 0.1);
@@ -2608,7 +2621,7 @@ int main(){
 	    rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	    vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster); //sqrt(mclcorr/rclcorr);
 	  }
 	  //}
 	  
@@ -2636,7 +2649,7 @@ int main(){
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster); // sqrt(mclcorr/rclcorr);
 	    //}
 
 	  //Calculate hard binary separation and assign binary sma
@@ -2681,7 +2694,8 @@ int main(){
 	  sig_clu    = sig_clu_in*sqrt(mclcorr/rclcorr);
 	  rho_clu    = rho_clu_in*mclcorr/pow(rclcorr,3.);
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);	  	 
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+
+    vthre = vthre_in * func.vevol(time+tmer-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 
 	  if(mclcorr*mhalf <= 1.E1)
 	    tmer = 1.E12;
@@ -2833,7 +2847,7 @@ int main(){
 	//
 	/////////////////////////////
 	
-	vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	
 	if(mclcorr * mhalf < 1.E1)
 	  cluster_stat="evaporated";
@@ -2976,172 +2990,182 @@ int main(){
 
 	  mass_ratio = -1;
 	  nsafe = 0;       
-      nhigen = 0;     
+    nhigen = 0;     
 
 	  double msec_prec = msec;
 	  
-      //cout<< "Chosing secondary BH mass and time for the multiple merger chain with mpri = "<<mpri <<endl;
+  //cout<< "Chosing secondary BH mass and time for the multiple merger chain with mpri = "<<mpri <<endl;
 
-      for(int k=0;k<numZ;k++)Npar[k] = 0;
+  for(int k=0;k<numZ;k++)Npar[k] = 0; //double check
+
 	  if(stri_mrat != "nouniform"){
-	    do{
-	      mass_ratio = func.mratio(mpri, MRATIO_SLOPE, stri_mrat);
-	      msec = mpri * mass_ratio;
-	      for(int iii=0; iii<remn_sin.size()-1;iii++){
-		if(msec > remn_sin[iii] && msec < remn_sin[iii+1]){
-		  tsec = 0.5*(tdel_sin[iii] + tdel_sin[iii+1]) ;
-		}
-	      }
-	      nsafe += 1;
-	      if(nsafe > 1000){
-		cout<<"mratio fails"<<endl;
-		exit(0);
-	      }
-	    }while(msec < 1. || msec > 500.);
-	  }
+      do{
+        mass_ratio = func.mratio(mpri, MRATIO_SLOPE, stri_mrat);
+        msec = mpri * mass_ratio;
+        for(int iii=0; iii<remn_sin.size()-1;iii++){
+          if(msec > remn_sin[iii] && msec < remn_sin[iii+1]){
+            tsec = 0.5*(tdel_sin[iii] + tdel_sin[iii+1]) ;
+            }
+        }
+        nsafe += 1;
+        if(nsafe > 1000){
+          cout<<"mratio fails"<<endl;
+          exit(0);
+        }
+      }while(msec < 1. || msec > 500.); 
+      
+    }
 	  else{
 	    msec = -1;
 	    ksec = 1.E30;
 	    nsafe = 0;
 	    if(mixer > mixing){
-	      do{
-            // We choose frome the SSE catalog
-            func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, vthre);	  
-		msec = single_bh[0];	 
-		tsec = single_bh[1];
-		ksec = single_bh[2];	    
-            // Let's check if the secondary BHs comes from a hierarchical merger
-            double eps =  func.GWeff(pcluster,Z[i]);
-            double nmerg = eps * mhalf;
-            // Support vector for the high-gen code
-            int elem = 6;
-            double *Comp;
-            Comp = new double [elem];
-            for(int i=0;i<elem;i++) Comp[i] = 0.0;
-
-            //Let's account for the cluster evolution
-            mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-            rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-      
-            double m_core = pow(10., mint)*mclcorr;
-            double r_core = rhalf*rclcorr;
-            
-            //cout<<"msec: "<<msec<<" tsec: "<<tsec<<" ksec: "<<ksec<<endl;
-            nhigen = 0;
-            interaction_rate = 0.0;
-
-            hgen(mpri, apri, msec, asec, ksec, vthre, dynaS, Z[i], zams_sin, remn_sin, tdel_sin, kick_sin, zams_mix, remn_mix, tdel_mix, kick_mix,
-                Comp, Spinning, nbhs, gen_primary, nmerg, i, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer, sec_hg);
-            
-            msec = Comp[0];
-            asec = Comp[1];
-            ksec = Comp[2];
-            nhigen = int(Comp[3]);
-            interaction_rate = Comp[4];
-            //cout << "ID: " << i << " Comp[3]: " << Comp[3] << " nhigen: " << nhigen << endl;
-            //nbhs = int(Comp[5]);
-            if(nhigen > 0)
-              //cout<<"ID: "<< i <<" Maximum higgen: "<< gen_primary<<" tot BHs: "<<nbhs[0]<<" High-gen: "<<nhigen<< " nbhs[hg]: "<<nbhs[nhigen+1]<<" Interaction rate: "<<interaction_rate<<" secondary mass: "<<msec<<endl;
-              if(nbhs[nhigen+1] == 0){
-                cout<<"Critical error: number of high-gen BHs < 0 "<<nbhs[0]<<" "<<nbhs[1]<<" "<<nbhs[2]<<" "<<nbhs[3]<<" "<<nbhs[4]<<" "<<nbhs[5]<<endl;
-              }
-            else
-              //cout<<"No high-gen companion found - Interaction rate: "<<interaction_rate<<endl;
-            
-		nsafe ++;
-		if(single_bh[3] == 1)
-		  break;
-		else if(nsafe > 500){
-		  cout<<npar_runtime<<" "<<i<<" "<<Z[i]<<" "<<msec<<" "<<tsec<<" "<<ksec<<endl;
-		}
-		if(nsafe > 1000){
-		  cout<<"Something wrong " <<msec<<" "<<tsec<<" "<<ksec<<" "<<minimus<<" "<<vthre<<endl;
-		  exit(0);
-		}
-		
-	      }while(msec <= 0.0 || ksec > vthre);
 	      
-	      if(msec < minimus){
-		cout<<"Second BH mass below mmin = "<<minimus<<" "<<msec<<endl;
-	      }
+        do{
+          // We choose frome the SSE catalog
+          func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, vthre);	  
+          msec = single_bh[0];	 
+          tsec = single_bh[1];
+          ksec = single_bh[2];	    
 
-	    }
+          // Let's check if the secondary BHs comes from a hierarchical merger
+          double eps =  func.GWeff(pcluster,Z[i]);
+          double nmerg = eps * mhalf;
+
+          // Support vector for the high-gen code
+          int elem = 6;
+          double *Comp;
+          Comp = new double [elem];
+          for(int i=0;i<elem;i++) Comp[i] = 0.0;
+
+          //Let's account for the cluster evolution
+          mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+    
+          double m_core = pow(10., mint)*mclcorr;
+          double r_core = rhalf*rclcorr;
+          
+          //cout<<"msec: "<<msec<<" tsec: "<<tsec<<" ksec: "<<ksec<<endl;
+          nhigen = 0;
+          interaction_rate = 0.0;
+
+          hgen(mpri, apri, msec, asec, ksec, vthre, dynaS, Z[i], zams_sin, remn_sin, tdel_sin, kick_sin, zams_mix, remn_mix, tdel_mix, kick_mix,
+              Comp, Spinning, nbhs, gen_primary, nmerg, i, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer, sec_hg);
+          
+          msec = Comp[0];
+          asec = Comp[1];
+          ksec = Comp[2];
+          nhigen = int(Comp[3]);
+          interaction_rate = Comp[4];
+          //cout << "ID: " << i << " Comp[3]: " << Comp[3] << " nhigen: " << nhigen << endl;
+          //nbhs = int(Comp[5]);
+          
+          // if(nhigen > 0)
+            //cout<<"ID: "<< i <<" Maximum higgen: "<< gen_primary<<" tot BHs: "<<nbhs[0]<<" High-gen: "<<nhigen<< " nbhs[hg]: "<<nbhs[nhigen+1]<<" Interaction rate: "<<interaction_rate<<" secondary mass: "<<msec<<endl;
+          if(nbhs[nhigen+1] == 0){
+              cout<<"Critical error: number of high-gen BHs < 0 "<<nbhs[0]<<" "<<nbhs[1]<<" "<<nbhs[2]<<" "<<nbhs[3]<<" "<<nbhs[4]<<" "<<nbhs[5]<<endl;
+          }
+          //else
+            //cout<<"No high-gen companion found - Interaction rate: "<<interaction_rate<<endl;
+            
+          nsafe ++;
+
+          if(single_bh[3] == 1)
+            break;
+
+          else if(nsafe > 500){
+            cout<<npar_runtime<<" "<<i<<" "<<Z[i]<<" "<<msec<<" "<<tsec<<" "<<ksec<<endl;
+          }
+
+          if(nsafe > 1000){
+            cout<<"Something wrong " <<msec<<" "<<tsec<<" "<<ksec<<" "<<minimus<<" "<<vthre<<endl;
+            exit(0);
+          }
+          
+        }while(msec <= 0.0 || ksec > vthre);
+              
+        if(msec < minimus){
+          cout<<"Second BH mass below mmin = "<<minimus<<" "<<msec<<endl;
+        }
+
+      }
+      
 	    else{
 	      double MSLP = mslope;
 	      msec = -1;
 	      ksec = 1.E30;	      
 	      do{
-            // We choose frome the BSE catalog
-            func.singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
-		msec = single_bh[0];	  	  
-		tsec = single_bh[1];
-		ksec = single_bh[2];
-            // Let's check if the secondary BHs comes from a hierarchical merger
-            double eps =  func.GWeff(pcluster,Z[i]);
-            double nmerg = eps * mhalf;
-            // Support vector for the high-gen code
-            int elem = 6;
-            double *Comp;
-            Comp = new double [elem];
-            for(int i=0;i<elem;i++) Comp[i] = 0.0;
+          // We choose frome the BSE catalog
+          func.singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
+          msec = single_bh[0];	  	  
+          tsec = single_bh[1];
+          ksec = single_bh[2];
+          // Let's check if the secondary BHs comes from a hierarchical merger
+          double eps =  func.GWeff(pcluster,Z[i]);
+          double nmerg = eps * mhalf;
+          // Support vector for the high-gen code
+          int elem = 6;
+          double *Comp;
+          Comp = new double [elem];
+          for(int i=0;i<elem;i++) Comp[i] = 0.0;
 
-            //Let's account for the cluster evolution
-            mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-            rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
-      
-            double m_core = pow(10., mint)*mclcorr;
-            double r_core = rhalf*rclcorr;
+          //Let's account for the cluster evolution
+          mclcorr = func.mevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+          rclcorr = func.revol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);
+    
+          double m_core = pow(10., mint)*mclcorr;
+          double r_core = rhalf*rclcorr;
+          
+          //cout<<"msec: "<<msec<<" tsec: "<<tsec<<" ksec: "<<ksec<<endl;
+          nhigen = 0;
+          interaction_rate = 0.0;
+
+          hgen(mpri, apri, msec, asec, ksec, vthre, dynaS, Z[i], zams_sin, remn_sin, tdel_sin, kick_sin, zams_mix, remn_mix, tdel_mix, kick_mix,
+            Comp, Spinning, nbhs, gen_primary, nmerg, i, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer, sec_hg);
+
+          msec = Comp[0];
+          asec = Comp[1];
+          ksec = Comp[2];
+          nhigen = int(Comp[3]);
+          interaction_rate = Comp[4];
+          //nbhs = int(Comp[5]);
+          //cout << "ID: " << i << " Comp[3]: " << Comp[3] << " nhigen: " << nhigen << endl;
+
+          if(nhigen > 0)
+            //cout<<"ID: "<< i <<" Maximum higgen: "<< gen_primary<<" tot BHs: "<<nbhs[0]<<" High-gen: "<<nhigen<< " nbhs[hg]: "<<nbhs[nhigen+1]<<" Interaction rate: "<<interaction_rate<<" secondary mass: "<<msec<<endl;
+            if(nbhs[nhigen+1] == 0){
+              cout<<"Critical error: number of high-gen BHs < 0 "<<nbhs[0]<<" "<<nbhs[1]<<" "<<nbhs[2]<<" "<<nbhs[3]<<" "<<nbhs[4]<<" "<<nbhs[5]<<endl;
+            }
+          else
+            //cout<<"No high-gen companion found - Interaction rate: "<<interaction_rate<<endl;
             
-            //cout<<"msec: "<<msec<<" tsec: "<<tsec<<" ksec: "<<ksec<<endl;
-            nhigen = 0;
-            interaction_rate = 0.0;
+          nsafe ++;
+          if(nsafe > 1000)
+            break;
+        }while(msec <= 0.0 || ksec > vthre);
+              
+      }
+    }
 
-            hgen(mpri, apri, msec, asec, ksec, vthre, dynaS, Z[i], zams_sin, remn_sin, tdel_sin, kick_sin, zams_mix, remn_mix, tdel_mix, kick_mix,
-              Comp, Spinning, nbhs, gen_primary, nmerg, i, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer, sec_hg);
+    if(dynaS != "bavera")
+      asec = func.spin(msec,dynaS);	
+    else
+      if(mpri < 65.)
+        asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+      else
+        asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
 
-            msec = Comp[0];
-            asec = Comp[1];
-            ksec = Comp[2];
-            nhigen = int(Comp[3]);
-            interaction_rate = Comp[4];
-            //nbhs = int(Comp[5]);
-            //cout << "ID: " << i << " Comp[3]: " << Comp[3] << " nhigen: " << nhigen << endl;
+      if(msec == 0){
+        msec = msec_prec;
+      break;
+    }
 
-            if(nhigen > 0)
-              //cout<<"ID: "<< i <<" Maximum higgen: "<< gen_primary<<" tot BHs: "<<nbhs[0]<<" High-gen: "<<nhigen<< " nbhs[hg]: "<<nbhs[nhigen+1]<<" Interaction rate: "<<interaction_rate<<" secondary mass: "<<msec<<endl;
-              if(nbhs[nhigen+1] == 0){
-                cout<<"Critical error: number of high-gen BHs < 0 "<<nbhs[0]<<" "<<nbhs[1]<<" "<<nbhs[2]<<" "<<nbhs[3]<<" "<<nbhs[4]<<" "<<nbhs[5]<<endl;
-              }
-            else
-              //cout<<"No high-gen companion found - Interaction rate: "<<interaction_rate<<endl;
-            
-		nsafe ++;
-		if(nsafe > 1000)
-		  break;
-	      }while(msec <= 0.0 || ksec > vthre);
-	      
-	    }
-	  }
+    //if(highgen == "yes" && msec < 65.){}
 
-	  if(dynaS != "bavera")
-	    asec = func.spin(msec,dynaS);	
-	  else
-	    if(mpri < 65.)
-	      asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
-	    else
-	      asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
-
-	  if(msec == 0){
-	    msec = msec_prec;
-	    break;
-	  }
-	  
-	  //if(highgen == "yes" && msec < 65.){}
-
-	  if(apri > 1. || asec > 1.){
-	    cout<<"Critical error "<<mpri<<" "<<apri<<" "<<msec<<" "<<asec<<" "<<nrecy<<endl;
-	    exit(0);
-	  }
+    if(apri > 1. || asec > 1.){
+      cout<<"Critical error "<<mpri<<" "<<apri<<" "<<msec<<" "<<asec<<" "<<nrecy<<endl;
+      exit(0);
+    }
 
 
 	  mu_red = mpri * msec / (mpri+msec);
@@ -3176,7 +3200,7 @@ int main(){
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	  
 	  semihard = 1./pow(sig_clu/30., 2.);
 	  
@@ -3196,7 +3220,7 @@ int main(){
 	    rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	    
 	    
-	    vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	    vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	  }
 	    
 	    
@@ -3225,7 +3249,7 @@ int main(){
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	    
 	  //}
 	  
@@ -3281,7 +3305,7 @@ int main(){
 	  rho_cubicpc = rho_cubicpc_in*mclcorr/pow(rclcorr,3.);
 	  
 	  
-	  vthre = vthre_in * sqrt(mclcorr/rclcorr);
+	  vthre = vthre_in * func.vevol(time-tfor[i], rhalf, mhalf, trelax0, CLfill, cluster);//sqrt(mclcorr/rclcorr);
 	  
 	  //}
 	 	  
@@ -3337,10 +3361,10 @@ int main(){
 	    sig_clu = sqrt(sig_clu0*sig_clu0 + mpri / (0.1*pow(10.,rint)));
 	  
             
-            //cout<<"Gen primary BH = "<<gen_primary<<" Mass: " << Mrem[i]<<endl;
+    //cout<<"Gen primary BH = "<<gen_primary<<" Mass: " << Mrem[i]<<endl;
 	  nrecy += 1;
-            gen_primary++;
-            //nrecy += nhigen;
+    gen_primary++;
+    //nrecy += nhigen;
 
 	  //This will include all repeated mergers into the main catalogue ... 
 	  if(time < Hubble){

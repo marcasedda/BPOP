@@ -27,6 +27,11 @@ class Functions
   double mevol(double t, double rh, double mh, double trel, string type, string tclus);
   double revol(double t, double rh, double mh, double trel, string type, string tclus);
 
+  //Added function declaration
+  double mhalf_evo(double t, double rh, double mh, double trel, string type, string tclus);
+  double rhalf_evo(double t, double rh, double mh, double trel, string type, string tclus);
+  double vevol(double t, double rh, double mh, double trel, string type, string tclus);
+
   std::optional<size_t> search_closest(const std::vector<double> & sorted_array, double x);
   double finterp(vector<double> &Zeta, vector<double> &Eeta, double lz);
 
@@ -54,8 +59,13 @@ class Functions
   double phiD(double x,double M,double a,double g);
   double Rh(double a,double g);
   double ah(double Rh,double g);
-  double vescape(double r, double m, string type);
-  
+  //Added function declaration
+  double vphiP(double x,double M,double a);
+  double vphiD(double x,double M,double a,double g);
+  //double vescape(double r, double m, string type);
+
+  double vescape(double g, double r, double m, string type);
+
   void histo(double* X, int N, int nbin, string binning, string name);
 
   double findbhmin(double metal, string singpth);
