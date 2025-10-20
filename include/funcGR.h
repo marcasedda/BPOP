@@ -26,6 +26,10 @@ class Functions
   double GSS_smpl(double minZ, double maxZ, double xm, double sx);
   double mevol(double t, double rh, double mh, double trel, string type, string tclus);
   double revol(double t, double rh, double mh, double trel, string type, string tclus);
+  double mhalf_evo(double t, double rh, double mh, double trel, string type, string tclus);
+  double rhalf_evo(double t, double rh, double mh, double trel, string type, string tclus);
+  double vevol(double t, double rh, double mh, double trel, string type, string tclus);
+
 
   std::optional<size_t> search_closest(const std::vector<double> & sorted_array, double x);
   double finterp(vector<double> &Zeta, vector<double> &Eeta, double lz);
@@ -50,11 +54,11 @@ class Functions
   double tred(double z);
   double zred(double t);
 
-  double phiP(double x,double M,double a);
-  double phiD(double x,double M,double a,double g);
+  double vphiP(double x,double M,double a);
+  double vphiD(double x,double M,double a,double g);
   double Rh(double a,double g);
   double ah(double Rh,double g);
-  double vescape(double r, double m, string type);
+  double vescape(double g, double r, double m, string type);
   
   void histo(double* X, int N, int nbin, string binning, string name);
 
@@ -66,8 +70,6 @@ class Functions
   void singBHt_mix_old(vector<double> zams_mix, vector<double> remn_mix, vector<double> tdel_mix, vector<double> kick_mix, double obslope, double mslope, double *sing_out, double msmax, double msmin, double mbmax, double mbmin, double vescape);
   //void singBHt_new(vector<double> zams_sin, vector<double> remn_sin, vector<double> tdel_sin, vector<double> kick_sin, double obslope, double mslope, double *sing_out, double msmax, double msmin, double mbmax, double mbmin, double vescape);
   void singBHt_new(vector<double>& zams_sin, vector<double>& remn_sin, vector<double>& tdel_sin, vector<double>& kick_sin, double *sing_out, double vescape);
-
-  double GWeff(string pcluster, double met);
 
 
   double mratio(double mpri, double MRATIO_SLOPE, string stri_mrat);
@@ -91,16 +93,6 @@ class Functions
   double spin(double mass, string spinning);
 
   string print(double mass, double mmax, double mmin,double wgh);
-
-  void singBHt_mix(vector<double>& zams_mix, vector<double>& remn_mix, vector<double>& tdel_mix, vector<double>& kick_mix, double *sing_out, double vescape);
-
-  double inter_rate(double m1, double m2, double vesc, double m_hg, int gen, double nbhs, double mhalf, double mcore, double rcore, double n_bin,
-            double trelax, double t12capt, double tbbhform, double tcc, string pcluster);
-    
-
-  void evolve_bhs(vector<double>& nbhs, double n_bin, const vector<double>& gwK, const vector<double>& gwK_cdf, double vesc, int gen2);
-  
-  void DiCarlo_BHs(double* mpri, double* msec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp);
 
   Functions();
 
