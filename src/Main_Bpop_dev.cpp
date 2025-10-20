@@ -57,7 +57,7 @@ using namespace std;
 
     //Let's check if the BHs can be produced in the PI-gap
 
-    func.DiCarlo_BHs(&m1, &m2, Zmet, false, uppergap, fupgp, a_gp, mass_gap, upgtp); // We check if we have to put one of the two BHs in the upper gap
+    func.DiCarlo_BHs(&m1, &m2, &a1, &a2, Zmet, false, uppergap, fupgp, a_gp, mass_gap, upgtp, stype); // We check if we have to put one of the two BHs in the upper gap
 
     //I have to use a support variable, so that the chain in the while loop increases the mass of the hierarchical BH
     m_hg.push_back(m2);
@@ -110,7 +110,7 @@ using namespace std;
         }while(single_bh[2]>vesc && nsafe < max_try);
 
         m2b = single_bh[0];	 
-        func.DiCarlo_BHs(&m1, &m2b, Zmet, true, uppergap, fupgp, a_gp, mass_gap, upgtp); // We check if we have to put one of the two BHs in the upper gap
+        func.DiCarlo_BHs(&m1, &m2b, &a1, &a2b, Zmet, true, uppergap, fupgp, a_gp, mass_gap, upgtp, stype); // We check if we have to put one of the two BHs in the upper gap
         a2b = func.spin(m2b, stype);
   
         //Let's compute the POTENTIAL merger remnant and its natal kick

@@ -108,9 +108,8 @@ class Functions
             double trelax, double t12capt, double tbbhform, double tcc, string pcluster);
     
 
-  void evolve_bhs(vector<double>& nbhs, double n_bin, const vector<double>& gwK, const vector<double>& gwK_cdf, double vesc, int gen2);
-  
-  void DiCarlo_BHs(double* mpri, double* msec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp);
+  void evolve_bhs(vector<double>& nbhs, double n_bin, const vector<double>& gwK, const vector<double>& gwK_cdf, double vesc, int gen2);  
+  void DiCarlo_BHs(double* mpri, double* msec, double* apri, double* asec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp, string dynaS);
 
   Functions();
 

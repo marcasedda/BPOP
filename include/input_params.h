@@ -77,7 +77,7 @@
 #define sigma_distri_clu "Elbadry19"
 
 //SPINS
-#define spinlb  "maxwellian02"
+#define spinlb  "bavera"
 #define obslope  0.0
 
 //STAR FORMATION
