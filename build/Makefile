@@ -11,8 +11,8 @@ LDFLAGS = -o $(RESULT)
 
 VPATH= ../:../src:../include
 
-INC = input_params.h funcGR.h
-SOURCE = Main_Bpop_dev.cpp funcGR.cpp
+INC = input_params.h funcGR.h config.h
+SOURCE = Main_Bpop_dev.cpp funcGR.cpp config.cpp
 
 .SUFFIXES : .o .cpp
 
@@ -23,3 +23,4 @@ TARGET: $(RESULT)
 $(RESULT): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS)  $(OBJECTS)
 
+$(OBJECTS): $(INC)

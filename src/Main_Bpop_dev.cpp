@@ -70,7 +70,7 @@ using namespace std;
       double P = func.rnd();
       if(P < nmerg){ //We have more than one merger, we likely end mergers here
         success = "yes";       
-        cout << "ID: " << id << " nmerg: " << nmerg << "=> Insufficient number of BHs" << endl;
+        //cout << "ID: " << id << " nmerg: " << nmerg << "=> Insufficient number of BHs" << endl;
       }
     }
 
@@ -198,127 +198,127 @@ using namespace std;
     
 }
   
-void singBHt_mix_old(double mssx[], double msdx[], double mbsx[], double mbdx[], double tbsx[], double tbdx[], double vbsx[], double vbdx[], double mbhmix[][nsize], double tbhmix[][tsize], double vbhmix[][vsize], double mslp, double *sing_out, double saximus_mix, double sinimus_mix, double maximus_mix, double minimus_mix, double vescape){
+// void singBHt_mix_old(double mssx[], double msdx[], double mbsx[], double mbdx[], double tbsx[], double tbdx[], double vbsx[], double vbdx[], double mbhmix[][nsize], double tbhmix[][tsize], double vbhmix[][vsize], double mslp, double *sing_out, double saximus_mix, double sinimus_mix, double maximus_mix, double minimus_mix, double vescape){
 
-  Functions func;
+//   Functions func;
 
-  int nsafe;
+//   int nsafe;
   
-  double P = func.rnd();
-  double mzams = pow((P*pow(saximus_mix,1.+mslp) + (1.-P)*pow(sinimus_mix,1.+mslp)),1./(1.+mslp));
-  int idx = -1;
-  for(int ii=0;ii<bin_st;ii++){
-    if(mzams >= mssx[ii] && mzams < msdx[ii]){
-      idx = ii;
-      break;
-    }
-  }
+//   double P = func.rnd();
+//   double mzams = pow((P*pow(saximus_mix,1.+mslp) + (1.-P)*pow(sinimus_mix,1.+mslp)),1./(1.+mslp));
+//   int idx = -1;
+//   for(int ii=0;ii<bin_st;ii++){
+//     if(mzams >= mssx[ii] && mzams < msdx[ii]){
+//       idx = ii;
+//       break;
+//     }
+//   }
 
 
   
-  double maxprob;
-  double maxtest;
-  double maxpoint;
-  int idy;
+//   double maxprob;
+//   double maxtest;
+//   double maxpoint;
+//   int idy;
 
-  maxtest = 1.E30;
-  maxpoint= -1;
-  idy = -1;
-  nsafe = 0;
-  maxprob = -1;     
-  for(int jj=0;jj<nsize;jj++){    
-    if(maxprob < mbhmix[idx][jj])
-      maxprob = mbhmix[idx][jj];
-  }
-  do{
-    double ddy = 1.*nsize*func.rnd();
-    idy = ddy;
-    maxtest = maxprob * func.rnd();
-    maxpoint= mbhmix[idx][idy];
-    /*if(nsafe > 100){
-	cout<<"Warning mass. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-	}*/
-    nsafe ++;
-  }while(maxtest > maxpoint);	
+//   maxtest = 1.E30;
+//   maxpoint= -1;
+//   idy = -1;
+//   nsafe = 0;
+//   maxprob = -1;     
+//   for(int jj=0;jj<nsize;jj++){    
+//     if(maxprob < mbhmix[idx][jj])
+//       maxprob = mbhmix[idx][jj];
+//   }
+//   do{
+//     double ddy = 1.*nsize*func.rnd();
+//     idy = ddy;
+//     maxtest = maxprob * func.rnd();
+//     maxpoint= mbhmix[idx][idy];
+//     /*if(nsafe > 100){
+// 	cout<<"Warning mass. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
+// 	}*/
+//     nsafe ++;
+//   }while(maxtest > maxpoint);	
   
-  double mblack = mbsx[idy] + (mbdx[idy] - mbsx[idy]) * func.rnd();
+//   double mblack = mbsx[idy] + (mbdx[idy] - mbsx[idy]) * func.rnd();
   
   
-  int vsize_max = -1;
-  for(int jj=0;jj<vsize;jj++){
-    if(vbsx[jj] <=vescape)
-      vsize_max = jj;	    
-    if(vbsx[jj] > vescape)
-      break;    
-  }
-  if(vsize_max <= 0){
-    //cout<<"WARNING: no BHs can be retained in this cluster due to natal kick "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-    vsize_max = 0;    
-  }
+//   int vsize_max = -1;
+//   for(int jj=0;jj<vsize;jj++){
+//     if(vbsx[jj] <=vescape)
+//       vsize_max = jj;	    
+//     if(vbsx[jj] > vescape)
+//       break;    
+//   }
+//   if(vsize_max <= 0){
+//     //cout<<"WARNING: no BHs can be retained in this cluster due to natal kick "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
+//     vsize_max = 0;    
+//   }
 
-  //vsize_max = vsize;
+//   //vsize_max = vsize;
   
-  //cout<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-  //exit(0);
-  nsafe = 0;
-  maxprob = -1;
-  for(int jj=0;jj<vsize_max;jj++){
-    if(maxprob < vbhmix[idy][jj])
-      maxprob = vbhmix[idy][jj];
-  }
-  double vblack;
-  if(maxprob > 0){
-    maxtest = 1.E30;
-    maxpoint= -1;
-    int idz = -1;
-    do{
-      double ddz = 1.*vsize_max*func.rnd();
-      idz = ddz;
-      maxtest = maxprob * func.rnd();
-      maxpoint= vbhmix[idy][idz];
-      nsafe ++;
-      /*if(nsafe > 100){
-	cout<<"Warning vel. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
-	}*/
-    }while(maxtest > maxpoint);
+//   //cout<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
+//   //exit(0);
+//   nsafe = 0;
+//   maxprob = -1;
+//   for(int jj=0;jj<vsize_max;jj++){
+//     if(maxprob < vbhmix[idy][jj])
+//       maxprob = vbhmix[idy][jj];
+//   }
+//   double vblack;
+//   if(maxprob > 0){
+//     maxtest = 1.E30;
+//     maxpoint= -1;
+//     int idz = -1;
+//     do{
+//       double ddz = 1.*vsize_max*func.rnd();
+//       idz = ddz;
+//       maxtest = maxprob * func.rnd();
+//       maxpoint= vbhmix[idy][idz];
+//       nsafe ++;
+//       /*if(nsafe > 100){
+// 	cout<<"Warning vel. : "<<vsize_max<<" "<<vbsx[vsize_max]<<" "<<vbdx[vsize_max]<<" "<<vescape<<endl;
+// 	}*/
+//     }while(maxtest > maxpoint);
     
-    vblack = vbsx[idz] + (vbdx[idz] - vbsx[idz]) * func.rnd();
-  }
-  else
-    vblack = 0.0;
+//     vblack = vbsx[idz] + (vbdx[idz] - vbsx[idz]) * func.rnd();
+//   }
+//   else
+//     vblack = 0.0;
   
-  nsafe = 0;
-  maxprob = -1;
-  for(int jj=0;jj<tsize;jj++){
-    if(maxprob < tbhmix[idy][jj])
-      maxprob = tbhmix[idy][jj];
-  }
-  double tblack;
-  if(maxprob > 0){
-    maxtest = 1.E30;
-    maxpoint= -1;
-    int idz = -1;
-    nsafe = 0;
-    do{
-      double ddz = 1.*tsize*func.rnd();
-      idz = ddz;
-      maxtest = maxprob * func.rnd();
-      maxpoint= tbhmix[idy][idz];
-      nsafe ++;
-    }while(maxtest > maxpoint);
+//   nsafe = 0;
+//   maxprob = -1;
+//   for(int jj=0;jj<tsize;jj++){
+//     if(maxprob < tbhmix[idy][jj])
+//       maxprob = tbhmix[idy][jj];
+//   }
+//   double tblack;
+//   if(maxprob > 0){
+//     maxtest = 1.E30;
+//     maxpoint= -1;
+//     int idz = -1;
+//     nsafe = 0;
+//     do{
+//       double ddz = 1.*tsize*func.rnd();
+//       idz = ddz;
+//       maxtest = maxprob * func.rnd();
+//       maxpoint= tbhmix[idy][idz];
+//       nsafe ++;
+//     }while(maxtest > maxpoint);
     
-    tblack = tbsx[idz] + (tbdx[idz] - tbsx[idz]) * func.rnd();
-  }
-  else
-    tblack = 0.0;
+//     tblack = tbsx[idz] + (tbdx[idz] - tbsx[idz]) * func.rnd();
+//   }
+//   else
+//     tblack = 0.0;
   
        
-  sing_out[0] = mblack;
-  sing_out[1] = tblack;
-  sing_out[2] = vblack;
+//   sing_out[0] = mblack;
+//   sing_out[1] = tblack;
+//   sing_out[2] = vblack;
   
-  return ;
-}
+//   return ;
+// }
     
 int main(){
   
@@ -2202,9 +2202,9 @@ int main(){
 	      apri = func.spin(mpri,dynaS);	
 	    else
 	      if(mpri < 65.)
-		apri = func.spin(mpri,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+		      apri = func.spin(mpri,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
 	      else
-		apri = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+		      apri = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
 	    
 	    if(nsafe == 1000)
 	      cout<<"Wrong BH"<<endl;
@@ -2268,26 +2268,25 @@ int main(){
 		
 	      }
 	      else{
-		double MSLP = mslope;
-		msec = -1;
-		ksec = 1.E30;
-		do{
-		  //singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-      func.singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
-		  msec = single_bh[0];	  	  
-		  tsec = single_bh[1];
-		  ksec = single_bh[2];	    
-		  if(nsafe > 1000)
-		    break;
-		  nsafe ++;
-		  
-		}while(msec <= 0.0 || ksec > vthre);
-		
+          double MSLP = mslope;
+          msec = -1;
+          ksec = 1.E30;
+          do{
+            //singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+            func.singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
+            msec = single_bh[0];	  	  
+            tsec = single_bh[1];
+            ksec = single_bh[2];	    
+            if(nsafe > 1000)
+              break;
+            nsafe ++;
+            
+          }while(msec <= 0.0 || ksec > vthre); 
 	      }
-	      
+      
 	      if(msec == 0){
-		time = 1.e30;
-		break;
+          time = 1.e30;
+          break;
 	      }
 	      
 	      /*if(highgen == "yes"){
@@ -2295,77 +2294,31 @@ int main(){
 	      }*/
 	      
 	      if(dynaS != "bavera")
-		asec = func.spin(msec,dynaS);	
+		      asec = func.spin(msec,dynaS);	
 	      else
-		if(mpri < 65.)
-		  asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
-		else
-		  asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+		      if(mpri < 65.)
+            asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+          else
+            asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
 	      
 	      
 	      if(msec > mpri){
-		double dum1;
-		dum1 = msec;
-		msec = mpri;
-		mpri = dum1;
-		
-		dum1 = asec;
-		asec = apri;
-		apri = dum1;
-		
-		dum1 = tsec;
-		tsec = tpri;
-		tpri = dum1;
-	      }
+          double dum1;
+          dum1 = msec;
+          msec = mpri;
+          mpri = dum1;
+          
+          dum1 = asec;
+          asec = apri;
+          apri = dum1;
+          
+          dum1 = tsec;
+          tsec = tpri;
+          tpri = dum1;
+        }
 	    }
 
-      func.DiCarlo_BHs(&mpri, &msec, &apri, &asec, Z[i], false, uppergap, fupgp, a_gp, mass_gap, upgtp, dynaS);
-      /*
-      //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
-      double prob_ugp = func.rnd();
-      double prob_fgp = func.rnd();
-      string UP = upgtp;
-      double fUP= fupgp;
-            
-      if(UP == "dicarlo")
-        fUP = 0.01 * (1. + 5.797 * exp(Z[i] / 0.0002 * log(5./5.797)));
-      
-      if(uppergap == "yes" && prob_ugp >= pbelow && prob_fgp < fUP){
-          
-        double p_gp;
-        p_gp = func.rnd();
-        double m1_gp = pow(p_gp * pow(100.,1.-a_gp) + (1.-p_gp)*pow(50., 1.-a_gp), 1./(1.-a_gp));
-        p_gp = func.rnd();
-        double m2_gp;
-        //The following make results DRAGON-II like!
-        if(m1_gp < 100.)
-          m2_gp = m1_gp * (0.4 + 0.6*func.rnd()); 
-        else
-          m2_gp = m1_gp * pow(m1_gp / 65., -1.78) * (1. + 0.2*(-1. + 2.*func.rnd()));
-
-        if(m2_gp > m1_gp){
-          double mex_gp = m1_gp;
-          m1_gp = m2_gp;
-          m2_gp = m1_gp;
-        }
-          
-        // We need to implement something for the spins too ...
-        if(prob_ugp >= pbelow && prob_ugp < pbelow + pbelup){
-          if(mpri < mass_gap) mpri = m1_gp;
-          else if (msec < mass_gap) msec = m2_gp;
-          else{
-            cout<<"Both objects above the gap!"<<endl; //This may happen in multiple mergers?
-          }
-          
-        }	      
-        else if(prob_ugp > pbelow + pbelup){
-          if(mpri < mass_gap) mpri = m1_gp;
-          if(msec < mass_gap) msec = m2_gp;
-        }
-
-      }
-      */
-	  
+    func.DiCarlo_BHs(&mpri, &msec, &apri, &asec, Z[i], false, uppergap, fupgp, a_gp, mass_gap, upgtp, dynaS);	  
 	  nsafe_glob += nsafe;
 	  double dmy = func.rnd();
 	  if(bhseed == "bifrost" && dmy < f_seed && mint > log10(5.3E3) && pow(10., mint - 3.*rint) > 1.E5 && Z[i] < bifZ){ //min mass to form a seed of at least 150 Msun

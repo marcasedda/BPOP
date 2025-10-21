@@ -1,0 +1,103 @@
+# --- PATHS & SWITCHES ---
+CHUNKS = yes
+PREDIR  = "/home/cugolini/BPOP_new/dev/BPOP/"
+SINGPTH = "../../../SEVN_Catalogs/rapid_M20_a1/"
+PATH    = "../../../SEVN_Catalogs/rapid_M20_a1/"
+SEVN    = yes
+MERGER_EFF_CORR = no
+
+# --- GLOBAL ---
+N = 1000000
+mmax = 150
+mmin = 18.5
+mslope = -2.35
+Zsun = 0.019
+
+# --- DYNAMICAL FRACTIONS ---
+DynOvTot = 0.9
+pYC = 0.75
+pGC = 0.15
+pNC = 0.10
+
+# --- UPPER GAP / SEEDS / SFR types ---
+uppergap = yes
+bhseed = bifrost
+bifZ = 0.001
+bhpisn = 270
+fupgp = 0.15
+mass_gap = 60
+upgtp = dicarlo
+a_gp = 2.0
+SFRTYPE_ISO = continuous
+SFRTYPE_CLU = continuous
+
+# --- MIXING / BIN FRAC ---
+mixing = 1.0
+fbin = 0.0
+
+# --- YC relation ---
+TagR = AS20
+SSMA = 0.3
+
+# --- CLUSTER EVOLUTION ---
+CLfill = GG23
+MonoZ = no
+mono_Z = 0.0002
+cluster_test = no
+cluster_test_env = NC
+msmbhmax = 5.0e7
+
+# --- BH SEED block ---
+f_seed = 0.2
+maxseed = 1000
+minseed = 100
+seedslope = 3.0
+
+# --- HIGH GEN SECONDARY ---
+highgen = no
+
+# --- METALLICITY SPREAD ---
+sigma_metal_iso = 0.2
+sigma_distri_iso = Mapelli
+sigma_metal_clu = 0.2
+sigma_distri_clu = Elbadry19
+
+# --- SPINS ---
+spinlb = maxwellian02
+obslope = 0.0
+
+# --- STAR FORMATION ---
+sfr_only = no
+
+# --- DYNAMICAL SCENARIO ---
+zdyn = logflat
+zslope = -1.5
+
+# --- DEPRECATED (compat) ---
+MRATIO = nouniform
+MRATIO_SLOPE = -1.0
+
+# --- ISOLATED SCENARIO ---
+zdist = logflat
+zdivi = 0.0
+correction = no
+slope = -1.5
+
+# --- MISC ---
+INDEX_ALIGN = 8.0
+
+# --- Seeds pop III ---
+MCL_popIII = 1.0e6
+RCL_popIII = 1.0
+MBH_popIII = 300.0
+aBH_popIII = 0.0001
+
+# --- FILE STRUCTURE ---
+kpar = 20
+spar = 5
+
+# --- SIZES ---
+bin_st = 50
+nsize  = 80
+tsize  = 80
+vsize  = 80
