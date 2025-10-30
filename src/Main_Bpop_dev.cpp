@@ -458,6 +458,18 @@ int main(){
   
   if(MonoZ=="yes" || cluster_test=="yes"){
     cout<<"WARNING: cluster test mono Z mode enabled ";
+    if(cluster_test=="yes"){
+      cout<<"(cluster_test="<<cluster_test_env<<") ";
+    }
+    if(MonoZ=="yes"){
+      cout<<"(MonoZ=yes) ";
+    }
+    
+    if(mono_Z<0.0002 || mono_Z>0.03){
+      cout<<"please set mono_Z between 0.0002 and 0.03"<<endl;
+      exit(0);
+    }
+    cout<<"WARNING: cluster test mono Z mode enabled ";
     if(DynOvTot != 1.0 && probGC != 1.0){
       cout<<"please set DynOvTot and probGC to 1";
     }
@@ -1158,7 +1170,7 @@ int main(){
 
   string outname = "Catalogue.txt";
   out.open(outname.c_str());
-    out<<"#ID Metal Nrec EnvType lab m1[Msun] m2[Msun] a1 a2 Mfin[Msun] afin xeff vGW[km/s] tfor[yr] tlast_mer[yr] Mclu_t0[Ms] Rclu_t0[pc] Vesc[km/s] BinaryStatus aeje[AU] aGW[AU] nBHs_tot nBHs_1g nBHs_2g nBHs_3g nBHs_4g nBHs_5g nBHs_>5g Mcore_th[Ms] rcore_th[pc] redshift_merger redshift_formation tSMBH[yr] redshiftSMBH mprog[Ms] eccentricity semimajoraxis[AU] acrit[AU] tmerger[yr] cos(angle_s1s2) cos(angle_s1L) cos(angle_s2L)"<<endl;
+  out<<"#ID Metal Nrec Nrec_Secondary EnvType lab m1[Msun] m2[Msun] a1 a2 Mfin[Msun] afin xeff vGW[km/s] tfor[yr] tlast_mer[yr] Mclu_t0[Ms] Rclu_t0[pc] Vesc[km/s] BinaryStatus aeje[AU] aGW[AU] nBHs_tot nBHs_1g nBHs_2g nBHs_3g nBHs_4g nBHs_5g nBHs_>5g Mcore_th[Ms] rcore_th[pc] redshift_merger redshift_formation tSMBH[yr] redshiftSMBH mprog[Ms] eccentricity semimajoraxis[AU] acrit[AU] tmerger[yr] cos(angle_s1s2) cos(angle_s1L) cos(angle_s2L)"<<endl;
 
   out2.open("Catalogue_clean.txt");
 
@@ -1424,7 +1436,7 @@ int main(){
   out2.open("Catalogue_clean.txt");      
   ofstream out3;
   out3.open("Catalogue_multiple_dyn.txt");
-
+  out3 << "Mass_p Mass_s X_p X_s semi semi_ej semi_gw tfor tSNe t12capt t3bb tdf t12 tbbh tmer time N_multi Mcore[t] Rcore[t] Mh_cl_init Rh_cl_init tcc ID status Cluster Mrem Srem Xeff Krem vesc IDtot N_multi_s Interaction_rate nBHs_tot nBHs_1g nBHs_2g nBHs_3g nBHs_4g nBHs_5g nBHs_>5g" << endl;
   
   hout.open("Larger_than_tH.txt",ios::app);
   
@@ -2171,8 +2183,8 @@ int main(){
 		mpri = single_bh[0];	 
 		tpri = single_bh[1];
 		kpri = single_bh[2];
-		if(mpri > 0.0 && kpri > vthre)
-		  break;
+		// if(mpri > 0.0 && kpri > vthre)
+		//   break;
 		
 		
 		nsafe ++;
