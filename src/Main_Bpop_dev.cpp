@@ -1170,7 +1170,8 @@ int main(){
 
   string outname = "Catalogue.txt";
   out.open(outname.c_str());
-  out<<"#ID Metal Nrec Nrec_Secondary EnvType lab m1[Msun] m2[Msun] a1 a2 Mfin[Msun] afin xeff vGW[km/s] tfor[yr] tlast_mer[yr] Mclu_t0[Ms] Rclu_t0[pc] Vesc[km/s] BinaryStatus aeje[AU] aGW[AU] nBHs_tot nBHs_1g nBHs_2g nBHs_3g nBHs_4g nBHs_5g nBHs_>5g Mcore_th[Ms] rcore_th[pc] redshift_merger redshift_formation tSMBH[yr] redshiftSMBH mprog[Ms] eccentricity semimajoraxis[AU] acrit[AU] tmerger[yr] cos(angle_s1s2) cos(angle_s1L) cos(angle_s2L)"<<endl;
+  if(chnks=="no")
+    out<<"#ID Metal Nrec Nrec_Secondary EnvType lab m1[Msun] m2[Msun] a1 a2 Mfin[Msun] afin xeff vGW[km/s] tfor[yr] tlast_mer[yr] Mclu_t0[Ms] Rclu_t0[pc] Vesc[km/s] BinaryStatus aeje[AU] aGW[AU] nBHs_tot nBHs_1g nBHs_2g nBHs_3g nBHs_4g nBHs_5g nBHs_>5g Mcore_th[Ms] rcore_th[pc] redshift_merger redshift_formation tSMBH[yr] redshiftSMBH mprog[Ms] eccentricity semimajoraxis[AU] acrit[AU] tmerger[yr] cos(angle_s1s2) cos(angle_s1L) cos(angle_s2L)"<<endl;
 
   out2.open("Catalogue_clean.txt");
 
@@ -1436,7 +1437,8 @@ int main(){
   out2.open("Catalogue_clean.txt");      
   ofstream out3;
   out3.open("Catalogue_multiple_dyn.txt");
-  out3 << "Mass_p Mass_s X_p X_s semi semi_ej semi_gw tfor tSNe t12capt t3bb tdf t12 tbbh tmer time N_multi Mcore[t] Rcore[t] Mh_cl_init Rh_cl_init tcc ID status Cluster Mrem Srem Xeff Krem vesc IDtot N_multi_s Interaction_rate nBHs_tot nBHs_1g nBHs_2g nBHs_3g nBHs_4g nBHs_5g nBHs_>5g" << endl;
+  if(chnks=="no")
+    out3 << "Mass_p Mass_s X_p X_s semi semi_ej semi_gw tfor tSNe t12capt t3bb tdf t12 tbbh tmer time N_multi Mcore[t] Rcore[t] Mh_cl_init Rh_cl_init tcc ID status Cluster Mrem Srem Xeff Krem vesc IDtot N_multi_s Interaction_rate nBHs_tot nBHs_1g nBHs_2g nBHs_3g nBHs_4g nBHs_5g nBHs_>5g" << endl;
   
   hout.open("Larger_than_tH.txt",ios::app);
   
@@ -2913,16 +2915,16 @@ int main(){
       for(int k=1;k<6;k++) sum += nbhs[k];
       nbhs_6plus = nbhs[0] - sum;
 
-      if(nbhs_6plus >  nbhs[1]){
-        cout<<"#################################################"<<endl;
-        cout<<"Warning! Number of BHs with generation >= 6 is larger than the number of 1g BHs!"<<endl;
-        cout<<"ID: "<<i<<" nbh_6plus: "<<nbhs_6plus<<" nbhs[0]: "<<nbhs[0]<<" nbhs[1]: "<<nbhs[1]<<" nbhs[2]: "<<nbhs[2]<<" nbhs[3]: "<<nbhs[3]<<" nbhs[4]: "<<nbhs[4]<<" nbhs[5]: "<<nbhs[5]<<endl;
-        cout<<"nbhs[6]: " << nbhs[6] << " nbhs[7]: " << nbhs[7] << " nbhs[8]: " << nbhs[8] << " nbhs[9]: " << nbhs[9] << endl;
-        cout<<"nbhs[0]: " << nbhs[0] << endl;
-        cout<<"time: "<<time<<" tfor: "<<tfor[i]<<" tSNe: "<<tSNe<<" tdf: "<<tdf<<" t12: "<<t12<<" tbbhform: "<<tbbhform<<" tmer: "<<tmer<<endl;
-        cout<<"#################################################"<<endl;
-        //exit(0);
-      }
+      // if(nbhs_6plus >  nbhs[1]){
+      //   cout<<"#################################################"<<endl;
+      //   cout<<"Warning! Number of BHs with generation >= 6 is larger than the number of 1g BHs!"<<endl;
+      //   cout<<"ID: "<<i<<" nbh_6plus: "<<nbhs_6plus<<" nbhs[0]: "<<nbhs[0]<<" nbhs[1]: "<<nbhs[1]<<" nbhs[2]: "<<nbhs[2]<<" nbhs[3]: "<<nbhs[3]<<" nbhs[4]: "<<nbhs[4]<<" nbhs[5]: "<<nbhs[5]<<endl;
+      //   cout<<"nbhs[6]: " << nbhs[6] << " nbhs[7]: " << nbhs[7] << " nbhs[8]: " << nbhs[8] << " nbhs[9]: " << nbhs[9] << endl;
+      //   cout<<"nbhs[0]: " << nbhs[0] << endl;
+      //   cout<<"time: "<<time<<" tfor: "<<tfor[i]<<" tSNe: "<<tSNe<<" tdf: "<<tdf<<" t12: "<<t12<<" tbbhform: "<<tbbhform<<" tmer: "<<tmer<<endl;
+      //   cout<<"#################################################"<<endl;
+      //   //exit(0);
+      // }
 
       //if(nhigen>0) cout << "ID: " << i << " nhg: " << nhigen << " nrecy: " << nrecy << " nbhs[0]: " << nbhs[0] << " nbhs_hg: " << nbhs[nhigen+1] << endl;
       //  m_p m_s spin_p spin_s semi-major semi-major_newton semi-major_gw formation time Stellar_evo_time time_12capture time3b_capture time_dyn_friction time_bbh(?) time_GW_merger time N_gen_primary N_gen_secondary interaction_rate mass cluster(t) radius_cluster(t) M_clu_ini R_clu_ini t_core_collapse id_BH label cluster_type M_rem S_rem X_rem K_rem escape_velocity itot nhigen interaction_rate nbhs_tot                                                                                                                                                                                                                                                                                                                                                                          
@@ -3361,7 +3363,8 @@ int main(){
 	itot++;
 	
 	if(time < Hubble){
-	  out<<itot<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
+    int real_id = itot - 1;
+	  out<<real_id<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
               out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs[0]<<" "<< nbhs[1] << " " << nbhs[2] << " "<< nbhs[3] << " "<< nbhs[4] << " "<< nbhs[5] << " " << nbhs_6plus <<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<tmer<<" "<<Cosa[i]<<" "<<Cosb[i]<<" "<<Cosg[i]<<endl; //Eccentricity added to output
 	  
 	  Ndyn_real++;
