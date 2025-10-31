@@ -1395,7 +1395,9 @@ int main(){
       
       //Dec 23: a space was missing between 0.0 and zmer, resulting in error for isolated binaries ...
       if(tdel < Hubble){
-	out<<itot<<" "<<met[k]<<" "<<label<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tform<<" "<<tdel;
+  int real_id = itot - 1;
+  int nhigen = 0;
+	out<<real_id<<" "<<met[k]<<" "<<label<<" "<<cluster<<" "<<REC <<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tform<<" "<<tdel;
 	out<<" 0.0 0.0 0.0 none "<<smaiso<<" "<<smaiso<<" 0.0 0.0 0.0 "<<zmer<<" "<<zfor<<" -1 -1 " <<mpri<<" 0.0 "<<smaiso<<" "<<smaiso<<" "<<tdel<<" "<<Cosa[i]<<" "<<Cosb[i]<<" "<<Cosg[i]<<endl;
 	Niso_real++;
       }
@@ -3364,7 +3366,7 @@ int main(){
 	
 	if(time < Hubble){
     int real_id = itot - 1;
-	  out<<real_id<<" "<<Z[i]<<" "<<nrecy<<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
+	  out<<real_id<<" "<<Z[i]<<" "<<nrecy<<" "<<nhigen <<" "<<cluster<<" "<<REC<<" "<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<tfor[i]<<" "<<time<<" ";
               out<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<label<<" "<<semi_ej<<" "<<semi_gw<<" "<<nbhs[0]<<" "<< nbhs[1] << " " << nbhs[2] << " "<< nbhs[3] << " "<< nbhs[4] << " "<< nbhs[5] << " " << nbhs_6plus <<" "<<mhalf*mclcorr<<" "<<rhalf*rclcorr<<" "<<zmer<<" "<<zfor<<" "<<tsmbh<<" "<<zsmbh<<" "<<mzero<<" "<<ecc<<" "<<sma<<" "<<acrit<<" "<<tmer<<" "<<Cosa[i]<<" "<<Cosb[i]<<" "<<Cosg[i]<<endl; //Eccentricity added to output
 	  
 	  Ndyn_real++;
