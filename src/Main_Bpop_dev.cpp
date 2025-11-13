@@ -1944,8 +1944,8 @@ int main(){
 
 	  // DOUBLE CHECK THE FOLLOWING //
 	  
-	  // Max radius from which BHs can spiral-in over a Hubble time via DF //	  
-	  double radius = rhalf * pow( (Hubble - tfor[i]) / (0.42E9 * (10.*mstar/(mpri+msec)) * (trelax / 4.2E9)) , 1./1.74);
+	  // Max radius from which BHs can spiral-in over a Hubble time via DF //
+	  double radius = rhalf * pow( (Hubble - tfor[i]) / (0.42E9 * (10.*mstar/(mmax)) * (trelax / 4.2E9)) , 1./1.74);
 
 	  // Fraction of mass enclosed within the infall radius above //
 	  double fencl = pow(radius / (radius + a_cl),3.-g_cl) * (1. + 0.2*(1.-2.*func.rnd()));
@@ -1977,7 +1977,163 @@ int main(){
 
 
 	  
-	  //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
+	  if(mixer > mixing){		
+	    mpri = -1;
+	    kpri = 1.E30;
+	    do{
+	      //func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
+	      func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, vthre);
+	      mpri = single_bh[0];	 
+	      tpri = single_bh[1];
+	      kpri = single_bh[2];
+	      if(mpri > 0.0 && kpri > vthre)
+		break;
+	      nsafe ++;
+	    }while(mpri <= 0.0 || kpri > vthre);
+	  }
+	  else{
+	    MSLP = mslope;
+	    mpri = -1;
+	    kpri = 1.E30;
+	    int nsafe = 0;
+	    do{
+	      //singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+	      singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
+	      mpri = single_bh[0];	  	  
+	      tpri = single_bh[1];
+	      kpri = single_bh[2];	      
+	      
+	      if(nsafe > 1000)
+		break;
+	      
+	      nsafe ++;
+	    }while(mpri <= 0.0 || kpri > vthre);
+	  }
+	  
+	  if(dynaS != "bavera")
+	    apri = func.spin(mpri,dynaS);	
+	  else
+	    if(mpri < 65.)
+	      apri = func.spin(mpri,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+	    else
+	      apri = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+	  
+	  if(nsafe == 1000)
+	    cout<<"Wrong BH"<<endl;
+	  
+	  nsafe_glob += nsafe;
+	  
+	  mass_ratio = -1;
+	  nsafe = 0;       
+	  if(stri_mrat != "nouniform"){
+	    do{
+	      mass_ratio = func.mratio(mpri, MRATIO_SLOPE, stri_mrat);
+	      msec = mpri * mass_ratio;
+	      for(int iii=0; iii<remn_sin.size()-1;iii++){
+		if(msec > remn_sin[iii] && msec < remn_sin[iii+1]){
+		  tsec = 0.5*(tdel_sin[iii] + tdel_sin[iii+1]) ;
+		}
+	      }
+	      
+	      if(nsafe > 1000){
+		cout<<"mratio fails"<<endl;
+		exit(0);
+	      }
+	      nsafe += 1;
+	    }while(msec < 1. || msec > 500.);
+	    
+	  }
+	  else{
+	    msec = -1;
+	    ksec = 1.E30;
+	    nsafe = 0;
+	    if(mixer > mixing){
+	      do{
+		
+		//func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
+		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh,vthre);	  
+		msec = single_bh[0];	 
+		tsec = single_bh[1];
+		ksec = single_bh[2];	    
+		
+		/*if(msec > minimus && ksec < vthre)
+		  break;*/
+		if(nsafe > 1000)
+		  break;
+		
+		nsafe ++;
+		if(single_bh[3] == 1)
+		  break;
+		
+		else if(nsafe > 500){
+		  cout<<npar_runtime<<" "<<i<<" "<<Z[i]<<" "<<msec<<" "<<tsec<<" "<<ksec<<endl;
+		}
+		
+		if(nsafe > 1000){
+		  cout<<"Something wrong " <<msec<<" "<<tsec<<" "<<ksec<<" "<<minimus<<" "<<vthre<<endl;
+		  exit(0);
+		}
+		
+	      }while(msec <= minimus || ksec > vthre);
+	      
+	      if(msec < minimus){
+		cout<<"Second BH mass below mmin = "<<minimus<<" "<<msec<<endl;
+	      }
+	      
+	    }
+	    else{
+	      double MSLP = mslope;
+	      msec = -1;
+	      ksec = 1.E30;
+	      do{
+		//singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
+		singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
+		msec = single_bh[0];	  	  
+		tsec = single_bh[1];
+		ksec = single_bh[2];	    
+		if(nsafe > 1000)
+		  break;
+		nsafe ++;
+		
+	      }while(msec <= 0.0 || ksec > vthre);
+	      
+	    }
+	    
+	    if(msec == 0){
+	      time = 1.e30;
+	      break;
+	    }
+	    
+	    /*if(highgen == "yes"){
+	    //Work by Ugolini et al in prep.
+	    }*/
+	    
+	    if(dynaS != "bavera")
+	      asec = func.spin(msec,dynaS);	
+	    else
+	      if(mpri < 65.)
+		asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+	      else
+		asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+	    
+	    
+	    if(msec > mpri){
+	      double dum1;
+	      dum1 = msec;
+	      msec = mpri;
+	      mpri = dum1;
+	      
+	      dum1 = asec;
+	      asec = apri;
+	      apri = dum1;
+	      
+	      dum1 = tsec;
+	      tsec = tpri;
+	      tpri = dum1;
+	    }
+	  }
+      
+      	  //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
 	  double prob_ugp = func.rnd();
 	  double prob_fgp = func.rnd();
 	  string UP = upgtp;
@@ -2053,169 +2209,7 @@ int main(){
 	    }		
 	    
 	  }
-      
-	  else{
 
-
-	  
-	    if(mixer > mixing){		
-	      mpri = -1;
-	      kpri = 1.E30;
-	      do{
-		//func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh, saximus,sinimus,maximus,minimus, vthre);
-		func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh, vthre);
-		mpri = single_bh[0];	 
-		tpri = single_bh[1];
-		kpri = single_bh[2];
-		if(mpri > 0.0 && kpri > vthre)
-		  break;
-		
-		
-		nsafe ++;
-		
-	      }while(mpri <= 0.0 || kpri > vthre);
-	    }
-	    else{	  
-	      MSLP = mslope;
-	      mpri = -1;
-	      kpri = 1.E30;
-	      int nsafe = 0;
-	      do{
-		//singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-		singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
-		mpri = single_bh[0];	  	  
-		tpri = single_bh[1];
-		kpri = single_bh[2];	      
-		
-		if(nsafe > 1000)
-		  break;
-	      
-		nsafe ++;
-	      }while(mpri <= 0.0 || kpri > vthre);
-	    }
-	    
-	    if(dynaS != "bavera")
-	      apri = func.spin(mpri,dynaS);	
-	    else
-	      if(mpri < 65.)
-		apri = func.spin(mpri,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
-	      else
-		apri = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
-	    
-	    if(nsafe == 1000)
-	      cout<<"Wrong BH"<<endl;
-	    
-	    nsafe_glob += nsafe;
-	    
-	    mass_ratio = -1;
-	    nsafe = 0;       
-	    if(stri_mrat != "nouniform"){
-	      do{
-		mass_ratio = func.mratio(mpri, MRATIO_SLOPE, stri_mrat);
-		msec = mpri * mass_ratio;
-		for(int iii=0; iii<remn_sin.size()-1;iii++){
-		  if(msec > remn_sin[iii] && msec < remn_sin[iii+1]){
-		    tsec = 0.5*(tdel_sin[iii] + tdel_sin[iii+1]) ;
-		  }
-		}
-		
-		if(nsafe > 1000){
-		  cout<<"mratio fails"<<endl;
-		  exit(0);
-		}
-		nsafe += 1;
-	      }while(msec < 1. || msec > 500.);
-	      
-	    }
-	    else{
-	      msec = -1;
-	      ksec = 1.E30;
-	      nsafe = 0;
-	      if(mixer > mixing){
-		do{
-		  
-		  //func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, obslope, mslope, single_bh,saximus,sinimus,maximus,minimus,vthre);	  
-		  func.singBHt_new(zams_sin, remn_sin, tdel_sin, kick_sin, single_bh,vthre);	  
-		  msec = single_bh[0];	 
-		  tsec = single_bh[1];
-		  ksec = single_bh[2];	    
-		  
-		  if(msec > minimus && ksec < vthre)
-		    break;
-		  
-		  nsafe ++;
-		  if(single_bh[3] == 1)
-		    break;
-		  
-		  else if(nsafe > 500){
-		    cout<<npar_runtime<<" "<<i<<" "<<Z[i]<<" "<<msec<<" "<<tsec<<" "<<ksec<<endl;
-		  }
-		  
-		  if(nsafe > 1000){
-		    cout<<"Something wrong " <<msec<<" "<<tsec<<" "<<ksec<<" "<<minimus<<" "<<vthre<<endl;
-		    exit(0);
-		  }
-		  
-		}while(msec <= minimus || ksec > vthre);
-		
-		if(msec < minimus){
-		  cout<<"Second BH mass below mmin = "<<minimus<<" "<<msec<<endl;
-		}
-		
-	      }
-	      else{
-		double MSLP = mslope;
-		msec = -1;
-		ksec = 1.E30;
-		do{
-		  //singBHt_mix_old(mssx, msdx, mbsx, mbdx, tbsx, tbdx, vbsx, vbdx, mbhmix, tbhmix, vbhmix, MSLP, single_bh, saximus_mix, sinimus_mix, maximus_mix, minimus_mix, vthre);
-		  singBHt_mix(zams_mix, remn_mix, tdel_mix, kick_mix, single_bh, vthre);
-		  msec = single_bh[0];	  	  
-		  tsec = single_bh[1];
-		  ksec = single_bh[2];	    
-		  if(nsafe > 1000)
-		    break;
-		  nsafe ++;
-		  
-		}while(msec <= 0.0 || ksec > vthre);
-		
-	      }
-	      
-	      if(msec == 0){
-		time = 1.e30;
-		break;
-	      }
-	      
-	      /*if(highgen == "yes"){
-	      //Work by Ugolini et al in prep.
-	      }*/
-	      
-	      if(dynaS != "bavera")
-		asec = func.spin(msec,dynaS);	
-	      else
-		if(mpri < 65.)
-		  asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
-		else
-		  asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
-	      
-	      
-	      if(msec > mpri){
-		double dum1;
-		dum1 = msec;
-		msec = mpri;
-		mpri = dum1;
-		
-		dum1 = asec;
-		asec = apri;
-		apri = dum1;
-		
-		dum1 = tsec;
-		tsec = tpri;
-		tpri = dum1;
-	      }
-	    }
-	  }
-	  
 	  nsafe_glob += nsafe;
 	  double dmy = func.rnd();
 	  if(bhseed == "bifrost" && dmy < f_seed && mint > log10(5.3E3) && pow(10., mint - 3.*rint) > 1.E5 && Z[i] < bifZ){ //min mass to form a seed of at least 150 Msun
@@ -2229,7 +2223,11 @@ int main(){
 	      mpri = 0.9*mprit;	    
 	      apri = func.rnd(); //we assume that stellar merger products have random natal spins
 	    }
-	    
+
+	    if(mpri > 2.E4 || mpri > pow(10.,mint)){
+	      cout<<"Error, primary is too massive - bifrost "<<endl;
+	      exit(0);
+	    }
 	  }
 	  else if(bhseed == "vms"){	    
 	    if(dmy < f_seed){
@@ -2744,6 +2742,7 @@ int main(){
 	    Cosa[i] = Spinning[4];
 	    Cosb[i] = Spinning[5];
 	    Cosg[i] = Spinning[6];
+	    time += trecy; //Bug corrected by Paiella and Ugolini Nov. 2	   
 	    break;
 	  }
 	  

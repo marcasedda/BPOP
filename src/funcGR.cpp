@@ -418,7 +418,7 @@ double Functions::sfr_red(string sfrtype){
     zred = 20.;
   }
   else if(sfr=="single"){
-    zred = 20.;
+    zred = 2.;
   }
   else if(sfr=="elba18" || sfr=="EB18"){
     double Zn,Sn;
@@ -1915,7 +1915,7 @@ double Functions::spin(double mass, string spinning){
     spi = 0.001;
   else if(spinning=="no")
     spi = 1.E-6;
-  else if(spinning=="zero")
+  else if(spinning=="zero") //Amaro-Seoane & Chen 2016
     if(mass<30.)
       spi = rnd();
     else
