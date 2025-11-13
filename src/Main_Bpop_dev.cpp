@@ -1848,8 +1848,8 @@ int main(){
 	double tSNe, mper, trelax, trelax0, tcc, tdf, semihard, kappa, semi, ecc, t12, acrit, tbbh, tmer, mu_red, sma;
 	double t3bb, t12capt, tbbhform;
 	double time,nsafe_glob,nsafe,mass_ratio, mixer, nhigen;
-  double interaction_rate;
-  double g_cl, a_cl;
+	double interaction_rate;
+	double g_cl, a_cl;
 
 	string stri_mrat;
 
@@ -2347,6 +2347,11 @@ int main(){
 	    if(mprit > bhpisn){
 	      mpri = 0.9*mprit;	    
 	      apri = func.rnd(); //we assume that stellar merger products have random natal spins
+	    }
+
+		if(mpri > 2.E4 || mpri > pow(10.,mint)){
+	      cout<<"Error, primary is too massive - bifrost "<<endl;
+	      exit(0);
 	    }
 	    
 	  }
