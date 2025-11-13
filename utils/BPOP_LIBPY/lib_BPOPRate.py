@@ -42,9 +42,9 @@ def models(a):
         nc_b  = 5.E-5
         nc_bz = 4.5
         nc_bs = 2.0
-        gc_b  = 2.E-4
-        gc_bz = 4.2
-        gc_bs = 2.0  
+        gc_b  = 1.2E-4
+        gc_bz = 4.5
+        gc_bs = 2.0
     elif (a == "c"):
         sfrt = ["mf17", "kr13", "mf17", "mf17"]        
         metdis=["elbadry19a","elbadry19a","bavera20","bavera20"]
@@ -489,7 +489,8 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, ma
         red = X[0]
         rate= X[1]
         spl = make_smoothing_spline(red, rate)
-        red_interp = np.linspace(0,20,len(red)) #red
+        red_interp = red  #Bugfix Nov. 9 2025, before it was np.linspace(0,20,len(red)), but in the next loop mismatch between red_interp and rate_Z[k] ...
+        
         rate_interp= spl(red_interp)
         if(test):
             tplot(red, rate,red_interp, rate_interp,clty[i])
@@ -498,7 +499,7 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, ma
         rate_Zf= [None]*len(Zstev)
         for k in range(len(Zstev)):        
             rate_Z[k] = X[k+2]
-            spl = make_smoothing_spline(red_interp, rate_Z[k])
+            spl = make_smoothing_spline(red, rate_Z[k]) #Bugfix Nov. 9 2025, before it was red_interp instead of red
             rate_Zf[k]= spl(red_interp)
             rate_Zf[k][rate_Zf[k] < 0] = 0        
             if(test):

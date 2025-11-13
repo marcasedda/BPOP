@@ -55,7 +55,7 @@ IBfrac   = 0.4
 fysc_mw = 0.01
 f_NCoc = 1.0
 f_GCsc = 1.0
-Tobs = 1.0
+Tobs = 10.0
 
 clt  = ["nuclear", "globular", "young", "none"]
 sigma_Z = 0.2
@@ -93,7 +93,7 @@ if adjust_typ not in choices:
     exit()
 
 if(massive == "no"):
-    max_mas = 1.E3
+    max_mas = 1.E8
 else:
     max_mas = 1.E2
 
