@@ -20,6 +20,65 @@ from os import path
 
 #BPOP_RATE Functions
 
+
+def models(a):
+    sfrt = [""]*4
+    metdis=[""]*4
+    nc_f0 = nc_b = nc_bz = nc_bs = 0.0
+    gc_f0 = gc_b = gc_bz = gc_bs = 0.0
+    yc_f0 = yc_b = yc_bz = yc_bs = 0.0
+    ib_f0 = ib_b = ib_bz = ib_bs = 0.0
+    
+    if(a == "a"):
+        sfrt = ["mf17", "eb19", "mf17", "mf17"]
+        metdis=["bavera20", "elbadry19a","bavera20","bavera20"]
+        nc_f0 = 3.E7 / 6.E10
+        gc_b  = 1.2E-4
+        gc_bz = 4.5
+        gc_bs = 2.0
+    elif (a == "b"):
+        sfrt = ["eb19", "eb19", "mf17", "mf17"]        
+        metdis=["elbadry19a","elbadry19a","bavera20","bavera20"]
+        nc_b  = 5.E-5
+        nc_bz = 4.5
+        nc_bs = 2.0
+        gc_b  = 1.2E-4
+        gc_bz = 4.5
+        gc_bs = 2.0
+    elif (a == "c"):
+        sfrt = ["mf17", "kr13", "mf17", "mf17"]        
+        metdis=["elbadry19a","elbadry19a","bavera20","bavera20"]
+        nc_f0 = 3.E7 / 6.E10
+        gc_f0 = 0.1    
+    elif (a == "d"):
+        sfrt = ["eb19", "eb19", "mf17", "mf17"]        
+        metdis=["elbadry19a","elbadry19a","bavera20","bavera20"]
+        nc_b  = 5.E-5
+        nc_bz = 3.2
+        nc_bs = 1.5
+        gc_b  = 2.E-4
+        gc_bz = 3.2
+        gc_bs = 1.5
+    elif (a == "e"):
+        sfrt = ["mf17", "eb19", "mf17", "mf17"]
+        metdis=["bavera20", "elbadry19a","bavera20","bavera20"]
+        nc_f0 = 3.E7 / 6.E10
+        gc_b  = 2.E-4
+        gc_bz = 3.2
+        gc_bs = 1.5
+    else:
+        print("Picked wrong letter, retry")
+        exit()
+        
+    finp = [[nc_f0, nc_b, nc_bz, nc_bs],
+            [gc_f0, gc_b, gc_bz, gc_bs],
+            [yc_f0, yc_b, yc_bz, yc_bs],
+            [ib_f0, ib_b, ib_bz, ib_bs]]
+    
+    return sfrt, metdis, finp
+
+
+
 def init_dir(fdyn, fgc, fyc, fnc, spinI, spinD, clurad, bhseed, umg, highg, mix, vms):
     f = "/SIM_Fdyn"+str(fdyn)+"_Ngc"+str(fgc)+"_Nyc"+str(fyc)+"_Nnc"+str(fnc)+"isolS_"+spinI+"dynaS_"+spinD+"_MetalDivi_0_8_logflat_logflat_Correction_no_SFR___sfronly_no"+vms+"CluRh_"+clurad+"_0.3BHseed"+bhseed+"_UMG"+umg+"_HighG"+highg+"_mix_"+mix+"/"
     return f
@@ -85,43 +144,59 @@ def psi(typ, z, CFE, B, Zn, Sn):
 
     return sfr
 
+
+def metcor(csfr, zred, sZ):
+    Mstar_mass = 1.e10
+    if(csfr == "bavera20"):
+        logz_me = 0.153 - 0.074 * pow(zred,1.34) - (np.log(10.0) * sZ*sZ/2.0)
+    elif(csfr == "elbadry19a"):        
+        logz_me =  0.35 * (np.log10(Mstar_mass) - 10) + 0.93 * np.exp(-0.43*zred) - 1.05 *(1. + pow(zred/15,3)) ### gas phase (see Ma et al 2016)
+    elif(csfr == "elbadry19b"):
+        logz_me =  0.40 * (np.log10(Mstar_mass) - 10) + 0.67 * np.exp(-0.50*zred) - 1.04 *(1. + pow(zred/15,3)) ### star phase (see Ma et al 2016)
+        
+    return logz_me
+
+
+
 def psiNC(z, B, Zn, Sn):
     p = B * np.exp(-pow(z-Zn,2.) / (2.*Sn*Sn))
     return p
 
-def msca(CLU, SFR):
+def msca(CLU, SFR, finp):
+
+    f0, B, Bz, Bs = finp
     fsca = [1.0,1.0,1.0,1.0]
     
     if((CLU == "nuclear" or CLU == "globular") and (SFR != "kr13")):
         if(SFR == "mf17"):
             if(CLU == "nuclear"):
-                fsca[0] = 3.E7/6.E10
+                fsca[0] = f0 #3.E7/6.E10
             elif(CLU == "globular"):
-                fsca[0] = 6.E-5 * 1.E12 / 6.E10                
+                fsca[0] = f0 #6.E-5 * 1.E12 / 6.E10                
         elif(SFR == "eb19"):
             if(CLU == "nuclear"):
-                fsca[1] = 5.E-5
-                fsca[2] = 3.2
-                fsca[3] = 1.5
+                fsca[1] = B  #5.E-5
+                fsca[2] = Bz #3.2
+                fsca[3] = Bs #1.5
             elif(CLU == "globular"):
                 #From EB19 - fig. 8, dashed
-                fsca[1] = 1.2E-4
-                fsca[2] = 4.5
-                fsca[3] = 2.0
+                fsca[1] = B  #1.2E-4
+                fsca[2] = Bz #4.5
+                fsca[3] = Bs #2.0
                 #From Mapelli
-                '''fsca[1] = 1.E-4
-                fsca[2] = 3.2
-                fsca[3] = 1.5'''
+                '''fsca[1] = B #1.E-4
+                fsca[2] = Bz #3.2
+                fsca[3] = Bs #1.5'''
 		#From Zhao25
-                '''fsca[1] = 2.E-4
-                fsca[2] = 3.2
-                fsca[3] = 1.5'''
+                '''fsca[1] = B #2.E-4
+                fsca[2] = Bz #3.2
+                fsca[3] = Bs #1.5'''
 
     if(SFR == "kr13"):
         if(CLU=="globular"):
-            fsca[0] = 0.1
+            fsca[0] = f0 #0.1
         if(CLU=="nuclear"):
-            fsca[0] = 0.1 * 3.E7 / (200. * 3.E5) 
+            fsca[0] = f0 #0.1 * 3.E7 / (200. * 3.E5) 
             
     return fsca
 
@@ -414,7 +489,8 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, ma
         red = X[0]
         rate= X[1]
         spl = make_smoothing_spline(red, rate)
-        red_interp = red
+        red_interp = red  #Bugfix Nov. 9 2025, before it was np.linspace(0,20,len(red)), but in the next loop mismatch between red_interp and rate_Z[k] ...
+        
         rate_interp= spl(red_interp)
         if(test):
             tplot(red, rate,red_interp, rate_interp,clty[i])
@@ -423,7 +499,7 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, ma
         rate_Zf= [None]*len(Zstev)
         for k in range(len(Zstev)):        
             rate_Z[k] = X[k+2]
-            spl = make_smoothing_spline(red_interp, rate_Z[k])
+            spl = make_smoothing_spline(red, rate_Z[k]) #Bugfix Nov. 9 2025, before it was red_interp instead of red
             rate_Zf[k]= spl(red_interp)
             rate_Zf[k][rate_Zf[k] < 0] = 0        
             if(test):
@@ -706,10 +782,10 @@ def create_dir(nested_directory):
     return
 
 
-def metcor(red_del, sigmaZ):
-    logz_me = 0.153 - 0.074 * pow(red_del,1.34) - (np.log(10.0) * sigmaZ*sigmaZ/2.0)
-
-    return logz_me
+#def metcor(red_del, sigmaZ):
+#    logz_me = 0.153 - 0.074 * pow(red_del,1.34) - (np.log(10.0) * sigmaZ*sigmaZ/2.0)
+#
+#    return logz_me
 
 def test_metdis(fl, Z):
 
@@ -740,3 +816,25 @@ def test_metdis(fl, Z):
             pzZ = 1./(np.sqrt(2.*np.pi)*sZ) * np.exp(-pow(lZ - zmean,2.)/(2.*sZ*sZ))
 
             print(0.5*(z[i]+z[i+1]), Z[j], pZ, pzZ, lZ, zmean)
+
+
+
+
+
+
+
+
+
+'''fdyn  = [0.9,0.9,0.9,0.9,0.9,0.9]
+fgc   = [0.1,0.1,0.1,0.1,0.1,0.1]
+fyc   = [0.8,0.8,0.8,0.8,0.8,0.8]
+fnc   = [0.1,0.1,0.1,0.1,0.1,0.1]
+spinI = ["maxwellian02","maxwellian02","maxwellian02","maxwellian02","maxwellian02","maxwellian02"]
+spinD = ["maxwellian02","maxwellian02","maxwellian02","maxwellian02","maxwellian02","maxwellian02"]
+clurad= ["AS20","AS20","AS20","AS20","AS20","AS20"]
+bhseed= ["bifrost","bifrost","bifrost","bifrost","bifrost","bifrost"]
+umg   = ["dicarlo","dicarlo","dicarlo","dicarlo","dicarlo","dicarlo"]
+highg = ["no","no","no","no","no","no"]
+mix   = ["0G","0.25G","0.5G","0.75G","1G","0.5G"]
+vms   = ["","","","","",""]
+'''
