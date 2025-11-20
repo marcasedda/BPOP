@@ -1440,7 +1440,7 @@ int main(){
   ofstream out3;
   out3.open("Catalogue_multiple_dyn.txt");
   if(chnks=="no")
-    out3 << "Mass_p Mass_s X_p X_s semi semi_ej semi_gw tfor tSNe t12capt t3bb tdf t12 tbbh tmer time N_multi Mcore[t] Rcore[t] Mh_cl_init Rh_cl_init tcc ID status Cluster Mrem Srem Xeff Krem vesc IDtot N_multi_s Interaction_rate nBHs_tot nBHs_1g nBHs_2g nBHs_3g nBHs_4g nBHs_5g nBHs_>5g" << endl;
+    out3 << "Mass_p Mass_s X_p X_s semi semi_ej semi_gw tfor tSNe t12capt t3bb tdf t12 tbbh tmer time N_multi Mcore[t] Rcore[t] Mh_cl_init Rh_cl_init tcc ID status Cluster Mrem Srem Xeff Krem vesc IDtot ecc N_multi_s Interaction_rate nBHs_tot nBHs_1g nBHs_2g nBHs_3g nBHs_4g nBHs_5g nBHs_>5g" << endl;
   
   hout.open("Larger_than_tH.txt",ios::app);
   
@@ -2869,6 +2869,7 @@ int main(){
 	    Cosa[i] = Spinning[4];
 	    Cosb[i] = Spinning[5];
 	    Cosg[i] = Spinning[6];
+      time += trecy;
 	    break;
 	  }
 	  
@@ -2935,7 +2936,7 @@ int main(){
 
       //if(nhigen>0) cout << "ID: " << i << " nhg: " << nhigen << " nrecy: " << nrecy << " nbhs[0]: " << nbhs[0] << " nbhs_hg: " << nbhs[nhigen+1] << endl;
       //  m_p m_s spin_p spin_s semi-major semi-major_newton semi-major_gw formation time Stellar_evo_time time_12capture time3b_capture time_dyn_friction time_bbh(?) time_GW_merger time N_gen_primary N_gen_secondary interaction_rate mass cluster(t) radius_cluster(t) M_clu_ini R_clu_ini t_core_collapse id_BH label cluster_type M_rem S_rem X_rem K_rem escape_velocity itot nhigen interaction_rate nbhs_tot                                                                                                                                                                                                                                                                                                                                                                          
-      out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy <<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<" "<<nhigen<<" "<<interaction_rate<<" "<<nbhs[0]<<" "<< nbhs[1] << " " << nbhs[2] << " "<< nbhs[3] << " "<< nbhs[4] << " "<< nbhs[5] << " " << nbhs_6plus<<endl;	
+      out3<<mpri<<" "<<msec<<" "<<apri<<" "<<acrit<<" "<<semi<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy <<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<" "<<ecc<<" "<<nhigen<<" "<<interaction_rate<<" "<<nbhs[0]<<" "<< nbhs[1] << " " << nbhs[2] << " "<< nbhs[3] << " "<< nbhs[4] << " "<< nbhs[5] << " " << nbhs_6plus<<endl;	
 	  
 	  if(mpri > msmbhmax && tsmbh == 0.0){
 	    tsmbh = time;
