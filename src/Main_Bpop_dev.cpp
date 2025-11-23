@@ -178,22 +178,22 @@ void hgen(double m1, double a1, double m2, double a2, double k2, double vesc, st
 
       bool will_trigger = (dice < interaction_rate);
       // DEBUG: stampa interazione
-      std::cout << "DEBUG_INTERACT: "
-                << "ID=" << id
-                << " t=" << tbbhform
-                << " tau=" << tau_hg[g-1]
-                << " nbh0=" << nbhs[0]
-                << " gen2=" << gen2
-                << " Nrec=" << nrecy
-                << " g=" << g
-                << " Nsec=" << g-1
-                << " m_hg=" << m_hg[g-1]
-                << " m2b=" << m2b
-                << " mcomp=" << m2b_hg[g-1]
-                << " IR=" << interaction_rate
-                << " dice=" << dice
-                << " TRIGGER=" << (will_trigger ? "YES" : "NO")
-                << std::endl;
+      // std::cout << "DEBUG_INTERACT: "
+      //           << "ID=" << id
+      //           << " t=" << tbbhform
+      //           << " tau=" << tau_hg[g-1]
+      //           << " nbh0=" << nbhs[0]
+      //           << " gen2=" << gen2
+      //           << " Nrec=" << nrecy
+      //           << " g=" << g
+      //           << " Nsec=" << g-1
+      //           << " m_hg=" << m_hg[g-1]
+      //           << " m2b=" << m2b
+      //           << " mcomp=" << m2b_hg[g-1]
+      //           << " IR=" << interaction_rate
+      //           << " dice=" << dice
+      //           << " TRIGGER=" << (will_trigger ? "YES" : "NO")
+      //           << std::endl;
       //If the BH encounters the hierarchical companion, we stop its growth because they merge
       if(will_trigger){
         paired = "yes";
@@ -559,11 +559,10 @@ int main(){
   
   ofstream out;
 
-    ofstream sec_hg("secondary.txt");       // look at the BHs seconday chains
-//    sec_hg << "ID time nbhs gen2 m_hg interaction_rate tau ejected paired\n";
-    sec_hg << "ID time_cluster[yr] nbhs_tot[t] max_Nsec Nrec hg_step m_hg[Msun] mcomp[Msun] a_hg vrec_hg[km/s] tau_hg[yr]\n";
-
-
+  ofstream sec_hg("secondary.txt");       // look at the BHs seconday chains
+  //    sec_hg << "ID time nbhs gen2 m_hg interaction_rate tau ejected paired\n";
+  if(chnks=="no")
+    sec_hg << "ID time_cluster[yr] nbhs_tot[t] max_Nsec Nrec hg_step m_hg[Msun] mcomp[Msun] a_hg vrec_hg[km/s] tau_hg[yr]"<< endl;
 
 
   double *metdyn;
@@ -2957,7 +2956,7 @@ int main(){
         interaction_rate = 0.0;
 
         hgen(mpri, apri, msec, asec, ksec, vthre, dynaS, Z[i], zams_sin, remn_sin, tdel_sin, kick_sin, zams_mix, remn_mix, tdel_mix, kick_mix,
-            Comp, Spinning, nbhs, gen_primary, nmerg, i, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer, sec_hg);
+            Comp, Spinning, nbhs, gen_primary, nmerg, itot, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer, sec_hg);
         
         msec = Comp[0];
         asec = Comp[1];
@@ -3017,7 +3016,7 @@ int main(){
       interaction_rate = 0.0;
 
       hgen(mpri, apri, msec, asec, ksec, vthre, dynaS, Z[i], zams_sin, remn_sin, tdel_sin, kick_sin, zams_mix, remn_mix, tdel_mix, kick_mix,
-        Comp, Spinning, nbhs, gen_primary, nmerg, i, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer, sec_hg);
+        Comp, Spinning, nbhs, gen_primary, nmerg, itot, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, tcc, pcluster, mixer, sec_hg);
 
       msec = Comp[0];
       asec = Comp[1];
