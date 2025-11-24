@@ -1365,7 +1365,7 @@ int main(){
   ofstream out3;
   out3.open("Catalogue_multiple_dyn.txt");
   if(chnks=="no")
-    out3 << "Mass_p Mass_s X_p X_s semi semi_ej semi_gw tfor tSNe t12capt t3bb tdf t12 tbbh tmer time N_multi Mcore[t] Rcore[t] Mh_cl_init Rh_cl_init tcc ID status Cluster Mrem Srem Xeff Krem vesc IDtot ecc N_multi_s Interaction_rate nBHs_tot nBHs_1g nBHs_2g nBHs_3g nBHs_4g nBHs_5g nBHs_>5g" << endl;
+    out3 << "Mass_p Mass_s X_p X_s acrit semi_ej semi_gw tfor tSNe t12capt t3bb tdf t12 tbbh tmer time N_multi Mcore[t] Rcore[t] Mh_cl_init Rh_cl_init tcc ID status Cluster Mrem Srem Xeff Krem vesc IDtot ecc N_multi_s Interaction_rate nBHs_tot nBHs_1g nBHs_2g nBHs_3g nBHs_4g nBHs_5g nBHs_>5g" << endl;
   
   hout.open("Larger_than_tH.txt",ios::app);
   
