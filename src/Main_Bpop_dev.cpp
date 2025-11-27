@@ -57,7 +57,7 @@ void hgen(double m1, double a1, double m2, double a2, double k2, double vesc, st
   
   // Let's define the timescale for a secondary merger
   tau = -0.53 * log10(mhalf) + 5.6 + 1.5* func.rndgen(0.0, 1.0);
-  tau_hg.push_back(0.0); // Store the timescale of the 0-g merger of the chain in absolute time -> it statrs at t=0 (wrt to tbbhform)
+  tau_hg.push_back(tau*tcc); // Store the timescale of the 0-g merger of the chain in absolute time -> it statrs at t=0 (wrt to tbbhform)
 
   //Let's check if the BHs can be produced in the PI-gap
 
@@ -126,7 +126,7 @@ void hgen(double m1, double a1, double m2, double a2, double k2, double vesc, st
       m_hg.push_back(s[2]);
       a_hg.push_back(s[0]);
       vrec_hg.push_back(s[3]);
-      tau_hg.push_back(tau*tcc); // at gen2=1 tau_hg[1] is the time of the first hierarchical merger and so on
+      //tau_hg.push_back(tau*tcc); // at gen2=1 tau_hg[1] is the time of the first hierarchical merger and so on
 
       // I do the merger of the hierarchical companion with the 0-g BH
       gen2++; //=> the secondary BHs is of gen2-th generation
@@ -144,8 +144,9 @@ void hgen(double m1, double a1, double m2, double a2, double k2, double vesc, st
       }
       
       //We need to adjust the timescale for the next merger
-      tau += -0.53 * log10(mhalf) + 5.6 + 1.5* func.rndgen(0.0, 1.0); //See notion notes/plot
-      tau_hg.push_back(tau*tcc); // Store the timescale of each hierarchical step in absolute time
+      double dt = -0.53 * log10(mhalf) + 5.6 + 1.5* func.rndgen(0.0, 1.0); //See notion notes/plot
+      tau += dt; //See notion notes/plot
+      tau_hg.push_back(dt*tcc); // Store the timescale of each hierarchical step in absolute time
     }
   }
 
@@ -162,19 +163,22 @@ void hgen(double m1, double a1, double m2, double a2, double k2, double vesc, st
 
   ///Now let's check across the BH population if the hierarchical companion is paired or not
   dice = func.rnd();
-  for(int g = m_hg.size(); g > 1; g--){
-
-    //Now that we have the n-g BH, we can compute the interaction rate
+  if(ejected == 0){
+    // If not ejected, we can have pairing
     
-    interaction_rate = func.inter_rate(
-                                  m1,                                         // primary mass
-                                  m2b,                                        // current (pre-replacement) secondary
-                                  vesc,                                       // escape velocity of the cluster  
-                                  m_hg[g-1],                                  // candidate hierarchical companion mass
-                                  /*gen=*/g,                                  // <-- use g, not gen2
-                                  nbhs[g],                                    // number of BHs in the cluster of g-th generation
-                                  mhalf, mcore, rcore, n_bin,                 // core properties
-                                  trelax, t12capt, tbbhform, tcc, pcluster);  // timescales and cluster type
+    for(int g = m_hg.size(); g > 1; g--){
+
+      //Now that we have the n-g BH, we can compute the interaction rate
+      
+      interaction_rate = func.inter_rate(
+                                    m1,                                         // primary mass
+                                    m2b,                                        // current (pre-replacement) secondary
+                                    vesc,                                       // escape velocity of the cluster  
+                                    m_hg[g-1],                                  // candidate hierarchical companion mass
+                                    /*gen=*/g,                                  // <-- use g, not gen2
+                                    nbhs[g],                                    // number of BHs in the cluster of g-th generation
+                                    mhalf, mcore, rcore, n_bin,                 // core properties
+                                    trelax, t12capt, tbbhform, tcc, pcluster);  // timescales and cluster type
 
       bool will_trigger = (dice < interaction_rate);
       // DEBUG: stampa interazione
@@ -195,12 +199,14 @@ void hgen(double m1, double a1, double m2, double a2, double k2, double vesc, st
       //           << " TRIGGER=" << (will_trigger ? "YES" : "NO")
       //           << std::endl;
       //If the BH encounters the hierarchical companion, we stop its growth because they merge
+      // if(will_trigger && ejected == 0){
       if(will_trigger){
         paired = "yes";
         interacting_gen = g;
         IR_at_trigger = interaction_rate;
         m2b_hg.push_back(0.0); // at pairing there is no companion yet
         break;
+        }
       }
     }
 
