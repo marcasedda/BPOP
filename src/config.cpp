@@ -36,7 +36,7 @@ string upgtp    = "dicarlo";
 string SFRTYPE_ISO = "continuous";
 string SFRTYPE_CLU = "continuous";
 
-double mixing = 1.0;
+double mixing = 0.5;
 double fbin   = 0.0;
 
 string TagR = "AS20";
@@ -217,7 +217,7 @@ struct _ConfigAutoLoader {
         else {
             ifstream up("../run_bpop.txt");
             if (up.good()) load_config("../run_bpop.txt");
-            else cerr << "ℹ️  Nessun run_bpop.txt trovato; uso i default.\n";
+            else cerr << "Nessun run_bpop.txt trovato; uso i default.\n";
         }
     }
 } _bpop_autoload;

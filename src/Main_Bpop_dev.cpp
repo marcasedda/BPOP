@@ -344,9 +344,6 @@ int main(){
     //
     
   }
-
-
-
   
   if(CLfill != "under" && CLfill != "over" && CLfill != "critical" && CLfill != "mix" && CLfill != "noevo" && CLfill != "GG23"){
     cout<<"Select CLfill = under/over/critical/mix/GG23/noevo "<<endl;
