@@ -2070,115 +2070,71 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
     }
 
 
-  void Functions::evolve_bhs(vector<double>& nbhs,           // total of bhs
-                           double n_bin,                  // fraction of bhs in binaries
-                           const vector<double>& gwK,      // kick distribution
-                           const vector<double>& gwK_cdf,  // kick cdf
-                           double vesc,                   // escape velocity of the cluster
-                           int gen2,                      // generation of the hierarchical merger (to set the max gen to update)
-                           double& Nmerger_left) {         // remaining number of merger EVENTS allowed (budget)
+     void Functions::evolve_bhs(vector<double>& nbhs,           // total of bhs
+                  double n_bin,                   // fraction of bhs in binaries
+                  const vector<double>& gwK,      // kick distribution
+                  const vector<double>& gwK_cdf,  // kick cdf
+                  double vesc,                     // escape velocity of the cluster
+                  int gen2){                       // generation of the hierarchical merger (to set the max gen to update)
 
-    // This function evolves the population of BHs in the cluster considering:
-    // - the fraction of BHs in binaries (n_bin)
-    // - the kick distribution (gwK and gwK_cdf)
-    // - the escape velocity of the cluster (vesc)
-    // - the generation of the hierarchical merger (gen2)
-    //
-    // Additionally, it enforces a maximum number of merger EVENTS (Nmerger_left).
-    // The merger budget counts merger events only (not BHs expelled by kicks).
+      // This function evolves the population of BHs in the cluster considering:
+      // - the fraction of BHs in binaries (n_bin)
+      // - the kick distribution (gwK and gwK_cdf)
+      // - the escape velocity of the cluster (vesc)
+      // - the generation of the hierarchical merger (gen2)
 
-    // We'll append one zero slot to allow the formation of a next generation
-    nbhs.push_back(0.0);                // reserve the next generation (zero)
+      // We'll append one zero slot to allow the formation of a next generation
+      nbhs.push_back(0.0);                // reserve the next generation (zero)
 
-    // old snapshot
-    const vector<double> old = nbhs;
-    const size_t oldS = old.size();     // e.g. 2 when we have [total, gen1]
+      // old snapshot
+      const vector<double> old = nbhs;
+      const size_t oldS = old.size();     // e.g. 2 when we have [total, gen1]
 
-    // ---- retention fraction ret_fract = P(v_kick <= vesc) ----
-    double ret_fract = 0.0;
+      // ---- retention fraction ret_fract = P(v_kick <= vesc) ----
+      double ret_fract = 0.0;
+      
+      auto it = upper_bound(gwK.begin(), gwK.end(), vesc);
+      size_t idx = (it == gwK.begin()) ? 0
+                : (it == gwK.end())   ? gwK_cdf.size() - 1
+                                      : size_t(it - gwK.begin() - 1);
+      ret_fract = gwK_cdf[idx];
 
-    auto it = upper_bound(gwK.begin(), gwK.end(), vesc);
-    size_t idx = (it == gwK.begin()) ? 0
-              : (it == gwK.end())   ? gwK_cdf.size() - 1
-                                    : size_t(it - gwK.begin() - 1);
-    ret_fract = gwK_cdf[idx];
+      // Update gen-1 explicitly (loses a fraction n_bin because of mergers)
+      nbhs[1] = old[1] * (1.0 - n_bin);
 
-    // Helper: apply the SAME update logic as the original code, but using nbin_used.
-    // This is needed to make only the last step "partial" if the merger budget would be exceeded.
-    auto apply_step = [&](double nbin_used) {
+      // Update gens 2..oldS
+      // (flow within and from previous gen, aka BHs not merging of the current gen and merging ones of the previous)
+      for (size_t g = 2; g < oldS; ++g) {
+          const double stay      = old[g]     * (1.0 - n_bin);
+          const double from_prev = old[g - 1] * 0.5 * n_bin * ret_fract;
+          //cout << "gen " << g << ": stay " << stay << ", from_prev " << from_prev << endl;
+          nbhs[g] = stay + from_prev;
+      }
 
-        // Update gen-1 explicitly (loses a fraction n_bin because of mergers)
-        nbhs[1] = old[1] * (1.0 - nbin_used);
-
-        // Update gens 2..oldS
-        // (flow within and from previous gen, aka BHs not merging of the current gen and merging ones of the previous)
-        for (size_t g = 2; g < oldS; ++g) {
-            const double stay      = old[g]     * (1.0 - nbin_used);
-            const double from_prev = old[g - 1] * 0.5 * nbin_used * ret_fract;
-            //cout << "gen " << g << ": stay " << stay << ", from_prev " << from_prev << endl;
-            nbhs[g] = stay + from_prev;
-        }
-
-        // Recompute total as sum over all actual generations (exclude the newly appended zero at the end)
-        double total = 0.0;
-        for (size_t g = 1; g < oldS; ++g) total += nbhs[g];
-        nbhs[0] = total;
-    };
-
-    // If no mergers left, do not perform any further merger evolution (keep snapshot unchanged).
-    if (Nmerger_left <= 0.0) {
-        nbhs = old;
-        return;
-    }
-
-    // Compute how many merger EVENTS would happen in a full step with the structural n_bin.
-    // In this model, a fraction n_bin of BHs enters mergers; each merger consumes 2 BH -> events = 0.5*n_bin*sum(BHs).
-    double S = 0.0;
-    for (size_t g = 1; g < oldS; ++g) S += old[g];          // sum over all actual generations (excluding total slot)
-    const double mergers_step = 0.5 * n_bin * S;            // merger EVENTS in this step (does NOT depend on ret_fract)
-
-    if (mergers_step <= Nmerger_left + 1e-12) {
-        // Full step allowed: use the original logic unchanged
-        apply_step(n_bin);
-        Nmerger_left -= mergers_step;
-    } else {
-        // Only the last step is different: perform a partial step such that we consume exactly Nmerger_left events.
-        // Want: 0.5 * n_bin_last * S = Nmerger_left  ->  n_bin_last = 2*Nmerger_left / S
-        double n_bin_last = (S > 0.0) ? (2.0 * Nmerger_left / S) : 0.0;
-
-        // Keep it physical and never exceed the structural n_bin
-        if (n_bin_last < 0.0) n_bin_last = 0.0;
-        if (n_bin_last > n_bin) n_bin_last = n_bin;
-
-        apply_step(n_bin_last);
-        Nmerger_left = 0.0;
-    }
-
-    // Debug output to check for negative burnt BHs
-    double burnt_bhs = old[0] - nbhs[0];
-    if (burnt_bhs < 0.0) {
-        cout << "Warning: negative burnt BHs: " << burnt_bhs << endl;
-        cout << "Cluster properties: vesc " << vesc
-             << ", n_bin " << n_bin
-             << ", ret_fract " << ret_fract
-             << ", gen2 " << gen2
-             << ", Nmerger_left " << Nmerger_left
-             << endl;
-        cout << " old total: " << old[0] << ", new total: " << nbhs[0] << endl;
-        // Debug output for nbhs and old arrays before exiting
-        cout << "nbhs array contents:" << endl;
-        for (size_t i = 0; i < nbhs.size(); ++i) {
+      // Recompute total as sum over all actual generations (exclude the newly appended zero at the end)
+      double total = 0.0;
+      for (size_t g = 1; g < oldS; ++g) total += nbhs[g];
+      nbhs[0] = total;
+      
+      // Debug output to check for negative burnt BHs
+      double burnt_bhs = old[0] - nbhs[0];
+      if (burnt_bhs < 0.0) {
+          cout << "Warning: negative burnt BHs: " << burnt_bhs << endl;
+          cout << "Cluster properties: vesc " << vesc << ", n_bin " << n_bin << ", ret_fract " << ret_fract << ", gen2 " << gen2 << endl;
+          cout << " old total: " << old[0] << ", new total: " << nbhs[0] << endl;
+          // Debug output for nbhs and old arrays before exiting
+          cout << "nbhs array contents:" << endl;
+          for (size_t i = 0; i < nbhs.size(); ++i) {
             cout << "nbhs[" << i << "] = " << nbhs[i] << endl;
-        }
-        cout << "old array contents:" << endl;
-        for (size_t i = 0; i < old.size(); ++i) {
+          }
+          cout << "old array contents:" << endl;
+          for (size_t i = 0; i < old.size(); ++i) {
             cout << "old[" << i << "] = " << old[i] << endl;
-        }
-    }
+          }
+      }
 
-    return;
-}
-
+      return;
+  }
 
   void Functions::DiCarlo_BHs(double* mpri, double* msec, double* apri, double* asec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp, string dynaS){
     //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
