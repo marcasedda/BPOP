@@ -410,22 +410,22 @@ auto t_hgen_start = Clock::now();
   double tcerr_total =
   std::chrono::duration<double, std::milli>(t_hgen_end - t_hgen_start).count();
 
-  if(nrecy > 1e4 && tcerr_total > 2.0){
-    std::cerr
-      << "[TIMING hgen] ID=" << id
-      << " nrecy="      << nrecy
-      << " m_bhs size=" << nbhs.size()
-      << " m1="         << m1
-      << " m2_final="   << c[0]
-      << " m2b[0]="    << m2b_hg[0]
-      << " gen2="       << gen2
-      << " total="        << tcerr_total   << " ms"
-      << " | growth="     << tcerr_growth  << " ms"
-      << " | evolve="     << tcerr_evolve  << " ms"
-      << " | chain="      << tcerr_chain   << " ms"
-      << " | pairing="    << tcerr_pairing << " ms"
-      << std::endl;
-  }
+  // if(nrecy > 1e4 && tcerr_total > 2.0){
+  //   std::cerr
+  //     << "[TIMING hgen] ID=" << id
+  //     << " nrecy="      << nrecy
+  //     << " m_bhs size=" << nbhs.size()
+  //     << " m1="         << m1
+  //     << " m2_final="   << c[0]
+  //     << " m2b[0]="    << m2b_hg[0]
+  //     << " gen2="       << gen2
+  //     << " total="        << tcerr_total   << " ms"
+  //     << " | growth="     << tcerr_growth  << " ms"
+  //     << " | evolve="     << tcerr_evolve  << " ms"
+  //     << " | chain="      << tcerr_chain   << " ms"
+  //     << " | pairing="    << tcerr_pairing << " ms"
+  //     << std::endl;
+  // }
 
   return ;
   
