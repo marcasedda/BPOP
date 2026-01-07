@@ -22,6 +22,7 @@ extern double DynOvTot, pYC, pGC, pNC;
 // UPPER GAP / SEEDS / SFR types
 extern string uppergap, bhseed, upgtp, SFRTYPE_ISO, SFRTYPE_CLU;
 extern double bifZ, bhpisn, fupgp, mass_gap, a_gp;
+extern double min_hier;
 
 // MIXING / BIN FRAC
 extern double mixing, fbin;

@@ -1693,34 +1693,46 @@ void Functions::SREM2(double ndx, double a1, double a2, double m1, double m2, st
   double cosa,cosb,cosg;
   double chkneg;
 
-  do{
-    double ccc  = rnd();
-    double cosbeta = 2.*pow(ccc,1./(ndx+1.))-1.;    
+  do {
+    double cosalpha, cosbeta, cosgamma;
 
-    double ccc2 = rnd();
-    double cosgamma = 2.*pow(ccc2,1./(ndx+1.))-1.;
+    if (align == "dynamical") {
+      // Consuma le stesse 3 rnd() che prima finivano dentro pow(...) + cosalpha iniziale,
+      // ma senza fare pow (così preservi la stream RNG).
+      // (void)rnd(); // ccc
+      // (void)rnd(); // ccc2
+      // (void)rnd(); // cosalpha "iniziale" che poi veniva sovrascritto
 
-    double cosalpha = -1.+2.*rnd();
+      cosalpha = -1.0 + 2.0*rnd();
+      cosbeta  = -1.0 + 2.0*rnd();
+      cosgamma = -1.0 + 2.0*rnd();
+    } 
+    else {
+      // Qui mantieni la logica originale (con pow)
+      const double inv = 1.0 / (ndx + 1.0);
 
+      const double ccc  = rnd();
+      cosbeta = 2.0 * std::pow(ccc, inv) - 1.0;
 
-    if(align=="align"){
-      cosalpha = 1.0;
-      cosbeta  = cosgamma;
+      const double ccc2 = rnd();
+      cosgamma = 2.0 * std::pow(ccc2, inv) - 1.0;
+
+      cosalpha = -1.0 + 2.0*rnd();
+
+      if (align == "align") {
+        cosalpha = 1.0;
+        cosbeta  = cosgamma;
+      }
+      else if (align == "antialign") {
+        cosalpha = -1.0;
+        cosbeta  = cosgamma;
+      }
+      else if (align != "whatever") {
+        std::cout << "Please choose align, antialign, dynamical, or whatever and retry\n";
+        std::exit(0);
+      }
     }
-    else if(align=="antialign"){
-      cosalpha = -1.0;
-      cosbeta  = cosgamma;      
-    }
-    else if(align=="dynamical"){
-      cosalpha = -1.+2.*rnd();
-      cosbeta  = -1.+2.*rnd();
-      cosgamma = -1.+2.*rnd();      
-    }
-    else if(align!="whatever"){
-      cout<<"Please choose align, antialign, dynamical, or whatever and retry"<<endl;
-      exit(0);
-    }
-    
+
     cosa = cosalpha;
     cosb = cosbeta;
     cosg = cosgamma;
@@ -1759,8 +1771,19 @@ void Functions::SREM2(double ndx, double a1, double a2, double m1, double m2, st
   double Mfin = bbh_final_mass_non_precessing_UIB2016( m1,  m2,  a1,  a2, "v2");
   double Sfin = bbh_final_spin_non_precessing_UIB2016( m1,  m2,  a1par,  a2par, "v2");
   
-  double a1per = a1*sin(acos(cosb))*sin(acos(cosa)); 
-  double a2per = a2*sin(acos(cosg));
+  // Ugolini 07/01/2026: Reduce the number of trascendental function calls
+  auto sin_from_cos = [](double c) {
+    double t = 1.0 - c*c;
+    return (t > 0.0) ? std::sqrt(t) : 0.0; // clamp numerico
+  };
+
+  const double sinb = sin_from_cos(cosb);
+  const double sing = sin_from_cos(cosg);
+  const double sina = sin_from_cos(cosa);
+
+  double a1per = a1 * sinb * sina;
+  double a2per = a2 * sing;
+
   double Sper = (m1*m1*a1per + m2*m2*a2per)/((m1+m2)*(m1+m2));
   
   afin3 = sqrt(Sfin*Sfin + Sper*Sper);
@@ -1786,11 +1809,16 @@ void Functions::SREM2(double ndx, double a1, double a2, double m1, double m2, st
   //if(afin>1.0){cout<<"PD"<<endl;exit(0);}
 
 
-  stringstream aaa;
-  aaa<<afin;
-  if(aaa.str()=="-nan" || aaa.str()=="nan"){
-    cout<<"Got a nan"<<m1<<" "<<m2<<" "<<a1<<" "<<a2<<" "<<afin<<endl;
-    exit(0);
+  // stringstream aaa;
+  // aaa<<afin;
+  // if(aaa.str()=="-nan" || aaa.str()=="nan"){
+  //   cout<<"Got a nan"<<m1<<" "<<m2<<" "<<a1<<" "<<a2<<" "<<afin<<endl;
+  //   exit(0);
+  // }
+
+  if (!std::isfinite(afin)) {
+  std::cout << "Got a nan " << m1 << " " << m2 << " " << a1 << " " << a2 << " " << afin << std::endl;
+  std::exit(0);
   }
 
 
@@ -2008,8 +2036,7 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
 
   double Functions::inter_rate(double m1, double m2, double vesc, double m_hg, int gen,
             double nbhs, double mhalf, double mcore, double rcore, double n_bin,
-            double trelax, double t12capt, double tbbhform, double tcc,
-            string pcluster){
+            double trelax, double t12capt, double tbbhform, double tcc){
 
   //  This function computes the interaction rate considering:
   //  - the density of stellar BHs in the core
@@ -2050,18 +2077,19 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
 
     // Let's define the influence sphere of the hierarchical BH, see Di Cinto et al. 2023
     double alpha =  m_hier/mcore; 
-    double mu = m_hier/mstar_avg;
+    double mu = /*m_hier/mstar_avg = */ double(gen); // since m_hier = gen * mstar_avg
 
     double r_inf = rcore * alpha;
-    double r_wand = rcore * pow(mu, -0.5);
+    double r_wand = rcore * 1/sqrt(mu); //pow(mu, -0.5);
     double r_hier = max(r_inf, r_wand);
 
     // Let's define the densities of stars and hierarchical BHs
-    double n_star = mcore / (mstar_avg * pow(rcore, 3)); // Number density of stellar BHs in the core
-    double n_hier = nbhs / pow(r_hier, 3); // Number density of hierarchical BHs in the core
+    double n_star = mcore / (mstar_avg * rcore*rcore*rcore) /*=pow(rcore, 3)*/; // Number density of stellar BHs in the core
+    double n_hier = nbhs / (r_hier * r_hier * r_hier) /* =pow(r_hier, 3)*/; // Number density of hierarchical BHs in the core
     
     // Now we can compute the interaction rate
-    IR = (n_hier / n_star) * pow(m_hg / mstar_avg, 3. / 2.) * (m_bin + m_hg) / (m_bin + mstar_avg);
+    // IR = (n_hier / n_star) * pow(m_hg / mstar_avg, 3. / 2.) * (m_bin + m_hg) / (m_bin + mstar_avg);
+    IR = (n_hier / n_star) * ( (m_hg/mstar_avg)*sqrt(m_hg / mstar_avg) ) * (m_bin + m_hg) / (m_bin + mstar_avg);
 
     if (IR>1.0) IR = 1.0; // Cap the interaction rate to 1.0
     
@@ -2076,7 +2104,8 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
                            const vector<double>& gwK_cdf,  // kick cdf
                            double vesc,                   // escape velocity of the cluster
                            int gen2,                      // generation of the hierarchical merger (to set the max gen to update)
-                           double& Nmerger_left) {         // remaining number of merger EVENTS allowed (budget)
+                           double& Nmerger_left,          // remaining number of merger EVENTS allowed (budget)
+                           double min_bhs) {              // NEW: threshold below which we set nbhs[g]=0 and prune tail
 
     // This function evolves the population of BHs in the cluster considering:
     // - the fraction of BHs in binaries (n_bin)
@@ -2119,15 +2148,35 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
             nbhs[g] = stay + from_prev;
         }
 
-        // Recompute total as sum over all actual generations (exclude the newly appended zero at the end)
+        // Set to zero tiny numerical/physical leftovers
+        for (size_t g = 1; g < oldS; ++g) {
+            if (nbhs[g] < min_bhs) nbhs[g] = 0.0;
+        }
+
+        // Prune trailing generations that are now zero (for computational efficiency)
+        // Keep at least [total, gen1] -> size >= 2
+        while (nbhs.size() > 2 && nbhs.back() == 0.0) {
+            nbhs.pop_back();
+        }
+
+        // Recompute total as sum over all actual generations
         double total = 0.0;
-        for (size_t g = 1; g < oldS; ++g) total += nbhs[g];
+        for (size_t g = 1; g < nbhs.size(); ++g) total += nbhs[g];
         nbhs[0] = total;
     };
 
-    // If no mergers left, do not perform any further merger evolution (keep snapshot unchanged).
+    // If no mergers left, do not perform any further merger evolution (still apply cleaning + pruning)
     if (Nmerger_left <= 0.0) {
-        nbhs = old;
+        // NEW: even if no mergers, we may want to clean/prune numerical garbage
+        for (size_t g = 1; g < nbhs.size(); ++g) {
+            if (nbhs[g] < min_bhs) nbhs[g] = 0.0;
+        }
+        while (nbhs.size() > 2 && nbhs.back() == 0.0) nbhs.pop_back();
+
+        double total = 0.0;
+        for (size_t g = 1; g < nbhs.size(); ++g) total += nbhs[g];
+        nbhs[0] = total;
+
         return;
     }
 
@@ -2178,6 +2227,7 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
 
     return;
 }
+
 
 
   void Functions::DiCarlo_BHs(double* mpri, double* msec, double* apri, double* asec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp, string dynaS){

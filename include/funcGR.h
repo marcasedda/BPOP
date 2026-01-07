@@ -105,10 +105,10 @@ class Functions
   void singBHt_mix(vector<double>& zams_mix, vector<double>& remn_mix, vector<double>& tdel_mix, vector<double>& kick_mix, double *sing_out, double vescape);
 
   double inter_rate(double m1, double m2, double vesc, double m_hg, int gen, double nbhs, double mhalf, double mcore, double rcore, double n_bin,
-            double trelax, double t12capt, double tbbhform, double tcc, string pcluster);
+            double trelax, double t12capt, double tbbhform, double tcc);
     
 
-  void evolve_bhs(vector<double>& nbhs, double n_bin, const vector<double>& gwK, const vector<double>& gwK_cdf, double vesc, int gen2, double& nmerg_budget);  
+  void evolve_bhs(vector<double>& nbhs, double n_bin, const vector<double>& gwK, const vector<double>& gwK_cdf, double vesc, int gen2, double& nmerg_budget, double min_bhs);  
   void DiCarlo_BHs(double* mpri, double* msec, double* apri, double* asec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp, string dynaS);
 
   Functions();

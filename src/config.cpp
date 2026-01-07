@@ -9,7 +9,7 @@ using namespace std;
 // ==========================
 // Default (copiati dal tuo input_params.h)
 // ==========================
-string CHUNKS = "yes";
+string CHUNKS = "no";
 
 string PREDIR   = "/home/cugolini/BPOP_new/dev/BPOP/";
 string SINGPTH  = "../../../SEVN_Catalogs/rapid_M20_a1/";
@@ -27,6 +27,7 @@ double DynOvTot = 0.9;
 double pYC = 0.75, pGC = 0.15, pNC = 0.1;
 
 string uppergap = "yes";
+double min_hier = 1e-12;
 string bhseed   = "bifrost";
 double bifZ     = 0.001;
 double bhpisn   = 270.;

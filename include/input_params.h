@@ -19,6 +19,7 @@ extern double DynOvTot, pYC, pGC, pNC;
 
 // === UPPER GAP / SEEDS / SFR TYPES ===
 extern string uppergap, bhseed, upgtp;
+extern double min_hier;
 extern double bifZ, bhpisn, fupgp, mass_gap, a_gp;
 extern string SFRTYPE_ISO, SFRTYPE_CLU;
 
