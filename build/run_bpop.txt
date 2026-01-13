@@ -21,6 +21,7 @@ pNC = 0.10
 
 # --- UPPER GAP / SEEDS / SFR types ---
 uppergap = yes
+min_hier = 1e-12
 bhseed = bifrost
 bifZ = 0.001
 bhpisn = 270
