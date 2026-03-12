@@ -34,6 +34,7 @@ The main files produced by a single run are:
 
 - ["Larger_than_tH.txt"](https://github.com/marcasedda/BPOP/blob/main/struct_LargtH.md) contains info about binaries that do not merge within a Hubble time
 
+- ["retention_Z0_#.dat"](https://github.com/marcasedda/BPOP/blob/main/struct_retZ.md) contains the cumulative distribution of natal kicks of BHs from single and binary stars 
 
 **3) Utilities and tools**
 
