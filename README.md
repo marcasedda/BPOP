@@ -27,6 +27,131 @@ To run the code, copy BPOP.x into the chosen directory and type
 The Output.txt file will contain all printouts of the code. 
 All files with *txt and *dat files produced by BPOP are ultimately stored in a new directory whose naming summarises some of the main parameters of the simulation.
 
+The main files produced by a single run are:
+- "Catalogue.txt" This file contains all BBH mergers. It consists of 36 columns which represent:
+
+```#ID``` : unique identification number of the merger
+
+```Metal```: metallicity
+
+```Nrec```: number of previous mergers
+
+```EnvType```: type of environment ("none" for isolated binaries, "YC", "GC", "NC" for young, globular, and nuclear clusters, respectively)
+
+```lab```: unused label
+
+```m1[Msun]```: mass of the primary in Msun
+
+```m2[Msun]```: mass of the secondary in Msun
+
+```a1```: dimensionless spin of the primary
+
+```a2```: dimensionless spin of the secondary
+
+```Mfin[Msun]``` afin xeff vGW[km/s]: remnant mass (in Msun), dimensionless spin, effective spin parameter, and GW recoil (in km/s), respectively
+
+```tfor[yr]```: formation time of the environment in which BH progenitors formed in yr
+
+```tlast_mer[yr]```: delay time (time elapsed from formation to merger. Note: for repeated mergers, this time includes all previous mergers' timeline)
+
+```Mclu_t0[Ms] Rclu_t0[pc] Vesc[km/s]```: initial mass (in msun), half-mass radius (in pc), and escape velocity (in km/s) of the cluster hosting the merger
+
+```BinaryStatus```: status of the binary ("ejected", "GWrecoiled", "in-cluster", "highlander")
+
+```aeje[AU] aGW[AU]```: semi-major axis (in AU) below which the binary is ejected or GW-driven evolution dominates, respectively
+
+```nBHs```: number of BHs initially available in the host cluster
+
+```Mcore_th[Ms] rcore_th[pc]```: initial mass (in Msun) and radius (in pc) of the cluster core
+
+```redshift_merger redshift_formation```: redshift at formation and last merger
+
+```tSMBH[yr]``` redshiftSMBH: time at which the BH mass exceeds a threshold, and corresponding redshift
+
+```mprog[Ms]```: mass of the progenitor BH (in case of repeated mergers this differs from the primary)
+
+```eccentricity semimajoraxis[AU] acrit[AU]```: eccentricity and semimajor axis (in AU) of the merging BBH
+
+```tmerger[yr]```: time elapsed from decoupling of the BBH from the dynamics of the cluster and the merger (in yr)
+
+```cos(angle_s1s2) cos(angle_s1L) cos(angle_s2L)```: angles between the two spin vectors, the spin of the primary and the orbital angular momentum, the spin of the secondary and the orbital angular
+momentum, respectively
+
+- "Catalogue_multiple_dyn.txt" This file contains the merger trees of all multiple mergers. 
+
+```col 1```: mass of the primary
+
+```col 2```: mass of the secondary
+
+```col 3```: spin of the primary
+
+```col 4```: spin of the secondary
+
+```col 5-7```: semi-major axis (in AU) of the binary, critical semi-major axes below which the binary is either ejected or shrunk by GW emission, respectively
+
+```col 8```: formation time in yr
+
+```col 9-15```: time (in Myr) of: black hole formation, binary-single and three-body binary formation, dynamical friction, pairing and hardening, GW inspiral
+
+```col 16```: delay time (in Myr) (time elapsed from formation to merger)
+
+```col 17```: number of previous mergers
+
+```col 18-19```: mass (in Msun) and radius (in pc) of the cluster core at merger
+
+```col 20-21```: mass (in Msun) and half-mass radius (in pc) of the cluster
+
+```col 22```: core-collapse time (in yr)
+
+```col 23```: id of the chain
+
+```col 24```: status of the binary
+
+```col 25```: type of environment
+
+```col 26-29```: remnant mass (in Msun), dimensionless spin, effective spin parameter, and GW recoil (in km/s), respectively
+
+```col 30```: cluster escape velocity (in km/s)
+
+```col 31```: unique id of the merger (increase by one this quantity to match it with ```#ID``` in Catalogue.txt)
+
+```col 32```: binary eccentricity
+
+```col 33```: number of BHs
+
+- "Larger_than_tH.txt" contains info about binaries that do not merge within a Hubble time
+``` col 1```: id
+
+``` col 2-3```: mass (in Msun) and half-mass radius (in pc) of the cluster (0 if the BBH is from the isolated channel)
+
+``` col 4-5```: mass (in Msun) and radius (in pc) of the cluster core (0 if the BBH is from the isolated channel)
+
+``` col 6```: initial relaxation time (in yr) of the cluster (0 if the BBH is from the isolated channel)
+
+``` col 7-8```: cluster escape velocity and velocity dispersion (in km/s) (0 if the BBH is from the isolated channel)
+
+``` col 9-12```: time of dynamical friction, binary formation, hardening, and GW-driven inspiral (in yr), respectively
+
+``` col 13```: unused parameter
+
+``` col 14```: metallicity
+
+``` col 15```: type of environment
+
+``` col 16-17```: mass of the primary and the secondary (in Msun)
+
+``` col 18-19```: spin of the primary and the secondary (in Msun)
+
+``` col 20``: binary eccentricity
+
+``` col 21-22```: binary semimarjo axis (in AU)
+
+``` col 23```: number of previous mergers
+
+``` col 24```: time (in yr)
+
+``` col 25```: formation time (in yr)
+
 **3) Utilities and tools**
 
 3.1) Directory /utils/ contains two sub-directories
