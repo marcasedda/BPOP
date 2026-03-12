@@ -8,7 +8,7 @@ and dynamical environments (young, globular, and nuclear star clusters).
 The code in its current version takes all parameters from a header file (soon to be changed into an ASCII input file). The parameter file is stored in the /include/ directory. The structure is shown in
 section A) below
 
-The main parameters must be set before compilation. As a best practice, for the time being, it is advisable to copy the input parameter.h file in the directory where BPOP 
+The main parameters must be set before compilation. As a best practice, for the time being, it is advisable to copy the input parameter.h file in the directory where B-POP 
 is ultimately run, so as to keep track of the simulated setup. 
 <u> Note that in the current version, the code needs to be recompiled whenever one parameter in the file must be changed. <u> 
 
@@ -25,7 +25,7 @@ To run the code, copy BPOP.x into the chosen directory and type
 ```
 
 The Output.txt file will contain all printouts of the code. 
-All files with *txt and *dat files produced by BPOP are ultimately stored in a new directory whose naming summarises some of the main parameters of the simulation.
+All files with *txt and *dat files produced by B-POP are ultimately stored in a new directory whose naming summarises some of the main parameters of the simulation.
 
 The main files produced by a single run are:
 - ["Catalogue.txt"](https://github.com/marcasedda/BPOP/blob/main/struct_Catalogue.md) This file contains all BBH mergers. It consists of 36 columns which represent:
@@ -113,7 +113,7 @@ Check [input](https://github.com/marcasedda/BPOP/blob/main/input.md) for an exam
 
 ```CHUNKS``` Number of parallel simulations\
 ```Hubble``` Hubble time in yr\
-```PREDIR``` path to the BPOP executable\
+```PREDIR``` path to the B-POP executable\
 ```SINGPTH``` path to the stellar evolution tracks for single BHs\
 ```PATH``` path to the stellar evolution tracks for isolated BBH mergers\
 ```SEVN``` if "yes" it takes SEVN catalogues and metallicity range, if "no" it uses MOBSE catalogues\
