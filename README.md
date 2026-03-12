@@ -1,4 +1,4 @@
-## <span style="color:red"> B-POP: Binary black hole POPulation synthesis
+## <span style="color:red"> B-POP: Binary black hole POPulation synthesizer
 
 B-POP is a population synthesis code able to create synthetic Universes filled up with black hole binaries pairing and merging in different environments, namely the galactic field (as isolated binaries), 
 and dynamical environments (young, globular, and nuclear star clusters). 
