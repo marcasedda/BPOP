@@ -36,9 +36,9 @@ The main files produced by a single run are:
 
 - ["retention_Z0_#.dat"](https://github.com/marcasedda/BPOP/blob/main/struct_retZ.md) contains the cumulative distribution of natal kicks of BHs from single and binary stars. The distribution is calculated for different values of the metallicity
 
-**3) Utilities and tools**
+**3) Utilities**
 
-3.1) Merger rate calculation and mock merger catalogue
+**Merger rate calculation and mock merger catalogue**
 NOTE: The user can set a desired redshift distribution or metallicity distribution for the sample, but the code alone does not take into account the possible impact of 
 merger efficiency related to different channels or metallicity variations. To facilitate the inclusion of these effects, we have created the BPOPRate package.
 
@@ -47,7 +47,8 @@ The directory /utils/ contains two sub-directories:
 
 - BPOP_MERGER_RATE Contains the Python script (BPOPRate_v2025.py) that calculate the MRD and retrieve the corresponding source sample.
 
-**Use of BPOPRate package**
+*Use of BPOPRate package*
+
 The directory must be copied into the directory where BPOP is run. The package creates a synthetic Universe and fills it with BBH mergers drawn from BPOP catalogues.
 The following parameters must be adjusted:
 
@@ -71,16 +72,23 @@ adjust_typ = "tmed" #tmed, zmed, rnd, lst, tave, zave, rate
 pre = "SEVN"
 aCE = ""
 IBonly=False
-
-
 ```
 
-3.2) Directory tools/ contains two bash scripts:
-bpop_chunks.sh 
+**4) Tools**
 
+ Directory tools/ contains two bash scripts:
+- bpop_chunks.sh\
+the script runs B-POP on multiple threads, and store results from each threads in separated directories (chnk#)
+
+- bpop_catcatalogues.sh\
+the script collects and collates useful files from chnk# directories in the main directory
 
 
 **A) The structure of the input file**
+
+Check [input]() for an example
+
+CHUNKS
 
 ```
 //input_params.h
