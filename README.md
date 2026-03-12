@@ -36,7 +36,24 @@ The main files produced by a single run are:
 
 - ["retention_Z0_#.dat"](https://github.com/marcasedda/BPOP/blob/main/struct_retZ.md) contains the cumulative distribution of natal kicks of BHs from single and binary stars. The distribution is calculated for different values of the metallicity
 
-**3) Utilities**
+**3) Tools**
+
+ Directory tools/ contains two bash scripts:
+- bpop_chunks.sh\
+the script runs B-POP on multiple threads, and store results from each threads in separated directories (chnk#)\
+to perform multiple runs on multiple threads, initialise the ```N``` variable in the script, then simply type
+```
+sh bpop_chunks.sh
+```
+
+- bpop_catcatalogues.sh\
+after a succesfull B-POP run on multiple threads, your directory will contain N directories named chnk#\
+this script collects and collates useful files from chnk# directories in the main directory\
+```
+sh bpop_catcatalogues.sh
+```
+
+**4) Utilities**
 
 **Merger rate calculation and mock merger catalogue**
 NOTE: The user can set a desired redshift distribution or metallicity distribution for the sample, but the code alone does not take into account the possible impact of 
@@ -73,16 +90,22 @@ pre = "SEVN"
 aCE = ""
 IBonly=False
 ```
+Once the initial parameters are set, type
+```
+python BPOPRate.py > Output.txt &
+```
 
-**4) Tools**
+**NOTE**: Make sure that the directory above BPOP_MERGER_RATE contains the following files from B-POP: Catalogue.txt, Catalogue_multiple_dyn.txt, Larger_than_tH.txt, and all
+retention_Z0_#.dat files
 
- Directory tools/ contains two bash scripts:
-- bpop_chunks.sh\
-the script runs B-POP on multiple threads, and store results from each threads in separated directories (chnk#)
+BPOPRate produces the following files (# identifies the adopted model):
+- "efficiency_Z_SET#_massive_no.txt" contains the metallicity (Col. 1) and merger efficiency (Col. 2) (in units of Msun^-1) of isolated, young, globular, and nuclear clusters, separated by white blocks. 
+- "Merger_rates_#_##_massive_no.txt" contains the redshift (Col. 1), merger rate density (Col. 2), and merger rate density for different values of the metallicity (Col. 3-14) for different environments, either isolated binaries (##="none"), YCs (##="young"), GCs (##="globular"), or NCs (##="nuclear")
+- "Catalogue_##.txt" contains BBH mergers for the whole cosmic population (##="global") and different environments as above. The number of BBHs depends on the selected time window. Files' header:\
+```Metallicity zGW zfor m1 m2 a1 a2 mrem arem xeff vGW nrecy cluster mclu rclu ecce semiax status cos1 cos2 cos12 id```
 
-- bpop_catcatalogues.sh\
-the script collects and collates useful files from chnk# directories in the main directory
-
+**NOTE**: to downsample properly a catalogue, candidates should be extracted separately from different environments' files. \
+Example: to obtain 1yr of events from a catalogue containing 10yr of events, you must extract 1/10 of all BBHs in each catalogue (Catalogue_none.txt, Catalogue_globular.txt, Catalogue_nuclear.txt, and Catalogue_young.txt)
 
 **A) The structure of the input file**
 
