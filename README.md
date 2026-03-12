@@ -86,121 +86,66 @@ the script collects and collates useful files from chnk# directories in the main
 
 **A) The structure of the input file**
 
-Check [input]() for an example
+Check [input](https://github.com/marcasedda/BPOP/blob/main/input.md) for an example
 
-CHUNKS
+```CHUNKS``` Number of parallel simulations\
+```Hubble``` Hubble time in yr\
+```PREDIR``` path to the BPOP executable\
+```SINGPTH``` path to the stellar evolution tracks for single BHs\
+```PATH``` path to the stellar evolution tracks for isolated BBH mergers\
+```SEVN``` if "yes" it takes SEVN catalogues and metallicity range, if "no" it uses MOBSE catalogues\
+```MERGER_EFF_CORR``` Leave "no"\
 
-```
-//input_params.h
+```N``` Number of BBH to be simulated (NOTE: not all binaries merge)\
+```mmax``` Max stellar mass  (UNUSED)\
+```mmin``` Min stellar mass for BH progenitors (UNUSED)\
+```mslope``` slope of the mass function (UNUSED)\
+```Zsun``` Solar metallicity\
 
-//Guard
-#ifndef PARAMETERS_H
-#define PARAMETERS_H
+```DynOvTot``` Fraction of dynamical binaries over the total\
+```pYC``` Fraction of dynamical binaries from YCs\
+```pGC``` Fraction of dynamical binaries from GCs\
+```pNC``` Fraction of dynamical binaries from NCs\
 
-#define CHUNKS "no"
-#define Hubble 13.99E9 //13.803E9
+```uppergap``` If "yes", B-POP allows for the formation of BHs with a mass > ```mass_gap``` from dynamical processes, depending on the ```upgtp``` parameter. It extracts BHs according to a power-law with a probability ```fupgp``` and slope ```a_gp```\
+```mass_gap``` Lower bound of the PISN gap\
+```fupgp```    Probability that a BH mass is extracted from a power-law in the upper mass gap\
+```a_gp```     Power-law index for mass sampling of upper mass-gap BHs from dynamical processes\
+```upgtp``` if "dicarlo" it bypasses ```uppergap``` and samples BHs with a mass in the gap, combining Di Carlo et al (2021) and Arca Sedda et al (2024) results
 
-// DATAFILES (Metal. distri, Single BHs, Binary BHs)
-#define PREDIR "/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/"
-#define SINGPTH  "../SEVN_Catalog/rapid_M20" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
-#define PATH     "../SEVN_Catalog/rapid_M20" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
-#define SEVN "yes"
-#define MERGER_EFF_CORR "no"
+```bhseed``` Enables formation of IMBH seeds from stellar collisions according to different models\
+```bifZ``` maximum metallicity below which IMBH seeds from stellar collisions are included\
+```bhpisn``` minimum stellar mass above which an IMBH from direct collapse can form (outer edge of the PISN gap)\
+```f_seed``` probability for IMBH seed formation (depending on ```bhseed```)\
+```maxseed```  maximum IMBH seed mass allowed (depending on ```bhseed```)\
+```minseed```  minimum IMBH seed mass allowed (depending on ```bhseed```)\
+```seedslope``` the IMBH seed mass is sampled from a power-law with slope ```seedslope``` (depending on ```bhseed```)\
 
-// GLOBAL
-#define N        1000000
-#define mmax     150.
-#define mmin     18.5
-#define mslope  -2.35
-#define Zsun     0.019
+```SFRTYPE_ISO``` distribution of formation redshift for isolated BBHs\
+```SFRTYPE_CLU``` distribution of formation redshift for dynamical BBHs
 
-//DYNAMICAL FRACTIONS
-#define DynOvTot 0.95
-#define pYC      0.8
-#define pGC      0.1
-#define pNC      0.1
+```mixing``` fraction of BHs from single stars or binaries\
+```fbin``` binary fraction (it sets the probability that a BBH is formed through three-body or binary--single interactions)
 
-#define uppergap "yes"
-#define bhseed   "bifrost"
-#define bifZ     0.001
-#define bhpisn   270.
-#define fupgp    0.15
-#define mass_gap  60.0
-#define upgtp   "dicarlo"
-#define SFRTYPE_ISO "continuous" //"MF17" //"continuous" //"bigbang" //
-#define SFRTYPE_CLU "continuous" //"EB18_MF17" //"KR13" //"EB18_MF17" //"continuous" //"bigbang" //
+```TagR``` model for cluster mass-radius relation
 
-
-#define mixing  0.5
-#define fbin    0.5
-
-//YC mass-size relation
-//Marks12, Rantala24, Mapelli20, AS20
-//if None, sizes and masses are rescaled from GCs
-#define TagR "AS20"
-
-//Sigma of Gaussian sma distribution
-#define SSMA 0.3
-
-//CLUSTER EVOLUTION
-#define CLfill       "GG23"
-#define MonoZ        "no"
-#define mono_Z       0.02
-#define cluster_test "no"
-#define cluster_test_env "NC"
-#define msmbhmax 5.E7
-
-//BH SEED
-#define f_seed    0.2
-#define maxseed   1000.0
-#define minseed   100.0
-#define seedslope 3.0
-
-//HIGH MASS BHs
-#define a_gp 2.0
-
-//HIGH GENERATION SECONDARY BH
-#define highgen "no"
-
-//METALLLICITY SPREAD
-#define sigma_metal 0.2
-#define sigma_distri "Mapelli"
-
-//SPINS
-#define spinlb  "maxwellian02"
-#define obslope  0.0
-
-//STAR FORMATION
-#define sfr_only "no"
-
-//DYNAMICAL SCENARIO
-#define zdyn       "logflat"
-#define zslope     -1.5
-
-//DEPRECATED
-#define MRATIO "nouniform" //"uniform","pwl","gss","nouniform"
-#define MRATIO_SLOPE -1.0
+```SSMA``` dispersion of Maxwellian distribution used to sample BBH semimajor axes
 
 
-//ISOLATED SCENARIO
-#define zdist       "logflat" //"gallazzi"
-#define zdivi       0.0
-#define correction  "no" 
-#define slope       -1.5
+```CLfill``` Cluster evolution model\
+```MonoZ``` if "yes", a single metallicity is considered\
+```mono_Z``` metallicity adopted for ```MonoZ "yes"```\
+```cluster_test``` if "yes" only clusters of ```cluster_test_env``` are simulated
+```cluster_test_env``` cluster type to be simulated when ```cluster_test``` is enabled
+```msmbhmax``` maximum BH mass allowed, integration stops if a BH mass exceeds this threshold
 
-#define INDEX_ALIGN 8.0
+```highgen``` if "yes", higher generation secondaries are allowed (NOT IMPLEMENTED YET)
 
-//FILE STRUCTURE
-#define kpar 20
-#define spar 5
-#define numZ 12
+```sigma_metal``` spread of the cosmological spin distribution
+```sigma_distri``` model for metallicity distribution 
 
-//SIZE OF GENERAL VECTORS
-#define bin_st 50
-#define nsize 80
-#define tsize 80
-#define vsize 80
+```spinlb``` model for natal spins
 
-#endif
+```INDEX_ALIGN``` index of the power-law function adopted to sample the angle between spins and angular momentum vectors
 
-```
+All other parameters are deprecated and should not be changed
