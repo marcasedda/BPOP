@@ -32,48 +32,24 @@ The main files produced by a single run are:
 
 - ["Catalogue_multiple_dyn.txt"](https://github.com/marcasedda/BPOP/blob/main/struct_CatMul.md) This file contains the merger trees of all multiple mergers. 
 
-- "Larger_than_tH.txt" contains info about binaries that do not merge within a Hubble time
-``` col 1```: id
+- ["Larger_than_tH.txt"](https://github.com/marcasedda/BPOP/blob/main/struct_LargtH.md) contains info about binaries that do not merge within a Hubble time
 
-``` col 2-3```: mass (in Msun) and half-mass radius (in pc) of the cluster (0 if the BBH is from the isolated channel)
-
-``` col 4-5```: mass (in Msun) and radius (in pc) of the cluster core (0 if the BBH is from the isolated channel)
-
-``` col 6```: initial relaxation time (in yr) of the cluster (0 if the BBH is from the isolated channel)
-
-``` col 7-8```: cluster escape velocity and velocity dispersion (in km/s) (0 if the BBH is from the isolated channel)
-
-``` col 9-12```: time of dynamical friction, binary formation, hardening, and GW-driven inspiral (in yr), respectively
-
-``` col 13```: unused parameter
-
-``` col 14```: metallicity
-
-``` col 15```: type of environment
-
-``` col 16-17```: mass of the primary and the secondary (in Msun)
-
-``` col 18-19```: spin of the primary and the secondary (in Msun)
-
-``` col 20``: binary eccentricity
-
-``` col 21-22```: binary semimarjo axis (in AU)
-
-``` col 23```: number of previous mergers
-
-``` col 24```: time (in yr)
-
-``` col 25```: formation time (in yr)
 
 **3) Utilities and tools**
 
-3.1) Directory /utils/ contains two sub-directories
-3.1.1) BPOP_LIBPY
-Contains libraries
-3.1.2) BPOP_MERGER_RATE
-Contains a Python script (BPOPRate_v2025.py) to calculate the MRD and retrieve the corresponding source sample
+3.1) Merger rate calculation and mock merger catalogue
+NOTE: The user can set a desired redshift distribution or metallicity distribution for the sample, but the code alone does not take into account the possible impact of 
+merger efficiency related to different channels or metallicity variations. To facilitate the inclusion of these effects, we have created the BPOPRate package.
 
-The directory must be copied to the directory where the simulation is performed. There are a few parameters that can be set:
+The directory /utils/ contains two sub-directories:
+- BPOP_LIBPY Contains libraries
+
+- BPOP_MERGER_RATE Contains the Python script (BPOPRate_v2025.py) that calculate the MRD and retrieve the corresponding source sample.
+
+**Use of BPOPRate package**
+The directory must be copied into the directory where BPOP is run. The package creates a synthetic Universe and fills it with BBH mergers drawn from BPOP catalogues.
+The following parameters must be adjusted:
+
 ```
 IDmod = 2 
 a = "a"
@@ -94,6 +70,7 @@ adjust_typ = "tmed" #tmed, zmed, rnd, lst, tave, zave, rate
 pre = "SEVN"
 aCE = ""
 IBonly=False
+
 
 ```
 
