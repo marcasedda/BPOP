@@ -3121,6 +3121,16 @@ int main(){
           }
           
         }while(msec <= 0.0 || ksec > vthre);
+
+        if(dynaS != "bavera")
+          asec = func.spin(msec,dynaS);	
+          else
+            if(mpri < 65.)
+              asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+            else
+              asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+        //cout << "DEBUG - ID: " << i << " mpri: " << mpri << " msec: " << msec << " tsec: " << tsec << " ksec: " << ksec << " asec: " << asec << endl;
+
         // cout << "hgen = " << highgen << endl;
         if(highgen == "yes"){
 
@@ -3173,7 +3183,16 @@ int main(){
           if(nsafe > 1000)
             break;
         }while(msec <= 0.0 || ksec > vthre);
-        
+
+        if(dynaS != "bavera")
+          asec = func.spin(msec,dynaS);	
+          else
+            if(mpri < 65.)
+              asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+            else
+              asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+        //cout << "DEBUG - ID: " << i << " mpri: " << mpri << " msec: " << msec << " tsec: " << tsec << " ksec: " << ksec << " asec: " << asec << endl;       
+
         // cout << "hgen = " << highgen << endl;
         if(highgen == "yes"){
 
@@ -3208,15 +3227,7 @@ int main(){
         }
       }
   }
-
-  if(dynaS != "bavera")
-    asec = func.spin(msec,dynaS);	
-  else
-    if(mpri < 65.)
-      asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
-    else
-      asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
-
+    //cout << "DEBUG - ID: " << i << " nhigen: " << nhigen << " mpri: " << mpri << " msec: " << msec << " tsec: " << tsec << " ksec: " << ksec << " asec: " << asec << endl;
     if(msec == 0){
       msec = msec_prec;
     break;
