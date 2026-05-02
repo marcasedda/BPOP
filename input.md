@@ -5,13 +5,13 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#define CHUNKS "no"
-#define Hubble 13.99E9 //13.803E9
+#define CHUNKS "yes"
+//#define Hubble 13.99E9 //13.803E9
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
 #define PREDIR "/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/"
-#define SINGPTH  "../SEVN_Catalog/rapid_M20" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
-#define PATH     "../SEVN_Catalog/rapid_M20" //"../MOBSE_Catalog/A5" //"../SEVN_Catalog/rapid_M20_a1/" 
+#define SINGPTH  "../SEVN_Catalog/rapid_M20/"
+#define PATH     "../SEVN_Catalog/rapid_M20/"
 #define SEVN "yes"
 #define MERGER_EFF_CORR "no"
 
@@ -23,9 +23,9 @@
 #define Zsun     0.019
 
 //DYNAMICAL FRACTIONS
-#define DynOvTot 0.95
-#define pYC      0.8
-#define pGC      0.1
+#define DynOvTot 0.9
+#define pYC      0.75
+#define pGC      0.15
 #define pNC      0.1
 
 #define uppergap "yes"
@@ -35,15 +35,15 @@
 #define fupgp    0.15
 #define mass_gap  60.0
 #define upgtp   "dicarlo"
-#define SFRTYPE_ISO "continuous" //"MF17" //"continuous" //"bigbang" //
+#define SFRTYPE_ISO "continuous" //"MF17" //"continuous" //"bigbang" // "single"
 #define SFRTYPE_CLU "continuous" //"EB18_MF17" //"KR13" //"EB18_MF17" //"continuous" //"bigbang" //
 
 
-#define mixing  0.5
-#define fbin    0.5
+#define mixing  1.0
+#define fbin    0.0
 
 //YC mass-size relation
-//Marks12, Rantala24, Mapelli20, AS20
+//Marks12, Rantala24, Mapelli20, AS20, seeds
 //if None, sizes and masses are rescaled from GCs
 #define TagR "AS20"
 
@@ -53,7 +53,7 @@
 //CLUSTER EVOLUTION
 #define CLfill       "GG23"
 #define MonoZ        "no"
-#define mono_Z       0.02
+#define mono_Z       0.0002
 #define cluster_test "no"
 #define cluster_test_env "NC"
 #define msmbhmax 5.E7
@@ -71,11 +71,14 @@
 #define highgen "no"
 
 //METALLLICITY SPREAD
-#define sigma_metal 0.2
-#define sigma_distri "Mapelli"
+//NOTE: The choice Elbadry19 requires a sigma_metal_clu = 0.5 to embrace galaxy masses between ~ 10^8 - 10^12
+#define sigma_metal_iso  0.2
+#define sigma_distri_iso "Mapelli"
+#define sigma_metal_clu  0.2
+#define sigma_distri_clu "Elbadry19"
 
 //SPINS
-#define spinlb  "maxwellian02"
+#define spinlb  "bavera"
 #define obslope  0.0
 
 //STAR FORMATION
@@ -98,10 +101,20 @@
 
 #define INDEX_ALIGN 8.0
 
+
+//Seeds - pop III
+#define MCL_popIII 1.E6
+#define RCL_popIII 1.0
+#define MBH_popIII 300.0
+#define aBH_popIII 0.0001
+
+
+
+
 //FILE STRUCTURE
 #define kpar 20
 #define spar 5
-#define numZ 12
+//#define numZ 12
 
 //SIZE OF GENERAL VECTORS
 #define bin_st 50
