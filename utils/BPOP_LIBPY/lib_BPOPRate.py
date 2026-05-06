@@ -399,6 +399,87 @@ def IMBHdetrate(red, Ratex, Hub0, OmegaM, OmegaL):
     return
 
 
+# Cristiano Ugolini 01/05/2025
+# Given the new structure given by the hgen routine to the dynamical output of BPOP, the following function is used to create the catalogue of merging BBHs for each type of cluster and each value of metallicity, by sampling the original BPOP output with the merger rate as a function of redshift and metallicity. The final catalogue is then moved in a specific directory for the sampling output.
+
+def read_catalogue(cat):
+    cols_short = [
+        "#ID", "Metal", "Nrec", "EnvType", "lab",
+        "m1[Msun]", "m2[Msun]", "a1", "a2",
+        "Mfin[Msun]", "afin", "xeff", "vGW[km/s]",
+        "tfor[yr]", "tlast_mer[yr]",
+        "Mclu_t0[Ms]", "Rclu_t0[pc]", "Vesc[km/s]", "BinaryStatus",
+        "aeje[AU]", "aGW[AU]",
+        "n_BHs_t0", "nBHs_tot", "nBHs_1g",
+        "redshift_merger", "redshift_formation",
+        "tSMBH[yr]", "redshiftSMBH",
+        "mprog[Ms]", "eccentricity",
+        "semimajoraxis[AU]", "acrit[AU]", "tmerger[yr]",
+        "cos(angle_s1s2)", "cos(angle_s1L)", "cos(angle_s2L)"
+    ]
+    cols_full = [
+        "#ID", "Metal", "Nrec", "Nsec", "EnvType", "lab",
+        "m1[Msun]", "m2[Msun]", "a1", "a2",
+        "Mfin[Msun]", "afin", "xeff", "vGW[km/s]",
+        "tfor[yr]", "tlast_mer[yr]",
+        "Mclu_t0[Ms]", "Rclu_t0[pc]", "Vesc[km/s]", "BinaryStatus",
+        "aeje[AU]", "aGW[AU]",
+        "n_BHs_t0", "nBHs_tot", "nBHs_1g", "nBHs_2g", "nBHs_3g",
+        "nBHs_4g", "nBHs_5g", "nBHs_>5g", "nmer_tot",
+        "Mcore_th[Ms]", "rcore_th[pc]",
+        "redshift_merger", "redshift_formation",
+        "tSMBH[yr]", "redshiftSMBH", "mprog[Ms]", "eccentricity",
+        "semimajoraxis[AU]", "acrit[AU]", "tmerger[yr]",
+        "cos(angle_s1s2)", "cos(angle_s1L)", "cos(angle_s2L)"
+    ]
+
+    with open(cat, 'r') as f:
+        lines = [l for l in f if not l.startswith('#') and l.strip()]
+
+    rows_short, rows_full = [], []
+    for line in lines:
+        fields = line.split()
+        if len(fields) <= 36:
+            rows_short.append(fields + [np.nan] * (len(cols_short) - len(fields)))
+        else:
+            rows_full.append(fields + [np.nan] * (len(cols_full) - len(fields)))
+
+    def make_df(rows, cols):
+        if not rows:
+            return pd.DataFrame(columns=cols)
+        df = pd.DataFrame(rows, columns=cols)
+        for col in df.columns:
+            try:
+                df[col] = pd.to_numeric(df[col])
+            except (ValueError, TypeError):
+                pass
+        return df
+
+    df_short = make_df(rows_short, cols_short)
+    df_full  = make_df(rows_full,  cols_full)
+
+    for col in cols_full:
+        if col not in df_short.columns:
+            df_short[col] = np.nan
+
+    df = pd.concat([df_short, df_full], ignore_index=True)
+
+    df = df.rename(columns={
+        '#ID': 'id', 'Metal': 'Z', 'Nrec': 'nrec', 'EnvType': 'ctype',
+        'm1[Msun]': 'm1', 'm2[Msun]': 'm2',
+        'Mfin[Msun]': 'Mrem', 'afin': 'arem', 'vGW[km/s]': 'vgw',
+        'Mclu_t0[Ms]': 'mcl', 'Rclu_t0[pc]': 'rcl',
+        'redshift_merger': 'zgw', 'redshift_formation': 'zfo',
+        'eccentricity': 'ecc', 'semimajoraxis[AU]': 'sma',
+        'BinaryStatus': 'status',
+        'cos(angle_s1s2)': 'cosS1S2', 'cos(angle_s1L)': 'cosL1',
+        'cos(angle_s2L)': 'cosL2', 'tfor[yr]': 'tfor',
+        'tlast_mer[yr]': 'tmer', 'Vesc[km/s]': 'vesc'
+    })
+
+    return df
+
+
 # BPOP-SAMPLER Functions
 
 def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, massive_mass):
@@ -410,28 +491,60 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, ma
         
 
     
-    Y = np.loadtxt(cat, dtype={'names':('Z', 'nrec', 'ctype',
-                                        'm1','m2','a1','a2','Mrem','arem','xeff','vgw',
-                                        'mcl', 'rcl',
-                                        'zgw', 'zfo',
-                                        'ecc','sma','status','id',
-                                        'cosS1S2', 'cosL1', 'cosL2'),
-                               'formats':(float, int, 'U8',
-                                          float,float,float,float,float,float,float,float,
-                                          float,float,
-                                          float,float,
-                                          float,float,'U8',int,
-                                          float,float,float)
-                               }, usecols=[1,2,3,
-                                           5,6,7,8,9,10,11,12,
-                                           15,16,
-                                           24,25,
-                                           29,30,18,0,
-                                           33,34,35],
-                   )
+    # Y = np.loadtxt(cat, dtype={'names':('Z', 'nrec', 'ctype',
+    #                                     'm1','m2','a1','a2','Mrem','arem','xeff','vgw',
+    #                                     'mcl', 'rcl',
+    #                                     'zgw', 'zfo',
+    #                                     'ecc','sma','status','id',
+    #                                     'cosS1S2', 'cosL1', 'cosL2'),
+    #                            'formats':(float, int, 'U8',
+    #                                       float,float,float,float,float,float,float,float,
+    #                                       float,float,
+    #                                       float,float,
+    #                                       float,float,'U8',int,
+    #                                       float,float,float)
+    #                            }, usecols=[1,2,3,
+    #                                        5,6,7,8,9,10,11,12,
+    #                                        15,16,
+    #                                        24,25,
+    #                                        29,30,18,0,
+    #                                        33,34,35],
+    #                )
     
-    Ypd = pd.DataFrame(Y)
+    # Ypd = pd.DataFrame(Y)
 
+    # cols_final = ["#ID","Metal","Nrec","Nsec","EnvType","lab","m1[Msun]","m2[Msun]","a1","a2","Mfin[Msun]","afin","xeff","vGW[km/s]","tfor[yr]","tlast_mer[yr]","Mclu_t0[Ms]","Rclu_t0[pc]","Vesc[km/s]","BinaryStatus","aeje[AU]","aGW[AU]","n_BHs_t0","nBHs_tot","nBHs_1g","nBHs_2g","nBHs_3g","nBHs_4g","nBHs_5g","nBHs_>5g","nmer_tot","Mcore_th[Ms]","rcore_th[pc]","redshift_merger","redshift_formation","tSMBH[yr]","redshiftSMBH","mprog[Ms]","eccentricity","semimajoraxis[AU]","acrit[AU]","tmerger[yr]","cos(angle_s1s2)","cos(angle_s1L)","cos(angle_s2L)"]
+
+    # with open(cat, 'r') as f:
+    #     lines = [l for l in f if not l.startswith('#') and l.strip()]
+
+    # max_cols = len(cols_final)
+    # rows = []
+    # for line in lines:
+    #     fields = line.split()
+    #     fields += [np.nan] * (max_cols - len(fields))
+    #     rows.append(fields[:max_cols])
+
+    # Ypd = pd.DataFrame(rows, columns=cols_final)
+    # for col in Ypd.columns:
+    #     try:
+    #         Ypd[col] = pd.to_numeric(Ypd[col])
+    #     except (ValueError, TypeError):
+    #         pass
+
+    # Ypd = Ypd.rename(columns={
+    #     '#ID': 'id', 'Metal': 'Z', 'Nrec': 'nrec', 'EnvType': 'ctype',
+    #     'm1[Msun]': 'm1', 'm2[Msun]': 'm2', 'a1': 'a1', 'a2': 'a2',
+    #     'Mfin[Msun]': 'Mrem', 'afin': 'arem', 'vGW[km/s]': 'vgw',
+    #     'Mclu_t0[Ms]': 'mcl', 'Rclu_t0[pc]': 'rcl',
+    #     'redshift_merger': 'zgw', 'redshift_formation': 'zfo',
+    #     'eccentricity': 'ecc', 'semimajoraxis[AU]': 'sma',
+    #     'BinaryStatus': 'status',
+    #     'cos(angle_s1s2)': 'cosS1S2', 'cos(angle_s1L)': 'cosL1', 'cos(angle_s2L)': 'cosL2'
+    # })
+
+    Ypd = read_catalogue(cat)
+    
     zmer_cat = []
     zfor_cat = []
     Zmet_cat = []
@@ -643,11 +756,15 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, ma
     if not(os.path.isdir(ssdir_name)):
         create_dir(ssdir_name)
    
+    input_files = {"redshift_time.txt", "Fbin_BBH_DragonII.txt"}
+
     files = glob.iglob(os.path.join("./", "*.txt"))
     for file in files:
         if os.path.isfile(file):        
-            shutil.move(file, ssdir_name)
-        
+            if os.path.basename(file) in input_files:
+                shutil.copy(file, ssdir_name)
+            else:
+                shutil.move(file, ssdir_name)        
     print("\n=========================  Sampling done  ===========================\n")
 
 def Nsam(z_rt, R_rt, H, omM, omL, Tobs):
@@ -741,6 +858,7 @@ def print_cat(Ypd, idx_cat, clstr):
     vgw_cat=np.array(Ypd.vgw[idx_cat])
     
     nrec_cat=np.array(Ypd.nrec[idx_cat])
+    nsec_cat = np.array(Ypd.Nsec[idx_cat].fillna(0).astype(int))
     ctype_cat=np.array(Ypd.ctype[idx_cat])
     
     mcl_cat=np.array(Ypd.mcl[idx_cat])
@@ -759,12 +877,25 @@ def print_cat(Ypd, idx_cat, clstr):
 
     
     f_out = open("Catalogue_"+clstr+".txt","w")
-    header = "Metallicity zGW zfor m1 m2 a1 a2 mrem arem xeff vGW nrecy cluster mclu rclu ecce semiax status cos1 cos2 cos12 id\n"
+    # header = "Metallicity zGW zfor m1 m2 a1 a2 mrem arem xeff vGW nrecy cluster mclu rclu ecce semiax status cos1 cos2 cos12 id\n"
+    header = "Metallicity zGW zfor m1 m2 a1 a2 mrem arem xeff vGW nrecy nsec cluster mclu rclu ecce semiax status cos1 cos2 cos12 id\n"
     f_out.write(header)
-    [f_out.write("{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:1.4e} {14:1.4f} {15:1.5f} {16:1.5e} {17:s} {18:1.4f} {19:1.4f} {20:1.4f} {21:1.0f} \n".format(Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij], Mrem_cat[ij],arem_cat[ij],xeff_cat[ij],vgw_cat[ij], nrec_cat[ij],ctype_cat[ij],mcl_cat[ij],rcl_cat[ij], ecc_cat[ij],sma_cat[ij],status_cat[ij], cosL1[ij], cosL2[ij], cosS1S2[ij], id_cat[ij])) for ij in range(len(Z_cat))]
+    [f_out.write("{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:d} {14:1.4e} {15:1.4f} {16:1.5f} {17:1.5e} {18:s} {19:1.4f} {20:1.4f} {21:1.4f} {22:1.0f} \n".format(
+        Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij],
+        Mrem_cat[ij], arem_cat[ij], xeff_cat[ij], vgw_cat[ij],
+        nrec_cat[ij], ctype_cat[ij], nsec_cat[ij],
+        mcl_cat[ij], rcl_cat[ij], ecc_cat[ij], sma_cat[ij], status_cat[ij],
+        cosL1[ij], cosL2[ij], cosS1S2[ij], id_cat[ij]
+        )) for ij in range(len(Z_cat))]   
     f_out.close()
 
-    strix = ["{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:1.4e} {14:1.4f} {15:1.5f} {16:1.5e} {17:s} {18:1.4f} {19:1.4f} {20:1.4f} {21:1.0f}\n".format(Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij], Mrem_cat[ij],arem_cat[ij],xeff_cat[ij],vgw_cat[ij], nrec_cat[ij],ctype_cat[ij],mcl_cat[ij],rcl_cat[ij], ecc_cat[ij], sma_cat[ij], status_cat[ij], cosL1[ij], cosL2[ij], cosS1S2[ij],id_cat[ij] ) for ij in range(len(Z_cat))]
+    strix = ["{0:1.3e} {1:1.5f} {2:1.5f} {3:1.5f} {4:1.5f} {5:1.3f} {6:1.3f} {7:1.9e} {8:1.3f} {9:1.3f} {10:1.3e} {11:1.0f} {12:s} {13:d} {14:1.4e} {15:1.4f} {16:1.5f} {17:1.5e} {18:s} {19:1.4f} {20:1.4f} {21:1.4f} {22:1.0f} \n".format(
+        Z_cat[ij], zgw_cat[ij], zfo_cat[ij], m1_cat[ij], m2_cat[ij], a1_cat[ij], a2_cat[ij],
+        Mrem_cat[ij], arem_cat[ij], xeff_cat[ij], vgw_cat[ij],
+        nrec_cat[ij], ctype_cat[ij], nsec_cat[ij],
+        mcl_cat[ij], rcl_cat[ij], ecc_cat[ij], sma_cat[ij], status_cat[ij],
+        cosL1[ij], cosL2[ij], cosS1S2[ij], id_cat[ij]
+        ) for ij in range(len(Z_cat))]
     
     return strix, header
 

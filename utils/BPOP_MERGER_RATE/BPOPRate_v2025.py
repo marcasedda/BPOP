@@ -19,7 +19,8 @@ from os import path
 import time
 from math import erf
 import sys
-sys.path.insert(0, '/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/utils/BPOP_LIBPY/')
+sys.path.insert(0, '/mnt/sdb/cugolini/hier/mix05_full_pop/noseed/BPOP_LIBPY/')
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 from lib_BPOPRate import *
 
 start = time.time()
@@ -34,14 +35,14 @@ tHubble = Planck.age(0)/u.Gyr*1e9
 
 test(gpc_to_mpc3, H0, Om, Ol)
 
-plt.rc('text', usetex=True)
+plt.rc('text', usetex=False)
 cmap = "viridis"
 fsize = 41
 lsize = 40
-family = 'Times New Roman'
+# family = 'Times New Roman'
 matplotlib.rcParams.update({'font.size': fsize})
-matplotlib.rcParams.update({'font.family': family})
-
+# matplotlib.rcParams.update({'font.family': family})
+matplotlib.rcParams.update({'font.family': 'DejaVu Serif'})
 
 print("\n===================  BPOPRate package  =====================")
 ## User-defined quantities: type of cluster, CSFH, binary fraction, typical mass, max redshift, and repository path and name ##
@@ -335,7 +336,7 @@ print("------------------------------------------------------------")
 
 
 ## Now we are ready to calculate the merger rate, taking into account that the above loop calculate the star formation rate of different environments ##
-rt = np.loadtxt("/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/utils/BPOP_MERGER_RATE/redshift_time.txt", usecols=[0,1,2], unpack=True)
+rt = np.loadtxt("redshift_time.txt", usecols=[0,1,2], unpack=True)
 redshift = rt[0]
 tage     = rt[1]
 lookback = rt[2]
@@ -349,23 +350,60 @@ for i in range(len(redshift)):
 ## Reading the file ## 
 
 Fn = directory[0] + file_mer
-X = np.loadtxt(Fn, dtype={'names':('zmer', 'zfor', 'met', 'clus', 'mclu', 'vesc','mas', 'tmer', 'nrep', 'msec','rclu', 'stat','id', 'tfor'), 'formats':(float, float, float, 'U8',float,float,float,float,float,float,float,'U8',float,float)}, usecols=[24, 25, 1, 3, 15, 17, 5, 14, 2, 6, 16, 18, 0, 13], unpack=True)
+# # X = np.loadtxt(Fn, dtype={'names':('zmer', 'zfor', 'met', 'clus', 'mclu', 'vesc','mas', 'tmer', 'nrep', 'msec','rclu', 'stat','id', 'tfor'), 'formats':(float, float, float, 'U8',float,float,float,float,float,float,float,'U8',float,float)}, usecols=[24, 25, 1, 3, 15, 17, 5, 14, 2, 6, 16, 18, 0, 13], unpack=True)
+# X = np.loadtxt(Fn, dtype={'names': ('zmer','zfor','met','clus','mclu','vesc','mas','tmer','nrep','msec','rclu','stat','id','tfor'), 'formats': (float, float, float, 'U8', float, float, float, float, float, float, float, 'U8', float, float)}, usecols=[33, 34, 1, 4, 16, 18, 6, 15, 2, 7, 17, 19, 0, 14], unpack=True)
 
-zmer_a = X[0]
-zfor_a = X[1]
-Zmet_a = X[2]
-ctyp_a = X[3]
-mclu_a = X[4]
-vesc_a = X[5]
-mpri_a = X[6]
-msec_a = X[9]
-tmer_a = X[7]
-nrep_a = X[8]
-rclu_a = X[10]
-stat_a = X[11]
-id_a   = X[12]
-tfor_a = X[13]
+# zmer_a = X[0]
+# zfor_a = X[1]
+# Zmet_a = X[2]
+# ctyp_a = X[3]
+# mclu_a = X[4]
+# vesc_a = X[5]
+# mpri_a = X[6]
+# msec_a = X[9]
+# tmer_a = X[7]
+# nrep_a = X[8]
+# rclu_a = X[10]
+# stat_a = X[11]
+# id_a   = X[12]
+# tfor_a = X[13]
 
+# cols_final = "#ID Metal Nrec Nsec EnvType lab m1[Msun] m2[Msun] a1 a2 Mfin[Msun] afin xeff vGW[km/s] tfor[yr] tlast_mer[yr] Mclu_t0[Ms] Rclu_t0[pc] Vesc[km/s] BinaryStatus aeje[AU] aGW[AU] n_BHs_t0 nBHs_tot nBHs_1g nBHs_2g nBHs_3g nBHs_4g nBHs_5g nBHs_>5g nmer_tot Mcore_th[Ms] rcore_th[pc] redshift_merger redshift_formation tSMBH[yr] redshiftSMBH mprog[Ms] eccentricity semimajoraxis[AU] acrit[AU] tmerger[yr] cos(angle_s1s2) cos(angle_s1L) cos(angle_s2L)".split()
+
+# with open(Fn, 'r') as f:
+#     lines = [l for l in f if not l.startswith('#') and l.strip()]
+
+# max_cols = len(cols_final)
+# rows = []
+# for line in lines:
+#     fields = line.split()
+#     fields += [np.nan] * (max_cols - len(fields))
+#     rows.append(fields[:max_cols])
+
+# df = pd.DataFrame(rows, columns=cols_final)
+# for col in df.columns:
+#     try:
+#         df[col] = pd.to_numeric(df[col])
+#     except (ValueError, TypeError):
+#         pass
+
+df = read_catalogue(Fn)
+
+zmer_a = df['zgw'].values
+zfor_a = df['zfo'].values
+Zmet_a = df['Z'].values
+ctyp_a = df['ctype'].values
+mclu_a = df['mcl'].values
+vesc_a = df['vesc'].values
+mpri_a = df['m1'].values
+msec_a = df['m2'].values
+tmer_a = df['tmer'].values
+nrep_a = df['nrec'].values
+nsec_a = df['Nsec'].values
+rclu_a = df['rcl'].values
+stat_a = df['status'].values
+id_a   = df['id'].values
+tfor_a = df['tfor'].values
 
 Ln = directory[0] + file_all
 Y = np.loadtxt(Ln, dtype={'names':('met','clus','nrecy','tmer','tfor'), 'formats':(float,'U8',float,float,float)}, usecols=[13,14,22,23,24], unpack=True)                
@@ -377,8 +415,8 @@ if(adjust_red == "yes"):
     stri = ""
     
     Gn = directory[0] + file_hie
-    K = np.loadtxt(Gn, usecols = [0,1,2,3,15,15,30], unpack=True)
-
+    # K = np.loadtxt(Gn, usecols = [0,1,2,3,15,15,30], unpack=True)
+    K = np.loadtxt(Gn, usecols=[0, 1, 2, 3, 15, 15, 31], unpack=True)
     
     m1rep = K[0]
     m2rep = K[1]
@@ -386,7 +424,8 @@ if(adjust_red == "yes"):
     a2rep = K[3]
     trep = K[4]
     zrep = np.array([interp(trep[i]/1.E9, tage, redshift) for i in range(len(trep))])
-    irep = K[6]+1
+    # irep = K[6]+1
+    irep = K[6]
     
     idx_rep = np.where(nrep_a > 1)[0]
     
@@ -460,7 +499,7 @@ zfor = zfor_a[idx]
 Zmet = Zmet_a[idx]
 ctype= ctyp_a[idx]
 nrep = nrep_a[idx]
-
+nsec = nsec_a[idx]
 Mmer = mclu_a[idx]
 Rmer = rclu_a[idx]
 Vmer = [0.0]*len(Rmer)
