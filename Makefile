@@ -21,10 +21,10 @@ DP_DLOGZ_FILE = $(OUTPUT_DIR)/dd_dp_dlogZ.txt
 
 # Generate redshift table before compilation
 $(REDSHIFT_FILE): ./include/input_params.h
-        python3 ./extra_scripts/generate_cosmo_funcs.py $(OMEGA_M) $(OMEGA_L) $(H0) $@ $(SFRD_FILE) $(DP_DLOGZ_FILE)
-        chmod 775 $@
-        chmod 775 $(SFRD_FILE)
-        chmod 775 $(DP_DLOGZ_FILE)
+	python3 ./extra_scripts/generate_cosmo_funcs.py $(OMEGA_M) $(OMEGA_L) $(H0) $@ $(SFRD_FILE) $(DP_DLOGZ_FILE)
+	chmod 775 $@
+	chmod 775 $(SFRD_FILE)
+	chmod 775 $(DP_DLOGZ_FILE)
 
 $(RESULT) : 
 	$(REDSHIFT_FILE)
