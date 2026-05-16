@@ -159,8 +159,8 @@ def FMR(mstarlog, sfrlog, z , kind):
 @partial(jit, static_argnums=(4,5))
 def Z_dist(log_Z, log_M_st, log_psi, z, kind, sigma_FMR):
     #sigma_FMR: 0.15 or 0.35
-    #FMR_kind: "Cu23", "Cu20", "AM13"
-    return resc_gauss(log_Z, 1., FMR(log_M_st, log_psi, z, FMR_kind), sigma_FMR) 
+    #kind: "Cu23", "Cu20", "AM13"
+    return resc_gauss(log_Z, 1., FMR(log_M_st, log_psi, z, kind), sigma_FMR) 
 
 @partial(jit, static_argnums=(3,4))
 def dSFRD_dlogZ(z, cosmo_correction, cosmo_time, kind, sigma_FMR):
@@ -185,10 +185,10 @@ def dSFRD_dlogZ(z, cosmo_correction, cosmo_time, kind, sigma_FMR):
 
 @jit
 def dSFRD_dlogM(z, cosmo_correction, cosmo_time):
-    nmstar = 150
+    nmstar = 100
     mstarlog = jnp.linspace(6., 12., nmstar)
 
-    nsfr = 150
+    nsfr = 100
     sfrlog = jnp.linspace(-4., 4., nsfr)
 
     def loop(sfrlog, mstarlog, z, cosmo_correction, cosmo_time, k):
@@ -204,10 +204,8 @@ def dSFRD_dlogM(z, cosmo_correction, cosmo_time):
 
 @jit
 def full_SFRD(z, cosmo_correction, cosmo_time):
-    nmstar = 150
-    mstarlog = jnp.linspace(6., 12., nmstar)
     
-    drhosfr_dlogM = dSFRD_dlogM(z, cosmo_correction, cosmo_time)
+    mstarlog, drhosfr_dlogM = dSFRD_dlogM(z, cosmo_correction, cosmo_time)
     rhosfr = jnp.trapezoid(drhosfr_dlogM, mstarlog, axis = 1)
     return rhosfr
 
