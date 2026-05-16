@@ -6,6 +6,10 @@
 
 #define CHUNKS "yes"
 //#define Hubble 13.99E9 //13.803E9
+#define OMEGA_M    0.30   // Matter density parameter
+#define OMEGA_L    0.7    // Dark energy density parameter (required OMEGA_M + OMEGA_L = 1 at the moment for flat spacetime)
+#define H0         70     // Hubble constant in km/s/Mpc
+
 
 // DATAFILES (Metal. distri, Single BHs, Binary BHs)
 #define PREDIR "/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/"
