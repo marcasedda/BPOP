@@ -181,7 +181,7 @@ def dSFRD_dlogZ(z, cosmo_correction, cosmo_time, kind, sigma_FMR):
         
     drhosfr_dlogZ = vmap(loop, in_axes = (None, None, None, None, None, None, 0))(sfrlog, mstarlog, zetalog, z, cosmo_correction, cosmo_time, jnp.arange(len(z)))
     
-    return drhosfr_dlogZ
+    return zetalog, drhosfr_dlogZ
 
 @jit
 def dSFRD_dlogM(z, cosmo_correction, cosmo_time):
@@ -191,19 +191,16 @@ def dSFRD_dlogM(z, cosmo_correction, cosmo_time):
     nsfr = 150
     sfrlog = jnp.linspace(-4., 4., nsfr)
 
-    nzeta=150
-    zetalog= jnp.linspace(-4., -1., nzeta)
-
-    def loop(sfrlog, mstarlog, zetalog, z, cosmo_correction, cosmo_time, k):
+    def loop(sfrlog, mstarlog, z, cosmo_correction, cosmo_time, k):
         
         q1_tmp = SFR_dist(sfrlog, mstarlog[:, jnp.newaxis], z[k], cosmo_time[k])*(10**sfrlog)
         Q1_tmp = jnp.trapezoid(q1_tmp, sfrlog, axis = 1)
         Q2_tmp = 10**jnp.array(SMF(mstarlog, z[k]))*cosmo_correction[k]
         return Q1_tmp * Q2_tmp
 
-    drhosfr_dlogM = vmap(loop, in_axes = (None, None, None, None, None, None, 0))(sfrlog, mstarlog, zetalog, z, cosmo_correction, cosmo_time, jnp.arange(len(z)))
+    drhosfr_dlogM = vmap(loop, in_axes = (None, None, None, None, None, 0))(sfrlog, mstarlog, z, cosmo_correction, cosmo_time, jnp.arange(len(z)))
            
-    return drhosfr_dlogM 
+    return mstarlog, drhosfr_dlogM 
 
 @jit
 def full_SFRD(z, cosmo_correction, cosmo_time):
@@ -232,4 +229,4 @@ def ddSFRD_dlogM_dlogZ(z, cosmo_correction, cosmo_time, kind, sigma_FMR):
         
     ddrhosfr_dlogM_dlogZ = vmap(loop, in_axes = (None, None, None, None, None, None, 0))(sfrlog, mstarlog, zetalog, z, cosmo_correction, cosmo_time, jnp.arange(len(z)))
 
-    return ddrhosfr_dlogM_dlogZ
+    return mstarlog, zetalog, ddrhosfr_dlogM_dlogZ
