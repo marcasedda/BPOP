@@ -373,7 +373,47 @@ double cov(double zx, double omM){
 
   return dVdz;
 }
-    
+
+double Functions::inter(double x, double *X, double *Y, int N){
+  double y;
+  int id1=0;
+  int id2=N;
+  if(X[0] > X[1]){	     
+    for (int i=0;i<N;i++){
+      if(x < X[i])
+	id1 = i;
+      if(x >= X[i]){
+	id2 = i;
+	break;
+      }    
+    }
+  }
+  else{
+    for (int i=0;i<N;i++){
+      if(x >= X[i])
+	id1 = i;
+      if(x < X[i]){
+	id2 = i;
+	break;
+      }    
+    }
+
+  }
+  
+  if(id2 == 0){
+    id1 = 0;
+    id2 = 1;
+  }
+  if(id1 == N){
+    id1 = N-2;
+    id2 = N-1;
+  }
+     
+  y = (Y[id1]-Y[id2])/(X[id1]-X[id2])*(x-X[id1]) + Y[id1];
+  
+  
+  return y;
+}    
 
   
 double Functions::sfr_red(string sfrtype){
@@ -561,46 +601,46 @@ double Functions::LogGaussian(double pp, double spp){
 }
 
 
-double Functions::inter(double x, double *X, double *Y, int N){
-  double y;
-  int id1=0;
-  int id2=N;
-  if(X[0] > X[1]){	     
-    for (int i=0;i<N;i++){
-      if(x < X[i])
-	id1 = i;
-      if(x >= X[i]){
-	id2 = i;
-	break;
-      }    
-    }
-  }
-  else{
-    for (int i=0;i<N;i++){
-      if(x >= X[i])
-	id1 = i;
-      if(x < X[i]){
-	id2 = i;
-	break;
-      }    
-    }
+//double Functions::inter(double x, double *X, double *Y, int N){
+//  double y;
+//  int id1=0;
+//  int id2=N;
+//  if(X[0] > X[1]){	     
+//    for (int i=0;i<N;i++){
+//      if(x < X[i])
+//	id1 = i;
+//      if(x >= X[i]){
+//	id2 = i;
+//	break;
+//      }    
+//    }
+//  }
+//  else{
+//    for (int i=0;i<N;i++){
+//      if(x >= X[i])
+//	id1 = i;
+//      if(x < X[i]){
+//	id2 = i;
+//	break;
+//      }    
+//    }
 
-  }
+//  }
   
-  if(id2 == 0){
-    id1 = 0;
-    id2 = 1;
-  }
-  if(id1 == N){
-    id1 = N-2;
-    id2 = N-1;
-  }
+//  if(id2 == 0){
+//    id1 = 0;
+//    id2 = 1;
+//  }
+//  if(id1 == N){
+//    id1 = N-2;
+//    id2 = N-1;
+//  }
      
-  y = (Y[id1]-Y[id2])/(X[id1]-X[id2])*(x-X[id1]) + Y[id1];
+//  y = (Y[id1]-Y[id2])/(X[id1]-X[id2])*(x-X[id1]) + Y[id1];
   
   
-  return y;
-}
+//  return y;
+//}
 
 double Functions::rnd(){
   std::random_device rd;
