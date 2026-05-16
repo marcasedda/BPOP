@@ -16,19 +16,24 @@ H0 := $(shell grep "define H0" ./include/input_params.h | awk '{print $$3}')
 
 OUTPUT_DIR = ./include
 REDSHIFT_FILE = $(OUTPUT_DIR)/redshift_time.txt
+SFRD_FILE = $(OUTPUT_DIR)/dd_sfrd.txt
+DP_DLOGZ_FILE = $(OUTPUT_DIR)/dd_dp_dlogZ.txt
 
 # Generate redshift table before compilation
 $(REDSHIFT_FILE): ./include/input_params.h
-        python3 ./extra_scripts/generate_redshift_table.py $(OMEGA_M) $(OMEGA_L) $(H0) $@
+        python3 ./extra_scripts/generate_cosmo_funcs.py $(OMEGA_M) $(OMEGA_L) $(H0) $@ $(SFRD_FILE) $(DP_DLOGZ_FILE)
         chmod 775 $@
+        chmod 775 $(SFRD_FILE)
+        chmod 775 $(DP_DLOGZ_FILE)
 
 $(RESULT) : 
-        $(REDSHIFT_FILE)
-        $(MAKE) -C ./build
+	$(REDSHIFT_FILE)
+	$(MAKE) -C ./build
+
 
 clean:
-        rm -f ./build/*.o ./build/*.so ./build/$(RESULT) 
-        rm -f *.o *.so $(RESULT) $(REDSHIFT_FILE)
+	rm -f ./build/*.o ./build/*.so ./build/$(RESULT) 
+	rm -f *.o *.so $(RESULT) $(REDSHIFT_FILE)
  
 
 install: $(RESULT) $(EXTRAOBJS)
