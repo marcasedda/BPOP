@@ -17,9 +17,43 @@
 #include <algorithm>
 #include <optional>
 
+// For data driven SFRD
+//double Functions::z_data_dd[Functions::DD_SIZE] = {};
+//double Functions::sfrd_data_dd[Functions::DD_SIZE] = {};
+//bool Functions::dd_initialized = false;
+
 Functions::Functions(){
   srand(time(0));
 }
+
+// Helper function to load once the SFRD table
+//void Functions::initialize_dd_data(){
+//  if(dd_initialized) return; 
+
+//  string fname = ".../include/dd_sfrd.txt"; //absolute path to dd_sfrd.txt
+//  ifstream ddin;
+//  ddin.open(fname.c_str());
+//  if(!ddin.is_open()){
+//    cout<<"File "<<fname<<" not found"<<endl;
+//    exit(0);
+//  }
+
+//  
+//  string line;
+//  getline(ddin, line);
+
+//  
+//  for(int i = 0; i < DD_SIZE; i++){
+//    ddin >> z_data_dd[i] >> sfrd_data_dd[i];
+//    if(ddin.eof()){
+//      cout<<"Warning: File has fewer than "<<DD_SIZE<<" lines"<<endl;
+//      break;
+//    }
+//  }
+//  ddin.close();
+
+//  dd_initialized = true;
+//}
 
 
 optional<size_t> Functions::search_closest(const std::vector<double> & sorted_array, double x) {
@@ -480,6 +514,26 @@ double Functions::sfr_red(string sfrtype){
     zred = zup;
     
   }
+  //else if(sfr=="data_driven" || sfr == "DD"){
+  //  // Initialize data if not already done
+  //  initialize_dd_data();
+
+  //  double sfrd_max = -1.E30;
+  //  for(int i = 0; i < DD_SIZE; i++){
+  //    if(sfrd_data_dd[i] > sfrd_max) sfrd_max = sfrd_data_dd[i];
+  //  }
+
+  //  double psirnd, psisfr_val;
+  //  double z_max_data = z_data_dd[DD_SIZE - 1];
+
+  //  do{
+  //    zred = z_max_data * rnd();
+  //    psisfr_val = inter(zred, z_data_dd, sfrd_data_dd, DD_SIZE);
+  //    psirnd = sfrd_max * rnd();
+  //    if(psisfr_val > psirnd)
+  //      break;
+  //  }while(psisfr_val < psirnd);
+  //}
   else{
     cout<<"Please select Katz and Ricotti 2013 or Madau and Fragos 2017"<<endl;
     exit(0);
@@ -599,48 +653,6 @@ double Functions::LogGaussian(double pp, double spp){
   
   return rndG;
 }
-
-
-//double Functions::inter(double x, double *X, double *Y, int N){
-//  double y;
-//  int id1=0;
-//  int id2=N;
-//  if(X[0] > X[1]){	     
-//    for (int i=0;i<N;i++){
-//      if(x < X[i])
-//	id1 = i;
-//      if(x >= X[i]){
-//	id2 = i;
-//	break;
-//      }    
-//    }
-//  }
-//  else{
-//    for (int i=0;i<N;i++){
-//      if(x >= X[i])
-//	id1 = i;
-//      if(x < X[i]){
-//	id2 = i;
-//	break;
-//      }    
-//    }
-
-//  }
-  
-//  if(id2 == 0){
-//    id1 = 0;
-//    id2 = 1;
-//  }
-//  if(id1 == N){
-//    id1 = N-2;
-//    id2 = N-1;
-//  }
-     
-//  y = (Y[id1]-Y[id2])/(X[id1]-X[id2])*(x-X[id1]) + Y[id1];
-  
-  
-//  return y;
-//}
 
 double Functions::rnd(){
   std::random_device rd;
