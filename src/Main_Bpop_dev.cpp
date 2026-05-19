@@ -375,6 +375,10 @@ int main(){
     sfr_clu_gc = "EB18";
     sfr_clu_nc = "MF17";
   }
+  //else if(sfr_clu == "EB18_DD"){
+  //	  sfr_clu_gc = "EB18";
+  //	  sfr_clu_nc = "DD";
+  //}
   
 
   if(cluster_test == "yes"){
