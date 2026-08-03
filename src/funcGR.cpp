@@ -17,43 +17,45 @@
 #include <algorithm>
 #include <optional>
 
+#include "input_params.h"
+
 // For data driven SFRD
-//double Functions::z_data_dd[Functions::DD_SIZE] = {};
-//double Functions::sfrd_data_dd[Functions::DD_SIZE] = {};
-//bool Functions::dd_initialized = false;
+double Functions::z_data_dd[Functions::DD_SIZE] = {};
+double Functions::sfrd_data_dd[Functions::DD_SIZE] = {};
+double Functions::sfrd_max_dd = -1.E30;
+bool Functions::dd_initialized = false;
 
 Functions::Functions(){
   srand(time(0));
 }
 
 // Helper function to load once the SFRD table
-//void Functions::initialize_dd_data(){
-//  if(dd_initialized) return; 
+void Functions::initialize_dd_data(){
+  if(dd_initialized) return; 
 
-//  string fname = ".../include/dd_sfrd.txt"; //absolute path to dd_sfrd.txt
-//  ifstream ddin;
-//  ddin.open(fname.c_str());
-//  if(!ddin.is_open()){
-//    cout<<"File "<<fname<<" not found"<<endl;
-//    exit(0);
-//  }
+  string fname = string(PREDIR) + "include/dd_sfrd.txt"; //absolute path to dd_sfrd.txt
+  ifstream ddin;
+  ddin.open(fname.c_str());
+  if(!ddin.is_open()){
+    cout<<"File "<<fname<<" not found"<<endl;
+    exit(0);
+  }
+  
+  for(int i = 0; i < DD_SIZE; i++){
+    ddin >> z_data_dd[i] >> sfrd_data_dd[i];
+    if(ddin.eof()){
+      cout<<"Warning: File has fewer than "<<DD_SIZE<<" lines"<<endl;
+      break;
+    }
+  }
+  ddin.close();
 
-//  
-//  string line;
-//  getline(ddin, line);
+  for(int i = 0; i < DD_SIZE; i++){
+    if(sfrd_data_dd[i] > sfrd_max_dd) sfrd_max_dd = sfrd_data_dd[i];
+  }
 
-//  
-//  for(int i = 0; i < DD_SIZE; i++){
-//    ddin >> z_data_dd[i] >> sfrd_data_dd[i];
-//    if(ddin.eof()){
-//      cout<<"Warning: File has fewer than "<<DD_SIZE<<" lines"<<endl;
-//      break;
-//    }
-//  }
-//  ddin.close();
-
-//  dd_initialized = true;
-//}
+  dd_initialized = true;
+}
 
 
 optional<size_t> Functions::search_closest(const std::vector<double> & sorted_array, double x) {
@@ -514,26 +516,21 @@ double Functions::sfr_red(string sfrtype){
     zred = zup;
     
   }
-  //else if(sfr=="data_driven" || sfr == "DD"){
-  //  // Initialize data if not already done
-  //  initialize_dd_data();
+  else if(sfr=="data_driven" || sfr == "DD"){
+    // Initialize data if not already done
+    initialize_dd_data();
 
-  //  double sfrd_max = -1.E30;
-  //  for(int i = 0; i < DD_SIZE; i++){
-  //    if(sfrd_data_dd[i] > sfrd_max) sfrd_max = sfrd_data_dd[i];
-  //  }
+    double psirnd, psisfr_val;
+    double z_max_data = z_data_dd[DD_SIZE - 1];
 
-  //  double psirnd, psisfr_val;
-  //  double z_max_data = z_data_dd[DD_SIZE - 1];
-
-  //  do{
-  //    zred = z_max_data * rnd();
-  //    psisfr_val = inter(zred, z_data_dd, sfrd_data_dd, DD_SIZE);
-  //    psirnd = sfrd_max * rnd();
-  //    if(psisfr_val > psirnd)
-  //      break;
-  //  }while(psisfr_val < psirnd);
-  //}
+    do{
+      zred = z_max_data * rnd();
+      psisfr_val = inter(zred, z_data_dd, sfrd_data_dd, DD_SIZE);
+      psirnd = sfrd_max_dd * rnd();
+      if(psisfr_val > psirnd)
+        break;
+    }while(psisfr_val < psirnd);
+  }
   else{
     cout<<"Please select Katz and Ricotti 2013 or Madau and Fragos 2017"<<endl;
     exit(0);

@@ -18,14 +18,14 @@ using namespace std;
 class Functions
 {
  // New part to be used for data driven SFRD
- //private:
-  //static const int DD_size = 10000;
-  //static double z_data_dd[DD_SIZE];
-  //static double sfrd_data_dd[DD_SIZE];
-  //static bool dd_initialized;
+ private:
+  static const int DD_SIZE = 10000;
+  static double z_data_dd[DD_SIZE];
+  static double sfrd_data_dd[DD_SIZE];
+  static bool dd_initialized;
 
   // Helper function to initialize data driven table just once
-  //static void initialize_dd_data()
+  static void initialize_dd_data();
 
  public:
   double geo16Rnc(double mlog, double c1, double c2, double a, double b, double e);

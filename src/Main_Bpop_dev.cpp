@@ -3263,6 +3263,8 @@ int main(){
     SFR = "KR13";
   else if(sfr_iso == "madau17" || sfr_iso == "MF17")
     SFR = "MF17";
+  else if(sfr_iso == "DD")
+    SFR = "DD";
   SFR += "_";
   if(sfr_clu == "katz13" || sfr_clu == "KR13")
     SFR += "KR13";
@@ -3274,6 +3276,8 @@ int main(){
     SFR += "EB18";
   else if(sfr_clu == "EB18_MF17")
     SFR += "EB18MF17";
+  else if(sfr_clu == "EB18_DD")
+    SFR += "EB18DD";
   else if(sfr_clu == "single")
     SFR += "single";
   

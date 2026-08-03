@@ -39,7 +39,7 @@
 #define mass_gap  60.0
 #define upgtp   "dicarlo"
 #define SFRTYPE_ISO "continuous" //"DD" //"MF17" //"continuous" //"bigbang" // "single"
-#define SFRTYPE_CLU "continuous" //"EB18_MF17" //"KR13" //"EB18_MF17" //"continuous" //"bigbang" //
+#define SFRTYPE_CLU "continuous" //"EB18_MF17" //"KR13" //"EB18_DD" //"continuous" //"bigbang" //
 
 
 #define mixing  1.0
