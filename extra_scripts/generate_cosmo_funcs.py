@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate redshift_time.txt using cosmological parameters.
+Generate redshift_time.txt, dd_sfrd.txt, dd_dp_dlogZ.txt using cosmological parameters.
 Called during build process via Makefile.
 """
 

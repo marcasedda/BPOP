@@ -19,13 +19,24 @@ class Functions
 {
  // New part to be used for data driven SFRD
  private:
+  string predir;
+
   static const int DD_SIZE = 10000;
   static double z_data_dd[DD_SIZE];
   static double sfrd_data_dd[DD_SIZE];
+  static double sfrd_max_dd;
   static bool dd_initialized;
 
+  static const int ZLOG_SIZE = 100;
+  static constexpr double ZLOG_MIN = -4.0;
+  static constexpr double ZLOG_MAX = -1.0;
+  static double cdf_dlogZ_dd[DD_SIZE][ZLOG_SIZE];
+  static bool dpdz_initialized;
+
   // Helper function to initialize data driven table just once
-  static void initialize_dd_data();
+  void initialize_dd_data();
+  void initialize_dpdz_data();
+  double sample_logZ_dd(double red_del);
 
  public:
   double geo16Rnc(double mlog, double c1, double c2, double a, double b, double e);

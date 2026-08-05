@@ -17,15 +17,15 @@
 #include <algorithm>
 #include <optional>
 
-#include "input_params.h"
-
 // For data driven SFRD
 double Functions::z_data_dd[Functions::DD_SIZE] = {};
 double Functions::sfrd_data_dd[Functions::DD_SIZE] = {};
 double Functions::sfrd_max_dd = -1.E30;
 bool Functions::dd_initialized = false;
+double Functions::cdf_dlogZ_dd[Functions::DD_SIZE][Functions::ZLOG_SIZE] = {};
+bool Functions::dpdz_initialized = false;
 
-Functions::Functions(){
+Functions::Functions(string predir_in) : predir(predir_in){
   srand(time(0));
 }
 
@@ -33,13 +33,14 @@ Functions::Functions(){
 void Functions::initialize_dd_data(){
   if(dd_initialized) return; 
 
-  string fname = string(PREDIR) + "include/dd_sfrd.txt"; //absolute path to dd_sfrd.txt
+  string fname = predir + "include/dd_sfrd.txt";
   ifstream ddin;
   ddin.open(fname.c_str());
   if(!ddin.is_open()){
     cout<<"File "<<fname<<" not found"<<endl;
     exit(0);
   }
+
   
   for(int i = 0; i < DD_SIZE; i++){
     ddin >> z_data_dd[i] >> sfrd_data_dd[i];
@@ -57,6 +58,68 @@ void Functions::initialize_dd_data(){
   dd_initialized = true;
 }
 
+// Helper function to load once the dp/dlogZ table
+void Functions::initialize_dpdz_data(){
+  if(dpdz_initialized) return;
+
+  string fname = predir + "include/dd_dp_dlogZ.txt";
+  ifstream din;
+  din.open(fname.c_str());
+  if(!din.is_open()){
+    cout<<"File "<<fname<<" not found"<<endl;
+    exit(0);
+  }
+
+  double zval;
+  for(int i = 0; i < DD_SIZE; i++){
+    din >> zval;
+    if(din.eof()){
+      cout<<"Warning: File has fewer than "<<DD_SIZE<<" lines"<<endl;
+      break;
+    }
+    double cumsum = 0.0;
+    for(int j = 0; j < ZLOG_SIZE; j++){
+      double pdf_val;
+      din >> pdf_val;
+      cumsum += pdf_val;
+      cdf_dlogZ_dd[i][j] = cumsum;
+    }
+    double norm = cdf_dlogZ_dd[i][ZLOG_SIZE-1];
+    if(norm > 0.0){
+      for(int j = 0; j < ZLOG_SIZE; j++)
+        cdf_dlogZ_dd[i][j] /= norm;
+    }
+  }
+  din.close();
+
+  dpdz_initialized = true;
+}
+
+// Sample logZ from the data driven dp/dlogZ table
+double Functions::sample_logZ_dd(double red_del){
+  initialize_dpdz_data();
+
+  double z_min = z_data_dd[0];
+  double z_max = z_data_dd[DD_SIZE-1];
+  double dz    = (z_max - z_min) / (DD_SIZE - 1);
+
+  int idx = (int) round((red_del - z_min) / dz);
+  if(idx < 0) idx = 0;
+  if(idx > DD_SIZE - 1) idx = DD_SIZE - 1;
+
+  double dlogZ = (ZLOG_MAX - ZLOG_MIN) / (ZLOG_SIZE - 1);
+  double u = rnd();
+
+  int j = 0;
+  while(j < ZLOG_SIZE - 1 && cdf_dlogZ_dd[idx][j] < u)
+    j++;
+
+  if(j == 0)
+    return ZLOG_MIN;
+
+  double frac = (u - cdf_dlogZ_dd[idx][j-1]) / (cdf_dlogZ_dd[idx][j] - cdf_dlogZ_dd[idx][j-1]);
+  return ZLOG_MIN + (j - 1 + frac) * dlogZ;
+}
 
 optional<size_t> Functions::search_closest(const std::vector<double> & sorted_array, double x) {
 
@@ -146,6 +209,9 @@ double Functions::metcor(string metal_dis, double sigmaZ, double red_del){
 	double Mstar_mass = 1.e10;
 	//logz_me =  0.35 * (log10(Mstar_mass) - 10) + 0.93 * exp(-0.43*red_del) - 1.05 *(1. + pow(red_del/15,3)); //gas phase (see Ma et al 2016)
 	logz_me =  0.40 * (log10(Mstar_mass) - 10) + 0.67 * exp(-0.50*red_del) - 1.04 *(1. + pow(red_del/15,3)); //star phase (see Ma et al 2016)
+      }
+      else if(metal_dis == "data_driven" || metal_dis == "DD"){
+	logz_me = sample_logZ_dd(red_del); // sigmaZ value is irrelevant 
       }
       else{
 	cout<<"Metallicity distribution not found, please retry"<<endl;
@@ -519,6 +585,11 @@ double Functions::sfr_red(string sfrtype){
   else if(sfr=="data_driven" || sfr == "DD"){
     // Initialize data if not already done
     initialize_dd_data();
+
+    //double sfrd_max = -1.E30;
+    //for(int i = 0; i < DD_SIZE; i++){
+    //  if(sfrd_data_dd[i] > sfrd_max) sfrd_max = sfrd_data_dd[i];
+    //}
 
     double psirnd, psisfr_val;
     double z_max_data = z_data_dd[DD_SIZE - 1];

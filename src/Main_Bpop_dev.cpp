@@ -180,7 +180,7 @@ void singBHt_mix_old(double mssx[], double msdx[], double mbsx[], double mbdx[],
 int main(){
   
   srand(time(0));
-  Functions func;
+  Functions func(PREDIR);
 
   int Nsrc = N;
 
@@ -375,10 +375,10 @@ int main(){
     sfr_clu_gc = "EB18";
     sfr_clu_nc = "MF17";
   }
-  //else if(sfr_clu == "EB18_DD"){
-  //	  sfr_clu_gc = "EB18";
-  //	  sfr_clu_nc = "DD";
-  //}
+  else if(sfr_clu == "EB18_DD"){
+  	  sfr_clu_gc = "EB18";
+  	  sfr_clu_nc = "DD";
+  }
   
 
   if(cluster_test == "yes"){
@@ -389,6 +389,14 @@ int main(){
 	sfr_clu = "MF17";
       else
 	sfr_clu = "KR13";
+  }
+
+  if(metal_dis == "DD" && (sfr_iso == "MF17" || sfr_iso == "madau17" ||
+                            sfr_clu == "MF17" || sfr_clu == "madau17" ||
+                            sfr_clu_gc == "MF17" || sfr_clu_gc == "madau17" ||
+                            sfr_clu_nc == "MF17" || sfr_clu_nc == "madau17")){
+    cout<<"ERROR: the data-driven (DD) metallicity table cannot be combined with the MF17 SFRD — unphysical combination"<<endl;
+    exit(0);
   }
     
   double *Spinning;
@@ -836,9 +844,12 @@ int main(){
     else{
       double logz_me;    
       logz_me = func.metcor(metal_dis, sigmaZ, red_del);
-     
+
+	  if(metal_dis == "DD"){
+		logz1 = logz_me;
+	  }     
       // New Gaussian sampling corrected with merger efficiency //
-      if(MERGER_EFF_CORR == "yes")
+      else if(MERGER_EFF_CORR == "yes")
 	logz1 = func.Gss_weight(Zeta, Eeta, Zsun, logz_me, sigmaZ, met[0], met[nmetal-1]);      
       //
       else
@@ -902,15 +913,18 @@ int main(){
 	  logz_me = func.metcor(metal_dis_clu, sigmaZ_clu, red_del);
 	  logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[nmetal-1]/Zsun), logz_me, sigmaZ_clu) + log10(Zsun);
 	}
-	else if(sfr_clu_nc == "MF17" || sfr_clu_nc == "continuous"){
+	else if(sfr_clu_nc == "MF17" || sfr_clu_nc == "continuous" || sfr_clu_nc == "DD"){
 	  //in situ formation
 	  logz_me = func.metcor(metal_dis, sigmaZ, red_del);
-	  logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[nmetal-1]/Zsun), logz_me, sigmaZ) + log10(Zsun);
+	  if(metal_dis == "DD"){
+		logz1 = logz_me;
+	  }
+	  else
+	  	logz1 = func.Gaussian_normal(log10(met[0]/Zsun),log10(met[nmetal-1]/Zsun), logz_me, sigmaZ) + log10(Zsun);      
+    	}
 	}
-      }
-      
-    }
-    
+	}
+
     logz = logz1;
     
     

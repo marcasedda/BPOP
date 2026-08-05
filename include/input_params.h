@@ -5,7 +5,6 @@
 #define PARAMETERS_H
 
 #define CHUNKS "yes"
-//#define Hubble 13.99E9 //13.803E9
 #define OMEGA_M    0.30   // Matter density parameter
 #define OMEGA_L    0.7    // Dark energy density parameter (required OMEGA_M + OMEGA_L = 1 at the moment for flat spacetime)
 #define H0         70     // Hubble constant in km/s/Mpc
@@ -76,7 +75,7 @@
 //METALLLICITY SPREAD
 //NOTE: The choice Elbadry19 requires a sigma_metal_clu = 0.5 to embrace galaxy masses between ~ 10^8 - 10^12
 #define sigma_metal_iso  0.2
-#define sigma_distri_iso "Mapelli"
+#define sigma_distri_iso "Mapelli" // "Mapelli" // "DD" (sigma_metal_iso not used)
 #define sigma_metal_clu  0.2
 #define sigma_distri_clu "Elbadry19"
 
