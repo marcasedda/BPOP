@@ -115,7 +115,7 @@ class Functions
 
   string print(double mass, double mmax, double mmin,double wgh);
 
-  Functions();
+  Functions(string predir_in = "");
 
 };
 #endif
