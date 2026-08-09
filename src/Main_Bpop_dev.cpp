@@ -416,7 +416,7 @@ int main(){
   else if(SEVN=="iorio")
     nmetal = 15;
   else
-    nmetal = 12;
+    nmetal = 13;
 
   int numZ = nmetal;
   met = new double [nmetal];
