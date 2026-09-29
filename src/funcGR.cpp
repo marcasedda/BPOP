@@ -683,7 +683,7 @@ double Functions::vescape(double g, double r, double m, string type){
     vesc = vphiD(rpos, m, a, g);
   }  
 
-  double rho = 3.*m/(8.*M_PI*r*r*r);
+  double rho = 3.*m/(8.*M_PI*r*r*r); // to change at half-mass radius density, but for now we use the average density -> 0.53*m/r^3
   vesc = 40. * pow(m/1.E5,1./3.) * pow(rho/1.E5, 1./6.);
 
   
@@ -1939,6 +1939,8 @@ double Functions::spin(double mass, string spinning){
   }
   else if(spinning=="fuller")
     spi = 0.001;
+  else if(spinning=="bavera")              
+    spi = (mass < 65.) ? 0.001 : rnd();    // Fuller sotto 65 Msun, U(0,1) sopra
   else if(spinning=="no")
     spi = 1.E-6;
   else if(spinning=="zero")//Amaro-Seoane & Chen 2016
@@ -2115,6 +2117,20 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
     //
     // Additionally, it enforces a maximum number of merger EVENTS (Nmerger_left).
     // The merger budget counts merger events only (not BHs expelled by kicks).
+    //
+    // [MOD ng+0g] Pairing channel. The chain in hgen() grows a hierarchical BH by
+    // merging it with a 0-g companion drawn from the SSE catalogs, never with another
+    // hierarchical BH, and 0-g BHs outnumber the higher generations by orders of
+    // magnitude. The population update now follows the SAME channel:
+    //    0g + 0g  -> 1g   : 2 BHs of the 0-g bin are consumed per product (factor 0.5 KEPT)
+    //    (g-1)g + 0g -> g : 1 BH of bin g-1 AND 1 BH of the 0-g bin are consumed (NO 0.5)
+    // Two BHs are still burnt per product; what changes is which bin pays the second one.
+    // The previous version used (g-1)g + (g-1)g for every g, which halves the flux into
+    // each generation, i.e. a factor 2^(k-1) suppression at generation k.
+    // Set LIKE_GEN_CHANNEL = true to recover exactly the old behaviour.
+
+    static const bool LIKE_GEN_CHANNEL = false;   // [MOD ng+0g] true = vecchio canale ng+ng
+    static long long n_0g_exhausted = 0;          // [MOD ng+0g] quante volte il serbatoio 0g si azzera
 
     // We'll append one zero slot to allow the formation of a next generation
     nbhs.push_back(0.0);                // reserve the next generation (zero)
@@ -2130,20 +2146,35 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
     size_t idx = (it == gwK.begin()) ? 0
               : (it == gwK.end())   ? gwK_cdf.size() - 1
                                     : size_t(it - gwK.begin() - 1);
-    ret_fract = gwK_cdf[idx];
+    ret_fract = (it == gwK.begin()) ? 0.0 : gwK_cdf[idx];   // [MOD] vesc sotto il kick minimo => ritenzione nulla
 
     // Helper: apply the SAME update logic as the original code, but using nbin_used.
     // This is needed to make only the last step "partial" if the merger budget would be exceeded.
     auto apply_step = [&](double nbin_used) {
 
+        // [MOD ng+0g] 0-g companions consumed by the (g-1)g + 0g channels (g >= 2)
+        double comp_0g = 0.0;
+        if (!LIKE_GEN_CHANNEL)
+            for (size_t g = 2; g < oldS; ++g) comp_0g += old[g] * nbin_used;
+
         // Update gen-1 explicitly (loses a fraction n_bin because of mergers)
-        nbhs[1] = old[1] * (1.0 - nbin_used);
+        // [MOD ng+0g] and, on top of that, the 0-g BHs used as companions by higher generations
+        nbhs[1] = old[1] * (1.0 - nbin_used) - comp_0g;
+        if (nbhs[1] < 0.0) {
+            nbhs[1] = 0.0;
+            if (++n_0g_exhausted == 1)
+                cout << "Warning: 0-g reservoir exhausted (first occurrence), vesc " << vesc
+                     << ", n_bin " << nbin_used << endl;
+        }
 
         // Update gens 2..oldS
         // (flow within and from previous gen, aka BHs not merging of the current gen and merging ones of the previous)
         for (size_t g = 2; g < oldS; ++g) {
-            const double stay      = old[g]     * (1.0 - nbin_used);
-            const double from_prev = old[g - 1] * 0.5 * nbin_used * ret_fract;
+            const double stay = old[g] * (1.0 - nbin_used);
+            // [MOD ng+0g] g == 2 (1-g BHs) still comes from 0g + 0g -> factor 0.5.
+            //             g >= 3 comes from (g-1)g + 0g -> one product per merging BH of bin g-1.
+            const double src   = (LIKE_GEN_CHANNEL || g == 2) ? 0.5 : 1.0;
+            const double from_prev = old[g - 1] * src * nbin_used * ret_fract;
             //cout << "gen " << g << ": stay " << stay << ", from_prev " << from_prev << endl;
             nbhs[g] = stay + from_prev;
         }
@@ -2181,10 +2212,13 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
     }
 
     // Compute how many merger EVENTS would happen in a full step with the structural n_bin.
-    // In this model, a fraction n_bin of BHs enters mergers; each merger consumes 2 BH -> events = 0.5*n_bin*sum(BHs).
-    double S = 0.0;
-    for (size_t g = 1; g < oldS; ++g) S += old[g];          // sum over all actual generations (excluding total slot)
-    const double mergers_step = 0.5 * n_bin * S;            // merger EVENTS in this step (does NOT depend on ret_fract)
+    // [MOD ng+0g] Events are no longer 0.5*n_bin*sum(BHs):
+    //   0g + 0g  : two 0-g BHs per event      -> 0.5 * n_bin * old[1]
+    //   ng + 0g  : one event per merging ng   ->       n_bin * old[g], g >= 2
+    // W is the weight such that events(n_bin) = n_bin * W (linear in n_bin).
+    double W = 0.5 * old[1];
+    for (size_t g = 2; g < oldS; ++g) W += (LIKE_GEN_CHANNEL ? 0.5 : 1.0) * old[g];
+    const double mergers_step = n_bin * W;                  // merger EVENTS in this step (does NOT depend on ret_fract)
 
     if (mergers_step <= Nmerger_left + 1e-12) {
         // Full step allowed: use the original logic unchanged
@@ -2192,8 +2226,8 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
         Nmerger_left -= mergers_step;
     } else {
         // Only the last step is different: perform a partial step such that we consume exactly Nmerger_left events.
-        // Want: 0.5 * n_bin_last * S = Nmerger_left  ->  n_bin_last = 2*Nmerger_left / S
-        double n_bin_last = (S > 0.0) ? (2.0 * Nmerger_left / S) : 0.0;
+        // [MOD ng+0g] Want: n_bin_last * W = Nmerger_left  ->  n_bin_last = Nmerger_left / W
+        double n_bin_last = (W > 0.0) ? (Nmerger_left / W) : 0.0;
 
         // Keep it physical and never exceed the structural n_bin
         if (n_bin_last < 0.0) n_bin_last = 0.0;

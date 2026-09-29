@@ -1,8 +1,8 @@
 # --- PATHS & SWITCHES ---
 CHUNKS = yes
-PREDIR  = "/home/cugolini/BPOP_new/dev/BPOP/"
-SINGPTH = "../../../SEVN_Catalogs/rapid_M20_a1/"
-PATH    = "../../../SEVN_Catalogs/rapid_M20_a1/"
+PREDIR  = "/home/cugolini/BPOP/BPOP/"
+SINGPTH = "../../SEVN_Catalogs/rapid_M20_a1/"
+PATH    = "../../SEVN_Catalogs/rapid_M20_a1/"
 SEVN    = yes
 MERGER_EFF_CORR = no
 

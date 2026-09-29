@@ -53,7 +53,7 @@ void hgen(Functions& func,
           double *c, double *s, vector<double>& nbhs, int nrecy, double& nmerg_budget, double nmerg_tot, int id, // storage vectors
           double mhalf, double mcore, double rcore, double n_bin, vector<double>& gwK, vector<double>& gwK_cdf, // core properties
           double trelax, double t12capt, double tbbhform, double& t_last_call, double tcc, string pcluster, double mix, ostream& log, double min_hier, //timescales
-          HgenScratch& sc){ //struct for scratch vectors
+           HgenScratch& sc){ //struct for scratch vectors
   
   // This function accounts for the probability of a hierarchical merger in a cluster, and its properties.
   // Functions func;
@@ -70,7 +70,7 @@ void hgen(Functions& func,
 
 
 
-  double tau, interaction_rate;
+  double tau, interaction_rate, ret_fract;
   double m2b, a2b;
   //double m_hg, a_hg, vrec;
   // double vrec;
@@ -95,8 +95,10 @@ void hgen(Functions& func,
   auto& tau_hg  = sc.tau_hg;
 
   // vector<double> ejected_hg; // to store if the hierarchical step was ejected or not
+  double mstar_avg;
   double dice;
   double dt;                 // time increment for hierarchical steps
+  int cnt=0;
   int gen2=0;                // i use it in the loop
   int hgen=0;                // hierarchical generation of the secondary BH -> in output
   int interacting_gen=0;     // generation of the hierarchical companion BH if paired -> in output
@@ -121,27 +123,15 @@ void hgen(Functions& func,
   // Update last call time
   t_last_call = tbbhform;
 
-  double tau_a, tau_b;
-  if (pcluster == "nuclear")                              { tau_a = -0.548; tau_b = 5.230; }
-  else if (pcluster == "globular" || pcluster == "young") { tau_a = -0.611; tau_b = 5.876; }
-  else                                                    { tau_a = -0.611; tau_b = 5.876; }  // default
-  const double base_tau = tau_a * std::log10(mhalf) + tau_b;  // const double tmax = std::max(time, t12capt) / tcc;
-  
+  const double base_tau = -0.53 * std::log10(mhalf) + 5.6;
+  const double tmax = std::max(time, t12capt) / tcc;
   const bool use_mix = (mix <= mixing);
 
   // Let's define the timescale for a secondary merger
   //tau = -0.53 * log10(mhalf) + 5.6 + 1.5* func.rndgen(0.0, 1.0);
-  // tau = base_tau + 1.5 * func.rndgen(0.0, 1.0);
+  tau = base_tau + 1.5 * func.rndgen(0.0, 1.0);
   
-  // tau_hg.push_back(tau*tcc); // Store the timescale of the 0-g merger of the chain in absolute time -> it statrs at t=0 (wrt to tbbhform)
-  const double tmax = std::max(time, t12capt) / tcc;   // tempo disponibile, in unità di tcc (LINEARE)
-
-  tau = base_tau - 1.5 + 3.0 * func.rndgen(0.0, 1.0);  // log10(t_GW/tcc), scatter [-1.5, +2]
-
-  double t_cum = pow(10.0, tau);                       // orologio cumulativo, in unità di tcc (LINEARE)
-
-  tau_hg.push_back(t_cum * tcc);                       // tempo assoluto del primo merger
-
+  tau_hg.push_back(tau*tcc); // Store the timescale of the 0-g merger of the chain in absolute time -> it statrs at t=0 (wrt to tbbhform)
 
   //Let's check if the BHs can be produced in the PI-gap
   func.DiCarlo_BHs(&m1, &m2, &a1, &a2, Zmet, false, uppergap, fupgp, a_gp, mass_gap, upgtp, stype); // We check if we have to put one of the two BHs in the upper gap
@@ -174,22 +164,16 @@ void hgen(Functions& func,
     //In this loop I grow the hierarchical companion BH population
     auto t0 = Clock::now();
 
-    // while (nmerg_budget > 0 && tmax >= tau && nbhs[0] > 0) {
+    while (nmerg_budget > 0 && tmax >= tau && nbhs[0] > 0) {
       
-    //   // Now let's infer the population of BHs in the cluster
-    //   func.evolve_bhs(nbhs, n_bin, gwK, gwK_cdf, vesc, gen2, nmerg_budget, min_hier); // We evolve the BH population up to gen2
+      // Now let's infer the population of BHs in the cluster
+      func.evolve_bhs(nbhs, n_bin, gwK, gwK_cdf, vesc, gen2, nmerg_budget, min_hier); // We evolve the BH population up to gen2
 
       
-    //   //We need to adjust the timescale for the next merger
-    //   //dt = -0.53 * log10(mhalf) + 5.6 + 1.5* func.rndgen(0.0, 1.0); //See notion notes/plot
-    //   dt = base_tau + 1.5 * func.rndgen(0.0, 1.0);
-    //   tau += dt; //See notion notes/plot
-    
-      while (nmerg_budget > 0 && tmax >= t_cum && nbhs[0] > 0) {
-        func.evolve_bhs(nbhs, n_bin, gwK, gwK_cdf, vesc, gen2, nmerg_budget, min_hier);
-
-        dt = base_tau - 1.5 + 3.0 * func.rndgen(0.0, 1.0); // log del prossimo intervallo
-        t_cum += pow(10.0, dt);                            // avanzo l'orologio in LINEARE
+      //We need to adjust the timescale for the next merger
+      //dt = -0.53 * log10(mhalf) + 5.6 + 1.5* func.rndgen(0.0, 1.0); //See notion notes/plot
+      dt = base_tau + 1.5 * func.rndgen(0.0, 1.0);
+      tau += dt; //See notion notes/plot
       
       // if(tau*tcc > time){
       //   cout << "DEBUG_HGEN: "
@@ -267,13 +251,11 @@ void hgen(Functions& func,
 
       // Let's compute the timescales of this particular chain
       // dt = -0.53 * log10(mhalf) + 5.6 + 1.5* func.rndgen(0.0, 1.0); //See notion notes/plot
-      // dt = base_tau + 1.5* func.rndgen(0.0, 1.0);
+      dt = base_tau + 1.5* func.rndgen(0.0, 1.0);
 
-      // // Store the timescale of each hierarchical step in absolute time
-      // // If ejected we set the timescale to -1
-      // tau_hg.push_back(retained ? (dt*tcc) : -1.0);
-      dt = base_tau - 1.5 + 3.0 * func.rndgen(0.0, 1.0);
-      tau_hg.push_back(retained ? (tau_hg.back() + pow(10.0, dt) * tcc) : -1.0);
+      // Store the timescale of each hierarchical step in absolute time
+      // If ejected we set the timescale to -1
+      tau_hg.push_back(retained ? (dt*tcc) : -1.0);
     }
 
     // If the hierarchical is ejected, we stop its growth and the primary BHs take a stellar companion
@@ -1189,9 +1171,9 @@ int main(){
   //     << " at_Zmin=" << cnt_below
   //     << " at_Zmax=" << cnt_above
   //     << " NaN=" << cnt_nan << endl;
-  //   out.open("met_dist.txt");
+  
   // end Debug 
-
+  out.open("met_dist.txt");
   Z1 = log10(1.2*Z1);
   Z0 = log10(0.9*Z0);
   int numbin_Z = numZ;
@@ -2188,7 +2170,13 @@ int main(){
           }while(mpri <= 0.0 || kpri > vthre);
         }
         
-        asec = func.spin(msec, dynaS);
+        if(dynaS != "bavera")
+          apri = func.spin(mpri,dynaS);	
+        else
+          if(mpri < 65.)
+            apri = func.spin(mpri,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+          else
+            apri = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
         
         if(nsafe == 1000)
           cout<<"Wrong BH"<<endl;
@@ -2277,14 +2265,14 @@ int main(){
           /*if(highgen == "yes"){
           //Work by Ugolini et al in prep.
           }*/
-          asec = func.spin(msec, dynaS);
-          // if(dynaS != "bavera")
-          //   asec = func.spin(msec,dynaS);	
-          // else
-          //   if(mpri < 65.)
-          //     asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
-          //   else
-          //     asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+          
+          if(dynaS != "bavera")
+            asec = func.spin(msec,dynaS);	
+          else
+            if(mpri < 65.)
+              asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+            else
+              asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
           
           
           if(msec > mpri){
@@ -2371,14 +2359,14 @@ int main(){
         }
       
         //Also, we should separate between the density stuff and the upper mass-gap stuff, that is more related to the binary fraction indeed
-        asec = func.spin(msec, dynaS);
-        // if(dynaS != "bavera")
-        //   apri = func.spin(mpri,dynaS);	
-        // else
-        //   if(mpri < 65.)
-        //     apri = func.spin(mpri,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
-        //   else
-        //     apri = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+
+        if(dynaS != "bavera")
+          apri = func.spin(mpri,dynaS);	
+        else
+          if(mpri < 65.)
+            apri = func.spin(mpri,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+          else
+            apri = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
 	  
         //FIRST MERGER
         Spinning[0] = 0.0;
@@ -2688,7 +2676,7 @@ int main(){
         if(time < Hubble)
           nH ++;
     
-        clout<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<< vthre_in<<" "<<vthre<<" "<<sig_clu<<" "<<rho_clu<<" "<<pcluster<<" "<<nbhs[0]<<" ";
+        clout<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<vthre<<" "<<sig_clu<<" "<<rho_clu<<" "<<pcluster<<" "<<nbhs[0]<<" ";
         clout<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<kpri<<" "<<ksec<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<time<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<(double) nH / (double) npar_runtime<<" "<<Z[i];
         clout<<endl;	
 
@@ -2837,24 +2825,21 @@ int main(){
           for(int k=1;k<6;k++) sum += nbhs[k];
           nbhs_6plus = nbhs[0] - sum;
 
-          // if(nbhs_6plus >  nbhs[1]){
-          //   cout<<"#################################################"<<endl;
-          //   cout<<"Warning! Number of BHs with generation >= 6 is larger than the number of 1g BHs!"<<endl;
-          //   cout<<"ID: "<<i<<" nbh_6plus: "<<nbhs_6plus<<" nbhs[0]: "<<nbhs[0]<<" nbhs[1]: "<<nbhs[1]<<" nbhs[2]: "<<nbhs[2]<<" nbhs[3]: "<<nbhs[3]<<" nbhs[4]: "<<nbhs[4]<<" nbhs[5]: "<<nbhs[5]<<endl;
-          //   cout<<"nbhs[6]: " << nbhs[6] << " nbhs[7]: " << nbhs[7] << " nbhs[8]: " << nbhs[8] << " nbhs[9]: " << nbhs[9] << endl;
-          //   cout<<"nbhs[0]: " << nbhs[0] << endl;
-          //   cout<<"time: "<<time<<" tfor: "<<tfor[i]<<" tSNe: "<<tSNe<<" tdf: "<<tdf<<" t12: "<<t12<<" tbbhform: "<<tbbhform<<" tmer: "<<tmer<<endl;
-          //   cout<<"#################################################"<<endl;
-          //   //exit(0);
-          // }
+            // if(nbhs_6plus >  nbhs[1]){
+            //   cout<<"#################################################"<<endl;
+            //   cout<<"Warning! Number of BHs with generation >= 6 is larger than the number of 1g BHs!"<<endl;
+            //   cout<<"ID: "<<i<<" nbh_6plus: "<<nbhs_6plus<<" nbhs[0]: "<<nbhs[0]<<" nbhs[1]: "<<nbhs[1]<<" nbhs[2]: "<<nbhs[2]<<" nbhs[3]: "<<nbhs[3]<<" nbhs[4]: "<<nbhs[4]<<" nbhs[5]: "<<nbhs[5]<<endl;
+            //   cout<<"nbhs[6]: " << nbhs[6] << " nbhs[7]: " << nbhs[7] << " nbhs[8]: " << nbhs[8] << " nbhs[9]: " << nbhs[9] << endl;
+            //   cout<<"nbhs[0]: " << nbhs[0] << endl;
+            //   cout<<"time: "<<time<<" tfor: "<<tfor[i]<<" tSNe: "<<tSNe<<" tdf: "<<tdf<<" t12: "<<t12<<" tbbhform: "<<tbbhform<<" tmer: "<<tmer<<endl;
+            //   cout<<"#################################################"<<endl;
+            //   //exit(0);
+            // }
 
-          //if(nhigen>0) cout << "ID: " << i << " nhg: " << nhigen << " nrecy: " << nrecy << " nbhs[0]: " << nbhs[0] << " nbhs_hg: " << nbhs[nhigen+1] << endl;
-          //  m_p m_s spin_p spin_s semi-major semi-major_newton semi-major_gw formation time Stellar_evo_time time_12capture time3b_capture time_dyn_friction time_bbh(?) time_GW_merger time N_gen_primary N_gen_secondary interaction_rate mass cluster(t) radius_cluster(t) M_clu_ini R_clu_ini t_core_collapse id_BH label cluster_type M_rem S_rem X_rem K_rem escape_velocity itot nhigen interaction_rate nbhs_tot                                                                                                                                                                                                                                                                                                                                                                          
-          out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<acrit<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy <<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<" "<<ecc<<" "<<nhigen<<" "<<interaction_rate<<" "<< init_bhs <<" "<<nbhs[0]<<" "<< nbhs[1] << " " << nbhs[2] << " "<< nbhs[3] << " "<< nbhs[4] << " "<< nbhs[5] << " " << nbhs_6plus << " "<<nmerg_budget << " "<< nmerg_tot  <<endl;	
-          if(nhigen >0 && asec > 0.2){
-            cout << "ID: " << i << " nhg: " << nhigen << " nrecy: " << nrecy << " m1: " << mpri << " m2: " << msec << " a1: " << apri << " a2: " << asec << endl;
-          }
-
+            //if(nhigen>0) cout << "ID: " << i << " nhg: " << nhigen << " nrecy: " << nrecy << " nbhs[0]: " << nbhs[0] << " nbhs_hg: " << nbhs[nhigen+1] << endl;
+            //  m_p m_s spin_p spin_s semi-major semi-major_newton semi-major_gw formation time Stellar_evo_time time_12capture time3b_capture time_dyn_friction time_bbh(?) time_GW_merger time N_gen_primary N_gen_secondary interaction_rate mass cluster(t) radius_cluster(t) M_clu_ini R_clu_ini t_core_collapse id_BH label cluster_type M_rem S_rem X_rem K_rem escape_velocity itot nhigen interaction_rate nbhs_tot                                                                                                                                                                                                                                                                                                                                                                          
+            out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<acrit<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy <<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<" "<<ecc<<" "<<nhigen<<" "<<interaction_rate<<" "<< init_bhs <<" "<<nbhs[0]<<" "<< nbhs[1] << " " << nbhs[2] << " "<< nbhs[3] << " "<< nbhs[4] << " "<< nbhs[5] << " " << nbhs_6plus << " "<<nmerg_budget << " "<< nmerg_tot  <<endl;	
+        
           if(mpri > msmbhmax && tsmbh == 0.0){
             tsmbh = time;
             break;
@@ -2929,14 +2914,14 @@ int main(){
                 }
                 
               }while(msec <= 0.0 || ksec > vthre);
-            asec = func.spin(msec, dynaS);
-            // if(dynaS != "bavera")
-            //   asec = func.spin(msec,dynaS);	
-            // else
-            //   if(mpri < 65.)
-            //     asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
-            //   else
-            //     asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+
+            if(dynaS != "bavera")
+              asec = func.spin(msec,dynaS);	
+            else
+              if(mpri < 65.)
+                asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+              else
+                asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
             //cout << "DEBUG - ID: " << i << " mpri: " << mpri << " msec: " << msec << " tsec: " << tsec << " ksec: " << ksec << " asec: " << asec << endl;
 
             // cout << "hgen = " << highgen << endl;
@@ -2962,7 +2947,7 @@ int main(){
               interaction_rate = 0.0;
 
               hgen(func, mpri, apri, msec, asec, ksec, vthre, dynaS, Z[i], zams_sin, remn_sin, tdel_sin, kick_sin, zams_mix, remn_mix, tdel_mix, kick_mix,
-                  Comp, Spinning, nbhs, gen_primary, nmerg_budget, nmerg_tot, itot, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time-tfor[i], t_last_call, tcc, pcluster, mixer, sec_hg, min_hier, hgen_scratch);
+                  Comp, Spinning, nbhs, gen_primary, nmerg_budget, nmerg_tot, itot, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, t_last_call, tcc, pcluster, mixer, sec_hg, min_hier, hgen_scratch);
               
               msec = Comp[0];
               asec = Comp[1];
@@ -2991,15 +2976,15 @@ int main(){
               if(nsafe > 1000)
                 break;
             }while(msec <= 0.0 || ksec > vthre);
-            asec = func.spin(msec, dynaS);
-            // if(dynaS != "bavera")
-            //   asec = func.spin(msec,dynaS);	
-            // else
-            //   if(mpri < 65.)
-            //     asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
-            //   else
-            //     asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
-            //     //cout << "DEBUG - ID: " << i << " mpri: " << mpri << " msec: " << msec << " tsec: " << tsec << " ksec: " << ksec << " asec: " << asec << endl;       
+
+            if(dynaS != "bavera")
+              asec = func.spin(msec,dynaS);	
+            else
+              if(mpri < 65.)
+                asec = func.spin(msec,"fuller"); //we are possibly wrongly assigning small spins to light merger product and second-born BHs
+              else
+                asec = func.rnd(); //we assume that stellar merger remnants in the gap can have any spin
+                //cout << "DEBUG - ID: " << i << " mpri: " << mpri << " msec: " << msec << " tsec: " << tsec << " ksec: " << ksec << " asec: " << asec << endl;       
 
               // cout << "hgen = " << highgen << endl;
             if(highgen == "yes"){
@@ -3025,7 +3010,7 @@ int main(){
               interaction_rate = 0.0;
 
               hgen(func, mpri, apri, msec, asec, ksec, vthre, dynaS, Z[i], zams_sin, remn_sin, tdel_sin, kick_sin, zams_mix, remn_mix, tdel_mix, kick_mix,
-                Comp, Spinning, nbhs, gen_primary, nmerg_budget, nmerg_tot, itot, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time-tfor[i], t_last_call, tcc, pcluster, mixer, sec_hg, min_hier, hgen_scratch);
+                Comp, Spinning, nbhs, gen_primary, nmerg_budget, nmerg_tot, itot, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time, t_last_call, tcc, pcluster, mixer, sec_hg, min_hier, hgen_scratch);
 
               msec = Comp[0];
               asec = Comp[1];
