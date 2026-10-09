@@ -2371,7 +2371,7 @@ int main(){
         }
       
         //Also, we should separate between the density stuff and the upper mass-gap stuff, that is more related to the binary fraction indeed
-        asec = func.spin(msec, dynaS);
+        apri = func.spin(mpri, dynaS);
         // if(dynaS != "bavera")
         //   apri = func.spin(mpri,dynaS);	
         // else
@@ -2851,9 +2851,9 @@ int main(){
           //if(nhigen>0) cout << "ID: " << i << " nhg: " << nhigen << " nrecy: " << nrecy << " nbhs[0]: " << nbhs[0] << " nbhs_hg: " << nbhs[nhigen+1] << endl;
           //  m_p m_s spin_p spin_s semi-major semi-major_newton semi-major_gw formation time Stellar_evo_time time_12capture time3b_capture time_dyn_friction time_bbh(?) time_GW_merger time N_gen_primary N_gen_secondary interaction_rate mass cluster(t) radius_cluster(t) M_clu_ini R_clu_ini t_core_collapse id_BH label cluster_type M_rem S_rem X_rem K_rem escape_velocity itot nhigen interaction_rate nbhs_tot                                                                                                                                                                                                                                                                                                                                                                          
           out3<<mpri<<" "<<msec<<" "<<apri<<" "<<asec<<" "<<semi<<" "<<acrit<<" "<<semi_ej<<" "<<semi_gw<<" "<<tfor[i]<<" "<<tSNe<<" "<<t12capt<<" "<<t3bb<<" "<<tdf<<" "<<t12<<" "<<tbbh<<" "<<tmer<<" "<<time<<" "<<nrecy <<" "<<pow(10., mint)*mclcorr<<" "<<rhalf*rclcorr<<" "<<pow(10.,mint)<<" "<<pow(10.,rint)<<" "<<tcc<<" "<<i<<" "<<label<<" "<<cluster<<" "<<Mrem[i]<<" "<<Srem[i]<<" "<<Xrem[i]<<" "<<Krem[i]<<" "<<vthre<<" "<<itot<<" "<<ecc<<" "<<nhigen<<" "<<interaction_rate<<" "<< init_bhs <<" "<<nbhs[0]<<" "<< nbhs[1] << " " << nbhs[2] << " "<< nbhs[3] << " "<< nbhs[4] << " "<< nbhs[5] << " " << nbhs_6plus << " "<<nmerg_budget << " "<< nmerg_tot  <<endl;	
-          if(nhigen >0 && asec > 0.2){
-            cout << "ID: " << i << " nhg: " << nhigen << " nrecy: " << nrecy << " m1: " << mpri << " m2: " << msec << " a1: " << apri << " a2: " << asec << endl;
-          }
+          // if(nhigen >0 && asec > 0.2){
+          //   cout << "ID: " << i << " nhg: " << nhigen << " nrecy: " << nrecy << " m1: " << mpri << " m2: " << msec << " a1: " << apri << " a2: " << asec << endl;
+          // }
 
           if(mpri > msmbhmax && tsmbh == 0.0){
             tsmbh = time;
