@@ -244,10 +244,12 @@ void hgen(Functions& func,
       // cout << "Nsafe attempts to find a valid secondary BH: " << nsafe << endl;
 
       m2b = single_bh[0];	 
+      a2b = func.spin(m2b, stype);
+
       func.DiCarlo_BHs(&m1, &m2b, &a1, &a2b, Zmet, true, uppergap, fupgp, a_gp, mass_gap, upgtp, stype); // We check if we have to put one of the two BHs in the upper gap
 
       m2b_hg.push_back(m2b); // store the companion of the secondary mass 
-      a2b = func.spin(m2b, stype);
+      // a2b = func.spin(m2b, stype);
 
       //Let's compute the POTENTIAL merger remnant and its natal kick
       func.SREM2(8.0, a_hg[gen2], a2b, m_hg[gen2], m2b, "dynamical", s);
@@ -2188,7 +2190,7 @@ int main(){
           }while(mpri <= 0.0 || kpri > vthre);
         }
         
-        asec = func.spin(msec, dynaS);
+        apri = func.spin(mpri, dynaS);
         
         if(nsafe == 1000)
           cout<<"Wrong BH"<<endl;
@@ -2304,6 +2306,8 @@ int main(){
         }
 
         func.DiCarlo_BHs(&mpri, &msec, &apri, &asec, Z[i], false, uppergap, fupgp, a_gp, mass_gap, upgtp, dynaS);	  
+        apri = func.spin(mpri, dynaS);
+
         nsafe_glob += nsafe;
         double dmy = func.rnd();
         if(bhseed == "bifrost" && dmy < f_seed && mint > log10(5.3E3) && pow(10., mint - 3.*rint) > 1.E5 && Z[i] < bifZ){ //min mass to form a seed of at least 150 Msun
@@ -2371,7 +2375,7 @@ int main(){
         }
       
         //Also, we should separate between the density stuff and the upper mass-gap stuff, that is more related to the binary fraction indeed
-        apri = func.spin(mpri, dynaS);
+        // apri = func.spin(mpri, dynaS);
         // if(dynaS != "bavera")
         //   apri = func.spin(mpri,dynaS);	
         // else
