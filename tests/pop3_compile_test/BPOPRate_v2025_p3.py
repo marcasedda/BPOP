@@ -1,3 +1,58 @@
+"""Experimental Pop III rate workflow; --smoke-test uses explicit trial assumptions."""
+import argparse
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import shutil
+import tempfile
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = SCRIPT_DIR.parents[1]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--catalogue-dir", type=Path, required=True,
+                    help="SIM_* directory from make run")
+parser.add_argument("--smoke-test", action="store_true",
+                    help="generic model a, single metallicity, isolated efficiency zero")
+parser.add_argument("--grid-size", type=int, default=500)
+parser.add_argument("--formation-grid-size", type=int, default=500)
+parser.add_argument("--tobs", type=float, default=10.0, help="observer time in years")
+parser.add_argument("--seed", type=int, default=12345)
+parser.add_argument("--rates-only", action="store_true")
+args = parser.parse_args()
+if not args.smoke_test:
+    parser.error("Pop III SFR and isolated efficiency are unfinished; use --smoke-test "
+                 "for a labelled execution trial")
+if min(args.grid_size, args.formation_grid_size) < 6 or not math.isfinite(args.tobs) or args.tobs <= 0:
+    parser.error("grid sizes must be >= 6 and --tobs must be positive")
+catalogue_dir = args.catalogue_dir.resolve()
+required = ["Catalogue.txt", "Larger_than_tH.txt", "retention_Z1e-11.dat"]
+for filename in required:
+    if not (catalogue_dir / filename).is_file():
+        parser.error(f"missing input: {catalogue_dir / filename}")
+trial_root = PROJECT_DIR / "tmp"
+trial_root.mkdir(exist_ok=True)
+output_dir = Path(tempfile.mkdtemp(prefix="bpoprate-run.", dir=trial_root))
+os.environ.setdefault("MPLCONFIGDIR", str(output_dir / "mplconfig"))
+os.environ["MPLBACKEND"] = "Agg"
+os.chdir(output_dir)
+for filename in ("BPOPRate_v2025_p3.py", "lib_BPOPRate_p3.py"):
+    shutil.copy2(SCRIPT_DIR / filename, output_dir)
+metadata = {
+    "mode": "execution trial, not a calibrated Pop III prediction",
+    "assumptions": ["generic model a SFR", "P(Z=1e-11)=1",
+                    "isolated efficiency=0 (missing Pop III table)",
+                    "existing fbh, stellar mass and binary fractions retained"],
+    "catalogue_dir": str(catalogue_dir),
+    "settings": vars(args) | {"catalogue_dir": str(catalogue_dir)},
+    "input_sha256": {f: hashlib.sha256((catalogue_dir / f).read_bytes()).hexdigest()
+                     for f in required},
+}
+(output_dir / "run_metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+print(f"Rate output directory: {output_dir}", flush=True)
+print("EXECUTION TRIAL: generic SFR, fixed metallicity, isolated channel disabled.", flush=True)
+
 from astropy.cosmology import Planck18 as Planck
 import astropy.units as u
 from astropy.cosmology import z_at_value
@@ -19,9 +74,13 @@ from os import path
 import time
 from math import erf
 import sys
-sys.path.insert(0, '/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/utils/BPOP_LIBPY/')
-from lib_BPOPRate import *
+from lib_BPOPRate_p3 import DtDz, GlobRate, bsmplr, create_dir, interp, models, msca, psi, test
 
+np.random.seed(args.seed)
+random.seed(args.seed)
+metadata["versions"] = {"numpy": np.__version__, "scipy": scipy.__version__,
+                        "pandas": pd.__version__, "matplotlib": matplotlib.__version__}
+(output_dir / "run_metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
 start = time.time()
 Zsun = 0.019 #0.017
 
@@ -50,13 +109,13 @@ print("\n===================  BPOPRate package  =====================")
 
 IDmod = 2
 a = "a"
-name_file = "../"
-IBfrac   = 0.4
+name_file = str(catalogue_dir) + os.sep
+IBfrac   = 0.0 # No Pop III isolated efficiency table is available.
 fysc_mw = 0.01
 # For Pop III: Probably put f_NCoc = f_GCsc = 0 and use the two above to set isolated binary fraction and fraction of clustered stars
 f_NCoc = 1.0
 f_GCsc = 1.0
-Tobs = 10.0
+Tobs = args.tobs
 
 clt  = ["nuclear", "globular", "young", "none"]
 sigma_Z = 0.2
@@ -70,7 +129,7 @@ adjust_red = "no"
 adjust_typ = "tmed" #tmed, zmed, rnd, lst, tave, zave, rate
 
 # For Pop III: -- "pop3" flag
-pre = "SEVN"
+pre = "pop3"
 aCE = ""
 IBonly=False
 
@@ -85,7 +144,7 @@ elif(pre=="SEVN" or pre=="SEVN_all"):
     IBcorr = 0.185
 elif(pre=="IORIO"):
     IBcorr = 0.255
-elif(pre=="pop3":
+elif(pre=="pop3"):
      IBcorr = 0.185
 else:
      print("please select SEVN or MOBSE and retry")
@@ -116,13 +175,13 @@ else:
 #-------------------------------------------------------------
 
 mstar   = 1.0
-     fbh     = 0.0026
+fbh     = 0.0026
 
 # For pop III: change f_bin to the desired value for the cluster type (either YCs or GCs)
 fbin_is = 1.0
-     fbin_yc = 0.6
-     fbin_gc = 0.2
-     fbin_nc = 0.2
+fbin_yc = 0.6
+fbin_gc = 0.2
+fbin_nc = 0.2
 
 
 
@@ -135,29 +194,29 @@ else:
 '''
 
 mtyp = [pow(10.,6.36), pow(10.,5.01), pow(10., 3.53), 1.0]
-     fbin = [fbin_nc, fbin_gc, fbin_yc, fbin_is]
+fbin = [fbin_nc, fbin_gc, fbin_yc, fbin_is]
 
 #-------------------------------------------------------------
 
 home=""
-     codename=[""]
-     simname=""
-     fl = name_file
+codename=[""]
+simname=""
+fl = name_file
 
 
 print("\n File analysed: ",codename[0], fl)
-     print(simname+a, "\n")
-     print("Model ID", IDmod)
-     print("CLType: ", clt)
-     print("CSFH:   ", sfrt)
-     print("fbin:   ", fbin)
-     print("m_typ:  ", np.log10(mtyp))
-     print("z_max:  ", maxz)
-     print("f_ysc:  ", fysc_mw)
-     print("f_ib :  ", IBfrac)
-     print("f_mix:  ", fmix)
-     print("massive: ", massive, " - mmax = ", max_mas)
-     print("------------------------------------------------------------\n")
+print(simname+a, "\n")
+print("Model ID", IDmod)
+print("CLType: ", clt)
+print("CSFH:   ", sfrt)
+print("fbin:   ", fbin)
+print("m_typ:  ", np.log10(mtyp))
+print("z_max:  ", maxz)
+print("f_ysc:  ", fysc_mw)
+print("f_ib :  ", IBfrac)
+print("f_mix:  ", fmix)
+print("massive: ", massive, " - mmax = ", max_mas)
+print("------------------------------------------------------------\n")
 
 #### Calculations start here ####
 if(pre=="SEVN"):
@@ -236,14 +295,9 @@ elif(pre=="IORIO"):
 elif(pre=="pop3"):
      app="_pre"
 
-#For pop III: File will be provided by Cristiano
-X = np.loadtxt("./eta_isolated_binaries"+app+aCE,usecols=[3,2],unpack=True)
-zmer_mobse = X[0]
-pmer_mobse = X[1]
-
-if(zmer_mobse[0] != Z[0]):
-    print("Error eta_isolated_binaries")
-    exit()
+# The trial disables isolated mergers rather than inventing their efficiency.
+zmer_mobse = np.array(Z)
+pmer_mobse = np.zeros(len(Z))
 
 # Directory and files to be analysed #
 
@@ -258,7 +312,7 @@ file_hie = "Catalogue_multiple_dyn.txt"
 
 lab  = ["nuc", "glo", "you", "iso"]
 
-z = np.linspace(0,maxz,500) #ogspace(-2, np.log10(maxz), 100) #0.01,maxz,100)
+z = np.linspace(0,maxz,args.grid_size) #ogspace(-2, np.log10(maxz), 100) #0.01,maxz,100)
 z = np.array(z)
 
 # The following vector contains scaling for NC, GC, YC, IB, respectively
@@ -310,20 +364,7 @@ for i in range(len(z)):
 #    print("star formation rate = ",sfr[i], sfr_I[i]+sfr_Y[i]+sfr_G[i]+sfr_N[i])
 
 
-ax, fig = initplot()
-ax.plot(z, sfr, lw = 5, label="tot")
-ax.plot(z, sfr_I, lw = 5,label="IS")
-ax.plot(z, sfr_Y, lw = 5,label="YC")
-ax.plot(z, sfr_G, lw = 5,label="GC")
-ax.plot(z, sfr_N, lw = 5,label="NC")
-ax.set_xlabel("$z$")
-ax.set_ylabel("CSFR")
-ax.set_yscale("log")
-ax.set_ylim(1.E-7,0.5)
-ax.set_xlim(0.0,15.0)
-plt.legend(loc="upper right")
-plt.savefig("SFR_uni.jpeg")
-plt.close()
+# No figures are generated by this command.
 
 print("--------------- Local denstity in Mpc^{-3} -----------------")
 
@@ -340,7 +381,7 @@ for kt in range(len(clt)):
         sfr = Bf[kt][j] * psi(typ, z[j], fsca[0], fsca[1], fsca[2], fsca[3])
         I[j] = sfr * dtdz[j]
         
-    Cv = scipy.integrate.simpson(I,z)
+    Cv = scipy.integrate.simpson(I, x=z)
 
     prtstr = "rho_"+lab[kt] + " (SFR " + sfrt[kt] + ") = "
     prtstr += "{0:1.5f}".format(Cv / mtyp[kt])
@@ -352,16 +393,13 @@ print("------------------------------------------------------------")
 
 
 ## Now we are ready to calculate the merger rate, taking into account that the above loop calculate the star formation rate of different environments ##
-rt = np.loadtxt("/home/manuel/Scrivania/ACTIVE_PROJECTS/BPOP/utils/BPOP_MERGER_RATE/redshift_time.txt", usecols=[0,1,2], unpack=True)
+rt = np.loadtxt(PROJECT_DIR / "utils/BPOP_MERGER_RATE/redshift_time.txt", usecols=[0,1,2], unpack=True)
 redshift = rt[0]
 tage     = rt[1]
 lookback = rt[2]
 
-for i in range(len(redshift)):
-    tage[i] = Planck.age(redshift[i])/u.Gyr
-    lookback[i]=Planck.lookback_time(redshift[i])/u.Gyr
-
-
+tage = Planck.age(redshift).to_value(u.Gyr)
+lookback = Planck.lookback_time(redshift).to_value(u.Gyr)
 
 ## Reading the file ## 
 
@@ -497,7 +535,7 @@ Closs= Y[1]
 nloss= Y[2]
 tloss= Y[3]
 tgwloss= Y[4]
-zloss= [interp(tloss[i]/1.E9, tage, redshift) for i in range(len(tloss))]
+zloss= [interp(tgwloss[i]/1.E9, tage, redshift) for i in range(len(tloss))]
 zloss= np.array(zloss)
 
 
@@ -547,7 +585,7 @@ for kt in range(len(clt)):
 
             idx_Z = np.where((Zmet >= dcen - dZsx) & (Zmet < dcen + dZdx) & (ctype == cluster))
             idx_N = np.where((Zloss >= dcen - dZsx) & (Zloss < dcen + dZdx) & (Closs == cluster) & (nloss==0))
-            Zmet_Z = Zmet_a[idx_Z]
+            Zmet_Z = Zmet[idx_Z]
             Zmet_no= Zloss[idx_N]
             
             ## Multiple mergers should also be counted here? ##
@@ -675,12 +713,6 @@ for kt in range(len(clt)):
     zcen = [None] * (len(z)-1)
     tcen = [interp(z[i], redshift, tage)*1.E9 for i in range(len(z))]       
 
-    if(len(zmer_all) == 0):
-        for i in range(len(z)-1):
-            zfin_f[kt][i] = 0.0
-            Rate_f[kt][i] = 0.0
-        continue
-
     fout = open("Merger_rates_"+simname+a+"_"+clt[kt]+"_massive_"+massive+".txt", "w")
 
     stri="#redshift Rate "
@@ -698,7 +730,7 @@ for kt in range(len(clt)):
         fsum = [0.0]*len(Z)
         Iz = [0.0]*len(Z)        
         
-        zp = np.linspace(zcen[i], maxz, 500)
+        zp = np.linspace(zcen[i], maxz, args.formation_grid_size)
         
         
         zp_cen = [0.5*(zp[j]+zp[j+1]) for j in range(len(zp)-1)]
@@ -769,15 +801,9 @@ for kt in range(len(clt)):
                 ### if(clt[k] == "globular" and string == "EB19"): ### Mstar_mass = 1.E10
                 ### lZ =  0.40 * (np.log10(Mstar_mass) - 10) + 0.67 * np.exp(-0.50*zp_cen[j]) - 1.04 *(1. + pow(zp_cen[j]/15,3)) [ElBadry+19, star phase]
 
-                sZ = sigma_Z
-                lZ = metcor(metdis[kt], zp_cen[j], sZ)
-                        
-                pzZsx = 0.5 * (1. + erf((np.log10((Z[k]-dZsx)/Zsun)-lZ)/(sZ*np.sqrt(2.)))) 
-                pzZdx = 0.5 * (1. + erf((np.log10((Z[k]+dZdx)/Zsun)-lZ)/(sZ*np.sqrt(2.)))) 
-
-                pdf = 1./(np.sqrt(2.*np.pi)*sZ) * np.exp(-pow(np.log10(Z[k]/Zsun)-lZ,2.)/(2.*sZ*sZ))
-
-                pzZ = pzZdx - pzZsx
+                # The trial conditions on the supplied mono-metallicity population.
+                # Generic enrichment distributions would assign it effectively zero weight.
+                pzZ = 1.0
 
                 frac = 0.0
                 
@@ -804,7 +830,7 @@ for kt in range(len(clt)):
                             
                 I[j] = sfr * eta_eff[kt][k] * fsum[k] * gpc_to_mpc3 / tlook  * dtdz[j]               
                 
-            Iz[k] = scipy.integrate.simpson(I, zp_cen) 
+            Iz[k] = scipy.integrate.simpson(I, x=zp_cen)
             
 
             
@@ -832,10 +858,11 @@ print("\ntotal number of sources = ",totN)
 
 
 print("\n-------  Merger rate at z = 0.2 in yr^{-1} Gpc^{-3} --------\n")
-print("LIGO estimate: (17.9 - 44.0)\n")
+print("Execution trial only; rates are not a calibrated Pop III estimate.\n")
 LocRate = 0.0
 LocR = 0.0
 for kt in range(len(clt)):
+    LocR = 0.0
     if(np.count_nonzero(Rate_f[kt]) > 0):
         LocR = interp(0.2, zfin_f[kt], Rate_f[kt])
         
@@ -864,11 +891,15 @@ print("MRD calculation - Elapsed time [s] = ", "{0:1.6f}".format(end-start))
 
 start = time.time()
 
+if args.rates_only:
+    print("Rate calculation DONE", flush=True)
+    raise SystemExit(0)
+
 cat    = Fn
 MRDfile= fname
 bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clt, Z, massive, Tobs, max_mas)
 
-strig = "SET{0:1.0f}{1:s}_IB{2:1.2f}_YC{3:1.0e}_GC{4:1.1f}_NC{5:1.1f}_stev{6:s}_Tobs{7:1.1f}".format(IDmod, a, IBfrac, fysc_mw, f_GCsc, f_NCoc, pre+aCE, Tobs)
+strig = "SET{0:1.0f}{1:s}_IB{2:1.2f}_YC{3:1.0e}_GC{4:1.1f}_NC{5:1.1f}_stev{6:s}_Tobs{7:g}".format(IDmod, a, IBfrac, fysc_mw, f_GCsc, f_NCoc, pre+aCE, Tobs)
 if not(os.path.isdir(strig)):
         create_dir(strig)
 

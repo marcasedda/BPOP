@@ -1,3 +1,6 @@
+.codex/
+graphify-out/
+
 # local stages
 .vscode/
 .ipynb_checkpoints/
@@ -19,5 +22,31 @@ spectrum0003.txt
 *.bin
 *.dll
 *.obj
+
+# Local environments, compiler products, and generated paths
+/tmp/
+__pycache__/
+.build/
+*.x
+*.d
+build_paths.h
+
+# Simulation catalogues and downloaded stellar inputs stay local.
+SIM_*/
+data_1e-11.dat
+spectrum1e-11.txt
+spectrum_cleaned00000000001.txt
+
+# Keep diagnostic scripts/docs in Git; retain generated results on disk.
+/tests/**/*.pdf
+/tests/pop3_compile_test/bpoprate_diagnostics/*
+!/tests/pop3_compile_test/bpoprate_diagnostics/*.py
+!/tests/pop3_compile_test/bpoprate_diagnostics/*.md
+/tests/pop3_mixing_diagnostics/*
+!/tests/pop3_mixing_diagnostics/*.py
+!/tests/pop3_mixing_diagnostics/*.md
+!/tests/pop3_mixing_diagnostics/panels/
+/tests/pop3_mixing_diagnostics/panels/*
+!/tests/pop3_mixing_diagnostics/panels/README.md
 
 

@@ -67,9 +67,7 @@ def models(a):
         gc_bz = 3.2
         gc_bs = 1.5
     elif (a == "pop3"):
-        sfrt = ["pop3", "pop3", "pop3",  "pop3"]
-        metdis=["pop3", "pop3", "pop3", "pop3"]
-        #We should discuss normalisation of dynamical environment SFR
+        raise NotImplementedError("Pop III SFR and channel normalisation are not supplied")
         
     else:
         print("Picked wrong letter, retry")
@@ -102,6 +100,9 @@ def initplot():
     return ax,fig
 
 def interp(x,Nx,Ny):
+    if len(Nx) == 1:
+        return Ny[0]
+
 
     id1 = 0
     id2 = len(Nx)-1
@@ -234,7 +235,7 @@ def test(gpc_to_mpc3, H0, Om, Ol):
     I = [None] * len(z)
     dtdz = DtDz(z, H0, Om, Ol)
     I = dtdz
-    Thubb = scipy.integrate.simpson(I, z)
+    Thubb = scipy.integrate.simpson(I, x=z)
     print("Age of the Universe=",Thubb*1.E-9," Gyr")
     
     I = [None] * len(z)
@@ -247,7 +248,7 @@ def test(gpc_to_mpc3, H0, Om, Ol):
         dtdz = DtDz(z, H0, Om, Ol)
         I = [psi(typ[i], z[j], cty[i], 2.E-4, 3.2, 1.5)*dtdz[j] for j in range(len(z))]
         
-        R = scipy.integrate.simpson(I, z)
+        R = scipy.integrate.simpson(I, x=z)
 
     print("GCSF-{0:s}".format(typ[i]), "Number density :", "{0:1.2f}".format(R/mty[i]), " Mpc^{-3}")
 
@@ -308,7 +309,7 @@ def GlobRate(simname, maxZ, clt, lab, Hub0, OmegaM, OmegaL, massive):
                 z_int[ii] = z*ii*1./nbin
                 Ivol[ii] = comdis(z_int[ii], H0, OmegaM, OmegaL, c)
             
-            IV = scipy.integrate.simpson(Ivol, z_int)
+            IV = scipy.integrate.simpson(Ivol, x=z_int)
             DL = (1.+z)*IV*1.E6;
 
             #//Cosmological volume//
@@ -319,7 +320,7 @@ def GlobRate(simname, maxZ, clt, lab, Hub0, OmegaM, OmegaL, massive):
             rex[i] = z
             
     
-        Vol = scipy.integrate.simpson(Ivo, rex)
+        Vol = scipy.integrate.simpson(Ivo, x=rex)
         Rat[kt] = Vol
         #print(clt[kt], Rat[kt])
 
@@ -386,7 +387,7 @@ def IMBHdetrate(red, Ratex, Hub0, OmegaM, OmegaL):
             z_int[ii] = z*ii*1./nbin
             Ivol[ii] = comdis(z_int[ii], H0, OmegaM, OmegaL, c)
             
-        IV = scipy.integrate.simpson(Ivol, z_int)
+        IV = scipy.integrate.simpson(Ivol, x=z_int)
         DL = (1.+z)*IV*1.E6;
 
         #//Cosmological volume//
@@ -397,7 +398,7 @@ def IMBHdetrate(red, Ratex, Hub0, OmegaM, OmegaL):
         rex[i] = z
             
     
-    Vol = scipy.integrate.simpson(Ivo, rex)
+    Vol = scipy.integrate.simpson(Ivo, x=rex)
 
     print("Total rate [1/yr] = ", "{0:1.4e}".format(Vol))
     
@@ -425,7 +426,7 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, ma
                                           float,float,float,float,float,float,float,float,
                                           float,float,
                                           float,float,
-                                          float,float,'U8',int,
+                                          float,float,'U16',int,
                                           float,float,float)
                                }, usecols=[1,2,3,
                                            5,6,7,8,9,10,11,12,
@@ -443,7 +444,7 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, ma
     
     dZsx, dZdx = Zedge(Zstev)
     test = False
-    correction = True
+    correction = len(Zstev) > 1 # Preserve a fixed Pop III metallicity.
     
     if(correction):
         
@@ -496,7 +497,7 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, ma
         spl = make_smoothing_spline(red, rate)
         red_interp = red  #Bugfix Nov. 9 2025, before it was np.linspace(0,20,len(red)), but in the next loop mismatch between red_interp and rate_Z[k] ...
         
-        rate_interp= spl(red_interp)
+        rate_interp= np.maximum(spl(red_interp), 0.0)
         if(test):
             tplot(red, rate,red_interp, rate_interp,clty[i])
     
@@ -526,7 +527,7 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, ma
     
         
         #The following loop create the catalogue for each value of metallicity and each type of cluster#
-        idx_cat = []
+        idx_cat = np.array([], dtype=int)
 
         if(massive == "no"):
             idx_I = np.where((Ypd.ctype == clty[i]) & (Ypd.m1 <= max_mas))
@@ -577,7 +578,7 @@ def bsmplr(cat, MRDfile, gpc_to_mpc3, H0, Om, Ol, clty, Zstev, massive, Tobs, ma
             if(tot_sourc == 0):
                 continue
         
-            idx_final = np.array([])
+            idx_final = np.array([], dtype=int)
         
             start_j = time.time()        
             for j in range(len(z)-1):
@@ -731,6 +732,7 @@ def file_merger(IBonly, pre, cl, maxiv):
     return f
     
 def print_cat(Ypd, idx_cat, clstr):
+    idx_cat = np.asarray(idx_cat, dtype=int)
     
     Z_cat = np.array(Ypd.Z[idx_cat])
     zgw_cat=np.array(Ypd.zgw[idx_cat])

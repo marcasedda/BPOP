@@ -5,21 +5,23 @@
 
 
 RESULT = BPOP.x
-INSTALDIR = /usr/local
+# Use the active conda environment unless an explicit PREFIX is supplied.
+PREFIX ?= $(CONDA_PREFIX)
+DESTDIR ?=
 
-VPATH=./build
+.PHONY: all $(RESULT) clean install uninstall
 
-$(RESULT) : 
-	$(MAKE) -C ./build
+all: $(RESULT)
+
+# Always consult the build Makefile so header changes are detected there.
+$(RESULT):
+	$(MAKE) -C build
 
 clean:
-	rm -f ./build/*.o ./build/*.so ./build/$(RESULT) 
+	$(MAKE) -C build clean
 
-install: $(RESULT) $(EXTRAOBJS)
-	@[ -d $(INSTALLDIR)/bin ] || mkdir $(INSTALLDIR)/bin
-	@[ -d $(INSTALLDIR)/share ] || mkdir $(INSTALLDIR)/share
-	@[ -d $(INSTALLDIR)/share/doc ] || mkdir $(INSTALLDIR)/share/doc
-	cp ./build/$(RESULT)  $(INSTALLDIR)/bin
+install:
+	$(MAKE) -C build install PREFIX="$(PREFIX)" DESTDIR="$(DESTDIR)"
 
 uninstall:
-	rm -f $(INSTALLDIR)/bin/$(RESULT)
+	$(MAKE) -C build uninstall PREFIX="$(PREFIX)" DESTDIR="$(DESTDIR)"

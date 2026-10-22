@@ -1,5 +1,6 @@
 .build/
 BPOP.x
+__pycache__/
 
 # Download these simulation inputs separately; keep them out of Git.
 /data_1e-11.dat
