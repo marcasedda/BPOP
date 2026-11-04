@@ -98,7 +98,9 @@ class Functions
 
   double kicks(double m1, double m2, double a1, double a2, double q, double cosa, double cosb, double cosg);
 
-  double spin(double mass, string spinning);
+  double spin(double mass, string spinning, double mass_gap = -1.);
+  
+  double spin_bavera21(double p_day, double m_wr);
 
   string print(double mass, double mmax, double mmin,double wgh);
 
@@ -109,7 +111,7 @@ class Functions
     
 
   void evolve_bhs(vector<double>& nbhs, double n_bin, const vector<double>& gwK, const vector<double>& gwK_cdf, double vesc, int gen2, double& nmerg_budget, double min_bhs);  
-  void DiCarlo_BHs(double* mpri, double* msec, double* apri, double* asec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp, string dynaS);
+  void   DiCarlo_BHs(double* mpri, double* msec, double* apri, double* asec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp, string dynaS, double mgap_Z = -1.);
 
   Functions();
 

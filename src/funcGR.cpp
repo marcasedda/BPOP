@@ -1914,7 +1914,7 @@ double Functions::kicks(double m1, double m2, double a1, double a2, double q, do
     
 				      
 				      
-double Functions::spin(double mass, string spinning){  
+double Functions::spin(double mass, string spinning, double mass_gap){  
   double A = 0.893;double B=8.0;double Mo=60.0;double C = 0.21;
   double spi;
   if(spinning=="chris")
@@ -1940,7 +1940,13 @@ double Functions::spin(double mass, string spinning){
   else if(spinning=="fuller")
     spi = 0.001;
   else if(spinning=="bavera")              
-    spi = (mass < 65.) ? 0.001 : rnd();    // Fuller sotto 65 Msun, U(0,1) sopra
+    spi = (mass < 65.) ? 0.001 : rnd();    // Fuller below 65 Msun, U(0,1) above
+  else if(spinning=="bavera_sse"){
+    // if mass in the upper mass gap-> merger, otherwise first not spun up (oversimplification;
+    // to solve in future with flag about formation history of BHs in spectrum)
+    if(mass_gap <= 0.){ cerr<<"bavera_sse: mgap(Z) mancante"<<endl; exit(1); }
+    spi = (mass > mass_gap) ? rnd() : 0.001;   
+  }
   else if(spinning=="no")
     spi = 1.E-6;
   else if(spinning=="zero")//Amaro-Seoane & Chen 2016
@@ -1955,6 +1961,20 @@ double Functions::spin(double mass, string spinning){
   return spi;
 
 
+}
+
+// Bavera, Zevin & Fragos 2021 (arXiv:2105.09077), coefficients at C depletion:
+// closer moment to BH formation
+double Functions::spin_bavera21(double p_day, double m_wr){
+  const double a_floor = 0.001;                          // as in Bavera et al. 2021, we set a minimum spin of 0.001 to avoid numerical issues
+  if(p_day <= 0.0 || p_day > 1.0 || m_wr <= 0.0) return a_floor;
+  static const double c[2][3] = {{0.051237, 0.029928, 0.282998},     // alpha
+                                 {0.027090, 0.010905, 0.422213}};    // beta
+  auto f = [m_wr](const double* k){ return -k[0] / (k[1] + exp(-k[2] * m_wr)); };
+  const double alpha = f(c[0]), beta = f(c[1]);
+  const double x = std::max(log10(p_day), log10(0.09));  // frozen on MESA grid's lower limit
+  const double a = alpha * x * x + beta * x;
+  return std::min(std::max(a, a_floor), 1.0);            // min(a,1)
 }
 
 
@@ -2264,100 +2284,103 @@ void Functions::singBHt_mix(vector<double>& zams_mix,
 
 
 
-  void Functions::DiCarlo_BHs(double* mpri, double* msec, double* apri, double* asec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp, string dynaS){
-    //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
-    //We follow Di Carlo+2020 for the upper mass gap treatment
-    // The function modifies the masses of the binary components considering:
-    // - the metallicity of the cluster (Z)
-    // - if the BHs are processed or not (processed), i.e. if they have been already modified in the hierarchical merger chain
-    // - the user choice for the upper mass gap treatment (uppergap)
-    // - the fraction of mergers in the upper mass gap (fupgp)
-    // - the slope of the power-law distribution for the masses in the gap (a_gp)
-    // - the mass of the upper mass gap (mass_gap)
 
-    //We assume a power-law distribution for the masses in the gap, with slope a_gp
-    Functions func;
-
-    //From DRAGON: distribution of mergers with no compo. in the gap, both compo. in the gap, one compo. in the gap
-    double pbelow = 45./78. ;
-    double pupper = 12./78. ;
-    double pbelup = 21./78. ;
-
-    double prob_ugp = func.rnd();
-    double prob_fgp = func.rnd();
-
-    double a1_gp, a2_gp;
-    
-    string UP = upgtp;
-    double fUP= fupgp;
-          
-    if(UP == "dicarlo")
-      fUP = 0.01 * (1. + 5.797 * exp(Z / 0.0002 * log(5./5.797)));
-    
-    if(uppergap == "yes" && prob_ugp >= pbelow && prob_fgp < fUP){
-        
-      double p_gp;
-      p_gp = func.rnd();
-      double m1_gp = pow(p_gp * pow(100.,1.-a_gp) + (1.-p_gp)*pow(50., 1.-a_gp), 1./(1.-a_gp));
-      p_gp = func.rnd();
-      double m2_gp;
-
-      //The following make results DRAGON-II like!
-      if(m1_gp < 100.)
-        m2_gp = m1_gp * (0.4 + 0.6*func.rnd()); 
-      else
-        m2_gp = m1_gp * pow(m1_gp / 65., -1.78) * (1. + 0.2*(-1. + 2.*func.rnd()));
-
-      //Bavera Spins
-
-      if(dynaS != "bavera"){
-	      a1_gp = func.spin(m1_gp, dynaS);
-	      a2_gp = func.spin(m2_gp, dynaS);
-	    }
-	    else{
-	      a1_gp = func.rnd();
-	      if(m2_gp < 65)
-		      a2_gp = func.spin(m2_gp, "fuller");
-	      else
-		      a2_gp = func.rnd();
-	    }
-
-      if(m2_gp > m1_gp){
-        double temp_gp = m1_gp;
-        m1_gp = m2_gp;
-        m2_gp = temp_gp;
-      }
-        
-      if(prob_ugp >= pbelow && prob_ugp < pbelow + pbelup){
-
-        if(*mpri < mass_gap && !processed){
-          *mpri = m1_gp;
-          *apri = a1_gp;
-        }
-        else if (*msec < mass_gap){
-          *msec = m2_gp;
-          *asec = a2_gp;
-        }
-        else if (!processed){
-          //cout<<"Both objects above the gap!"<<endl; //This may happen in multiple mergers?
-        }
-      }	      
-      
-      else if(prob_ugp > pbelow + pbelup){
-
-        if(*mpri < mass_gap && !processed){
-          *mpri = m1_gp;
-          *apri = a1_gp;
-        }
-
-        if(*msec < mass_gap){
-          *msec = m2_gp;
-          *asec = a2_gp;
-        }
-
-      }
-    }
-    return;
-  }
-
+  void Functions::DiCarlo_BHs(double* mpri, double* msec, double* apri, double* asec, double Z, bool processed, string uppergap, double fupgp, double a_gp, double mass_gap, string upgtp, string dynaS, double mgap_Z){
+     //This section serves for the binary component masses --- need to be added also in the hierarchical merger chain
+     //We follow Di Carlo+2020 for the upper mass gap treatment
+     // The function modifies the masses of the binary components considering:
+     // - the metallicity of the cluster (Z)
+     // - if the BHs are processed or not (processed), i.e. if they have been already modified in the hierarchical merger chain
+     // - the user choice for the upper mass gap treatment (uppergap)
+     // - the fraction of mergers in the upper mass gap (fupgp)
+     // - the slope of the power-law distribution for the masses in the gap (a_gp)
+     // - the mass of the upper mass gap (mass_gap)
+     // - the max BH mass from SSE at this Z (mgap_Z): spin threshold for dynaS == "bavera_sse" only
+ 
+     //We assume a power-law distribution for the masses in the gap, with slope a_gp
+     Functions func;
+ 
+     //From DRAGON: distribution of mergers with no compo. in the gap, both compo. in the gap, one compo. in the gap
+     double pbelow = 45./78. ;
+     double pupper = 12./78. ;
+     double pbelup = 21./78. ;
+ 
+     double prob_ugp = func.rnd();
+     double prob_fgp = func.rnd();
+ 
+     double a1_gp, a2_gp;
+     
+     string UP = upgtp;
+     double fUP= fupgp;
+           
+     if(UP == "dicarlo")
+       fUP = 0.01 * (1. + 5.797 * exp(Z / 0.0002 * log(5./5.797)));
+     
+     if(uppergap == "yes" && prob_ugp >= pbelow && prob_fgp < fUP){
+         
+       double p_gp;
+       p_gp = func.rnd();
+       double m1_gp = pow(p_gp * pow(100.,1.-a_gp) + (1.-p_gp)*pow(50., 1.-a_gp), 1./(1.-a_gp));
+       p_gp = func.rnd();
+       double m2_gp;
+ 
+       //The following make results DRAGON-II like!
+       if(m1_gp < 100.)
+         m2_gp = m1_gp * (0.4 + 0.6*func.rnd()); 
+       else
+         m2_gp = m1_gp * pow(m1_gp / 65., -1.78) * (1. + 0.2*(-1. + 2.*func.rnd()));
+ 
+       //Bavera Spins
+       if(dynaS == "bavera_sse"){                  // NEW: 0.001 if m <= max SSE, U(0,1) sopra
+         a1_gp = func.spin(m1_gp, dynaS, mgap_Z);
+         a2_gp = func.spin(m2_gp, dynaS, mgap_Z);
+       }
+       else if(dynaS == "bavera"){                 // old recipe: 65 msun for gap hard-coded
+         a1_gp = func.rnd();
+         if(m2_gp < 65)
+           a2_gp = func.spin(m2_gp, "fuller");
+         else
+           a2_gp = func.rnd();
+       }
+       else{                                       // old other recipies
+         a1_gp = func.spin(m1_gp, dynaS);
+         a2_gp = func.spin(m2_gp, dynaS);
+       }
+ 
+       if(m2_gp > m1_gp){
+         std::swap(m1_gp, m2_gp);
+         std::swap(a1_gp, a2_gp);                  // NEW: spins are shifted along their BH masses
+       }
+         
+       if(prob_ugp >= pbelow && prob_ugp < pbelow + pbelup){
+ 
+         if(*mpri < mass_gap && !processed){
+           *mpri = m1_gp;
+           *apri = a1_gp;
+         }
+         else if (*msec < mass_gap){
+           *msec = m2_gp;
+           *asec = a2_gp;
+         }
+         else if (!processed){
+           //cout<<"Both objects above the gap!"<<endl; //This may happen in multiple mergers?
+         }
+       }	      
+       
+       else if(prob_ugp > pbelow + pbelup){
+ 
+         if(*mpri < mass_gap && !processed){
+           *mpri = m1_gp;
+           *apri = a1_gp;
+         }
+ 
+         if(*msec < mass_gap){
+           *msec = m2_gp;
+           *asec = a2_gp;
+         }
+ 
+       }
+     }
+     return;
+   }
   

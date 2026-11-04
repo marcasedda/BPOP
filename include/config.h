@@ -48,6 +48,7 @@ extern string sigma_distri_iso, sigma_distri_clu;
 // SPINS
 extern string spinlb;
 extern double obslope;
+extern double fwr;
 
 // STAR FORMATION
 extern string sfr_only;

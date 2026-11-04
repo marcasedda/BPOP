@@ -65,6 +65,7 @@ double sigma_metal_clu = 0.2;
 string sigma_distri_clu = "Elbadry19";
 
 string spinlb = "maxwellian02";
+double fwr = 1.1;          // m_WR = fwr * m_BH2 (perdita in neutrini al collasso)
 double obslope = 0.0;
 
 string sfr_only = "no";
@@ -178,8 +179,8 @@ void load_config(const string& filename){
     D("sigma_metal_clu", sigma_metal_clu); S("sigma_distri_clu", sigma_distri_clu);
 
     // SPINS
-    S("spinlb", spinlb); D("obslope", obslope);
-
+    S("spinlb", spinlb); D("obslope", obslope); D("fwr", fwr);
+    
     // STAR FORMATION
     S("sfr_only", sfr_only);
 

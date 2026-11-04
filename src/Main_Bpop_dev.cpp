@@ -47,7 +47,7 @@ struct HgenScratch {
 
 
 void hgen(Functions& func,
-          double m1, double a1, double m2, double a2, double k2, double vesc, string stype, double Zmet,// star variables
+          double m1, double a1, double m2, double a2, double k2, double vesc, string stype, double Zmet, double mgap_Z,// star variables
           vector<double>& zams_cat, vector<double>& remn_cat, vector<double>& tdel_cat, vector<double>& kick_cat,// catalog variables
           vector<double>& zams_cat_mix, vector<double>& remn_cat_mix, vector<double>& tdel_cat_mix, vector<double>& kick_cat_mix,// catalog variables
           double *c, double *s, vector<double>& nbhs, int nrecy, double& nmerg_budget, double nmerg_tot, int id, // storage vectors
@@ -144,7 +144,7 @@ void hgen(Functions& func,
 
 
   //Let's check if the BHs can be produced in the PI-gap
-  func.DiCarlo_BHs(&m1, &m2, &a1, &a2, Zmet, false, uppergap, fupgp, a_gp, mass_gap, upgtp, stype); // We check if we have to put one of the two BHs in the upper gap
+  func.DiCarlo_BHs(&m1, &m2, &a1, &a2, Zmet, false, uppergap, fupgp, a_gp, mass_gap, upgtp, stype, mgap_Z); // We check if we have to put one of the two BHs in the upper gap
 
   //I have to use a support variable, so that the chain in the while loop increases the mass of the hierarchical BH
   m_hg.push_back(m2);
@@ -244,9 +244,9 @@ void hgen(Functions& func,
       // cout << "Nsafe attempts to find a valid secondary BH: " << nsafe << endl;
 
       m2b = single_bh[0];	 
-      a2b = func.spin(m2b, stype);
+      a2b = func.spin(m2b, stype, mgap_Z);
 
-      func.DiCarlo_BHs(&m1, &m2b, &a1, &a2b, Zmet, true, uppergap, fupgp, a_gp, mass_gap, upgtp, stype); // We check if we have to put one of the two BHs in the upper gap
+      func.DiCarlo_BHs(&m1, &m2b, &a1, &a2b, Zmet, true, uppergap, fupgp, a_gp, mass_gap, upgtp, stype, mgap_Z); // We check if we have to put one of the two BHs in the upper gap
 
       m2b_hg.push_back(m2b); // store the companion of the secondary mass 
       // a2b = func.spin(m2b, stype);
@@ -634,7 +634,7 @@ int main(){
   
   string isospin = spinlb;  
   string dynaS   = spinlb;
-  
+
   if(spinlb == "mixed"){
     isospin = "maxwellian02";
     dynaS   = "fuller";
@@ -642,6 +642,13 @@ int main(){
   else if(spinlb== "mixedhigh"){
     isospin = "gaussian";
     dynaS   = "fuller";
+  }
+  
+  // for bavera21 we cannot implement the same for isolated and dynamical, thus we distinguish second formed BH 
+  // from stellar-merger/mass    accreted BHs
+  else if(spinlb == "bavera21"){
+    isospin = "bavera21";      // isolate: fit Bavera, Zevin & Fragos 2021
+    dynaS   = "bavera_sse";    // dinamiche: 0.001 sotto il max SSE, U(0,1) sopra
   }
   
   string isolS = isospin;
@@ -1424,6 +1431,16 @@ int main(){
           asec = apri_try;
         }
       }
+
+      else if(isospin == "bavera21"){
+        const double p_day     = 365.25 * sqrt(pow(sma_iso[ext], 3.) / (mpri + msec));  // a in AU
+        const bool   pri_first = (mpro1[ext] > mpro2[ext]);       // first born ussually from most massive progenitor at zams
+        const double m_wr      = fwr * (pri_first ? msec : mpri);
+        const double a_first   = func.spin(pri_first ? mpri : msec, "fuller");
+        const double a_second  = func.spin_bavera21(p_day, m_wr);
+        apri = pri_first ? a_first  : a_second;
+        asec = pri_first ? a_second : a_first;
+      }
       
       else{
         apri   = func.spin(mpri,isospin);
@@ -2190,7 +2207,7 @@ int main(){
           }while(mpri <= 0.0 || kpri > vthre);
         }
         
-        apri = func.spin(mpri, dynaS);
+        apri = func.spin(mpri, dynaS, maximus);
         
         if(nsafe == 1000)
           cout<<"Wrong BH"<<endl;
@@ -2279,7 +2296,7 @@ int main(){
           /*if(highgen == "yes"){
           //Work by Ugolini et al in prep.
           }*/
-          asec = func.spin(msec, dynaS);
+          asec = func.spin(msec, dynaS, maximus);
           // if(dynaS != "bavera")
           //   asec = func.spin(msec,dynaS);	
           // else
@@ -2305,8 +2322,8 @@ int main(){
           }
         }
 
-        func.DiCarlo_BHs(&mpri, &msec, &apri, &asec, Z[i], false, uppergap, fupgp, a_gp, mass_gap, upgtp, dynaS);	  
-        apri = func.spin(mpri, dynaS);
+        func.DiCarlo_BHs(&mpri, &msec, &apri, &asec, Z[i], false, uppergap, fupgp, a_gp, mass_gap, upgtp, dynaS, maximus);	  
+        //apri = func.spin(mpri, dynaS);
 
         nsafe_glob += nsafe;
         double dmy = func.rnd();
@@ -2933,7 +2950,7 @@ int main(){
                 }
                 
               }while(msec <= 0.0 || ksec > vthre);
-            asec = func.spin(msec, dynaS);
+            asec = func.spin(msec, dynaS, maximus);
             // if(dynaS != "bavera")
             //   asec = func.spin(msec,dynaS);	
             // else
@@ -2965,7 +2982,7 @@ int main(){
               nhigen = 0;
               interaction_rate = 0.0;
 
-              hgen(func, mpri, apri, msec, asec, ksec, vthre, dynaS, Z[i], zams_sin, remn_sin, tdel_sin, kick_sin, zams_mix, remn_mix, tdel_mix, kick_mix,
+              hgen(func, mpri, apri, msec, asec, ksec, vthre, dynaS, Z[i], maximus, zams_sin, remn_sin, tdel_sin, kick_sin, zams_mix, remn_mix, tdel_mix, kick_mix,
                   Comp, Spinning, nbhs, gen_primary, nmerg_budget, nmerg_tot, itot, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time-tfor[i], t_last_call, tcc, pcluster, mixer, sec_hg, min_hier, hgen_scratch);
               
               msec = Comp[0];
@@ -2995,7 +3012,7 @@ int main(){
               if(nsafe > 1000)
                 break;
             }while(msec <= 0.0 || ksec > vthre);
-            asec = func.spin(msec, dynaS);
+            asec = func.spin(msec, dynaS, maximus);
             // if(dynaS != "bavera")
             //   asec = func.spin(msec,dynaS);	
             // else
@@ -3028,7 +3045,7 @@ int main(){
               nhigen = 0;
               interaction_rate = 0.0;
 
-              hgen(func, mpri, apri, msec, asec, ksec, vthre, dynaS, Z[i], zams_sin, remn_sin, tdel_sin, kick_sin, zams_mix, remn_mix, tdel_mix, kick_mix,
+              hgen(func, mpri, apri, msec, asec, ksec, vthre, dynaS, Z[i], maximus, zams_sin, remn_sin, tdel_sin, kick_sin, zams_mix, remn_mix, tdel_mix, kick_mix,
                 Comp, Spinning, nbhs, gen_primary, nmerg_budget, nmerg_tot, itot, mhalf, m_core, r_core, fb, gw_recoil, gw_recoil_cdf, trelax0, t12capt, time-tfor[i], t_last_call, tcc, pcluster, mixer, sec_hg, min_hier, hgen_scratch);
 
               msec = Comp[0];
